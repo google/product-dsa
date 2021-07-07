@@ -16,12 +16,13 @@
 # python3
 """Cloud Environment setup module for initial installation.
 
-This module automates the following 4 steps:
+This module automates the following steps:
   1. Create GMC BigQuery Data Transfer
   2. Setup tables and views in BigQuery
 """
 
 import argparse
+from io import TextIOWrapper
 import logging
 import os
 from typing import NamedTuple, Dict, Union
@@ -36,7 +37,6 @@ import cloud_bigquery
 import cloud_data_transfer
 
 
-
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
@@ -49,13 +49,15 @@ _DATASET_ID = 'gmcdsa'
 
 
 class Config(object):
-    project_id: str
-    dataset_location: str
-    dataset_id: str
-    merchant_id: str
-    def update(self, kw):
-        for k in kw:
-            setattr(self, k, kw[k])
+  project_id: str
+  dataset_location: str
+  dataset_id: str
+  merchant_id: int
+
+  def update(self, kw):
+    for k in kw:
+      setattr(self, k, kw[k])
+
 
 def parse_arguments() -> argparse.Namespace:
   """Initialize command line parser using argparse.
@@ -66,18 +68,14 @@ def parse_arguments() -> argparse.Namespace:
   parser = argparse.ArgumentParser()
   parser.add_argument('--config', help='Config file name')
   parser.add_argument('--project_id', help='GCP project id.')
-  parser.add_argument(
-      '--dataset_id',
-      help='BigQuery dataset id.',
-      default=_DATASET_ID)
-  parser.add_argument(
-      '--merchant_id', help='Google Merchant Center Account Id.')
-  parser.add_argument('--client-secrets-file', dest='client_secrets_file', 
-      help='Path to user secrets file with oauth credentials (authenticating as a user).')
-  parser.add_argument('--service-account-key-file', dest='service_account_file', 
-      help='Path to service account key file (authenticating as a service account).')
-  parser.add_argument('--non-interactive', dest='non_interactive', 
-      help='Specify if using client-secrets-file option and running via ssh.')
+  parser.add_argument('--dataset_id', help='BigQuery dataset id.', default=_DATASET_ID)
+  parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
+  parser.add_argument('--client-secrets-file', dest='client_secrets_file',
+                      help='Path to user secrets file with oauth credentials (authenticating as a user).')
+  parser.add_argument('--service-account-key-file', dest='service_account_file',
+                      help='Path to service account key file (authenticating as a service account).')
+  parser.add_argument('--non-interactive', dest='non_interactive',
+                      help='Specify if using client-secrets-file option and running via ssh.')
   # parser.add_argument(
   #     '--ads_customer_id',
   #     help='Google Ads External Customer Id.',
@@ -85,6 +83,10 @@ def parse_arguments() -> argparse.Namespace:
 
   return parser.parse_args()
 
+def open_relative_file(file_name: str) -> TextIOWrapper:
+  """Opens a file for reading relatively to the current module."""
+  working_directory = os.path.dirname(__file__)
+  return open(os.path.join(working_directory, file_name), "r")
 
 def load_language_codes(project_id: str, dataset_id: str) -> None:
   """Loads language codes."""
@@ -96,7 +98,7 @@ def load_language_codes(project_id: str, dataset_id: str) -> None:
       autodetect=True,
   )
   file_name = 'data/language_codes.csv'
-  with open(file_name, 'rb') as source_file:
+  with open_relative_file(file_name) as source_file:
     job = client.load_table_from_file(
         source_file, fully_qualified_table_id, job_config=job_config)
 
@@ -107,7 +109,7 @@ def get_credentials(args: argparse.Namespace) -> credentials.Credentials:
   if args.client_secrets_file:
     try:
       appflow = flow.InstalledAppFlow.from_client_secrets_file(
-        args.client_secrets_file, scopes=_SCOPES)
+          args.client_secrets_file, scopes=_SCOPES)
       if args.non_interactive:
         appflow.run_console()
       else:
@@ -115,14 +117,14 @@ def get_credentials(args: argparse.Namespace) -> credentials.Credentials:
       credentials = appflow.credentials
     except ValueError as e:
       raise Exception(
-        "Invalid json file for web app authenication") from e
+          "Invalid json file for web app authenication") from e
   elif args.service_account_file:
     try:
       credentials = service_account.Credentials.from_service_account_file(
-        args.service_account_file, _SCOPES)
+          args.service_account_file, _SCOPES)
     except ValueError as e:
       raise Exception(
-        "Invalid json file for service account authenication") from e
+          "Invalid json file for service account authenication") from e
   else:
     credentials = google.auth.default()
 
@@ -132,34 +134,32 @@ def get_credentials(args: argparse.Namespace) -> credentials.Credentials:
 def get_config(args: argparse.Namespace) -> Config:
   config_file_name = args.config or 'config.yaml'
   """ Read config.yml file and return Config object."""
-  working_directory = os.path.dirname(__file__)
-  with open(os.path.join(working_directory, config_file_name), "r") as config_file:
-      cfg_dict = yaml.load(config_file, Loader = yaml.SafeLoader)
-      config = Config()
-      config.update(cfg_dict)
-      if (args.project_id):
-        config.project_id = args.project_id
-      if (args.dataset_id):
-        config.dataset_id = args.dataset_id
-      if (args.merchant_id):
-        config.merchant_id = args.merchant_id
-      return config
+  with open_relative_file(config_file_name) as config_file:
+    cfg_dict = yaml.load(config_file, Loader=yaml.SafeLoader)
+    config = Config()
+    config.update(cfg_dict)
+    if (args.project_id):
+      config.project_id = args.project_id
+    if (args.dataset_id):
+      config.dataset_id = args.dataset_id
+    if (args.merchant_id):
+      config.merchant_id = args.merchant_id
+    return config
+
 
 def main():
   args = parse_arguments()
-  #logging.info('Enabling APIs.')
-  #enable_apis(args.project_id)
-  #logging.info('Enabled APIs.')
+
   config = get_config(args)
   credentials = get_credentials(args)
-  #logging.info(f'Starting installation using config: {yaml.safe_dump(config)}')
-  print(config)
+  #TODO: dump config to log logging
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_util = cloud_bigquery.CloudBigQueryUtils(config.project_id, credentials)
   bigquery_util.create_dataset_if_not_exists(config.dataset_id, config.dataset_location)
 
-  data_transfer = cloud_data_transfer.CloudDataTransferUtils(config.project_id, config.dataset_location, credentials)
+  data_transfer = cloud_data_transfer.CloudDataTransferUtils(config.project_id,
+      config.dataset_location, credentials)
   merchant_center_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id)
 
@@ -184,7 +184,7 @@ def main():
 
   # logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.
-  #sql_files = [
+  # sql_files = [
   #    '1_product_view.sql',
   #    'targeted_products/targeted_product_ddl.sql',
   #    'targeted_products/construct_parsed_criteria.sql',
@@ -193,9 +193,9 @@ def main():
   #    '4_product_detailed_view.sql',
   #    'materialize_product_detailed.sql',
   #    'materialize_product_historical.sql',
-  #]
+  # ]
   # cloud_bigquery.execute_queries(sql_files, args.project_id, args.dataset_id, args.merchant_id, ads_customer_id)
-  
+
   # logging.info('Updating targeted products')
   # query_params = {
   #     'project_id': args.project_id,

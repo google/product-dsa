@@ -51,9 +51,9 @@ class DataTransferError(Error):
 class CloudDataTransferUtils(object):
   """This class provides methods to manage BigQuery data transfers.
 
-  Typical usage example:
-    >>> data_transfer = CloudDataTransferUtils('project_id')
-    >>> data_transfer.create_merchant_center_transfer(12345, 'dataset_id')
+    Typical usage example:
+      >>> data_transfer = CloudDataTransferUtils('project_id')
+      >>> data_transfer.create_merchant_center_transfer(12345, 'dataset_id')
   """
 
   def __init__(self, project_id: str, dataset_location: str, credentials: credentials.Credentials):
@@ -64,7 +64,8 @@ class CloudDataTransferUtils(object):
     """
     self.project_id = project_id
     self.dataset_location = dataset_location
-    self.client = bigquery_datatransfer_v1.DataTransferServiceClient(credentials=credentials)
+    self.client = bigquery_datatransfer_v1.DataTransferServiceClient(
+        credentials=credentials)
 
   def wait_for_transfer_completion(self, transfer_config: Dict[str, Any]) -> None:
     """Waits for the completion of data transfer operation.
@@ -79,12 +80,11 @@ class CloudDataTransferUtils(object):
     Raises:
       DataTransferError: If the data transfer is not successfully completed.
     """
-    # TODO: Use exponential back-off for polling.
+    # TODO: instead of polling use pub/sub notification
     transfer_config_name = transfer_config.name
     transfer_config_id = transfer_config_name.split('/')[-1]
     poll_counter = 0  # Counter to keep polling count.
     while True:
-      #transfer_config_path = self.client.location_transfer_config_path(self.project_id, config_parser.get_dataset_location(), transfer_config_id)
       transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
       response = self.client.list_transfer_runs(parent=transfer_config_path)
       latest_transfer = None
@@ -103,13 +103,13 @@ class CloudDataTransferUtils(object):
         logging.error(error_message)
         raise DataTransferError(error_message)
       logging.info(
-          'Transfer %s still in progress. Sleeping for %s seconds before '
+         'Transfer %s still in progress. Sleeping for %s seconds before '
           'checking again.', transfer_config_name, _SLEEP_SECONDS)
       time.sleep(_SLEEP_SECONDS)
       poll_counter += 1
       if poll_counter >= _MAX_POLL_COUNTER:
         error_message = (f'Transfer {transfer_config_name} is taking too long'
-                         ' to finish. Hence failing the request.')
+                          ' to finish. Hence failing the request.')
         logging.error(error_message)
         raise DataTransferError(error_message)
 
@@ -120,7 +120,7 @@ class CloudDataTransferUtils(object):
     """Gets data transfer if it already exists.
 
     Args:
-      data_source_id: Data source id.
+      data_source_id: Data source id for GMC Data Transfer.
       destination_dataset_id: BigQuery dataset id.
       params: Data transfer specific parameters.
 
@@ -196,7 +196,7 @@ class CloudDataTransferUtils(object):
     return new_transfer_config
 
   def create_merchant_center_transfer(
-      self, merchant_id: str,
+      self, merchant_id: int,
       destination_dataset: str) -> types.TransferConfig:
     """Creates a new merchant center transfer.
 
@@ -212,7 +212,7 @@ class CloudDataTransferUtils(object):
     """
     logging.info('Creating Merchant Center Transfer.')
     parameters = struct_pb2.Struct()
-    parameters['merchant_id'] = merchant_id
+    parameters['merchant_id'] = str(merchant_id)  # w/o str the value will be converted to float and cause an API error
     parameters['export_products'] = True
     # "export_regional_inventories":"true",
     # "export_local_inventories":"true",
@@ -229,14 +229,8 @@ class CloudDataTransferUtils(object):
     logging.info(
         f'Creating a new data transfer for merchant id {merchant_id} to destination dataset {destination_dataset}')
 
-    #has_valid_credentials = self._check_valid_credentials(_MERCHANT_CENTER_ID)
-    #authorization_code = None
-    #if not has_valid_credentials:
-    #  authorization_code = self._get_authorization_code(_MERCHANT_CENTER_ID)
-
-    #parent = self.client.location_path(self.project_id, dataset_location)
     parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
-    
+
     transfer_config_input = {
         'display_name': f'Merchant Center Transfer - {merchant_id}',
         'data_source_id': _MERCHANT_CENTER_ID,
@@ -247,10 +241,10 @@ class CloudDataTransferUtils(object):
     request = types.CreateTransferConfigRequest()
     request.parent = parent
     request.transfer_config = transfer_config_input
-    #request.authorization_code = authorization_code
 
-    logging.info(f'Creating BQ Data Transfer in {parent} for merchant id {merchant_id} to destination dataset {destination_dataset}')
-    transfer_config = self.client.create_transfer_config(request = request)
+    logging.info(
+        f'Creating BQ Data Transfer in {parent} for merchant id {merchant_id} to destination dataset {destination_dataset}')
+    transfer_config = self.client.create_transfer_config(request=request)
     logging.info(
         'Data transfer created for merchant id %s to destination dataset %s',
         merchant_id, destination_dataset)
@@ -301,7 +295,7 @@ class CloudDataTransferUtils(object):
     request = types.CreateTransferConfigRequest()
     request.parent = parent
     request.transfer_config = transfer_config_input
-    transfer_config = self.client.create_transfer_config(request = request)
+    transfer_config = self.client.create_transfer_config(request=request)
     logging.info(
         'Data transfer created for Google Ads customer id %s to destination '
         'dataset %s', customer_id, destination_dataset)
@@ -311,15 +305,18 @@ class CloudDataTransferUtils(object):
       start_time = datetime.datetime.now(tz=pytz.utc) - datetime.timedelta(
           days=backfill_days)
       end_time = datetime.datetime.now(tz=pytz.utc)
-      start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
-      end_time = end_time.replace(hour=0, minute=0, second=0, microsecond=0)
-      #parent = self.client.location_transfer_config_path(self.project_id, dataset_location, transfer_config_id)
+      start_time = start_time.replace(
+          hour=0, minute=0, second=0, microsecond=0)
+      end_time = end_time.replace(
+          hour=0, minute=0, second=0, microsecond=0)
+      # parent = self.client.location_transfer_config_path(self.project_id, dataset_location, transfer_config_id)
       parent = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
       start_time_pb = timestamp_pb2.Timestamp()
       end_time_pb = timestamp_pb2.Timestamp()
       start_time_pb.FromDatetime(start_time)
       end_time_pb.FromDatetime(end_time)
-      self.client.schedule_transfer_runs(parent=parent, start_time=start_time_pb, end_time=end_time_pb)
+      self.client.schedule_transfer_runs(
+          parent=parent, start_time=start_time_pb, end_time=end_time_pb)
     return transfer_config
 
   def schedule_query(self,
@@ -336,11 +333,12 @@ class CloudDataTransferUtils(object):
     parameters = struct_pb2.Struct()
     parameters['query'] = query_string
     if data_transfer_config:
-      logging.info('Data transfer for scheduling query "%s" already exists.', name)
+      logging.info(
+          'Data transfer for scheduling query "%s" already exists.', name)
       return self._update_existing_transfer(data_transfer_config, parameters)
     parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
     params = {
-      'query': query_string,
+        'query': query_string,
     }
     transfer_config_input = google.protobuf.json_format.ParseDict(
       {
@@ -351,13 +349,8 @@ class CloudDataTransferUtils(object):
       },
       bigquery_datatransfer_v1.types.TransferConfig(),
     )
-    has_valid_credentials = self._check_valid_credentials('scheduled_query')
-    authorization_code = ''
-    if not has_valid_credentials:
-      authorization_code = self._get_authorization_code('scheduled_query')
     request = types.CreateTransferConfigRequest()
     request.parent = parent
     request.transfer_config = transfer_config_input
-    request.authorization_code = authorization_code  
-    transfer_config = self.client.create_transfer_config(request = request)
+    transfer_config = self.client.create_transfer_config(request=request)
     return transfer_config

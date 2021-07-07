@@ -62,7 +62,6 @@ class CloudBigQueryUtils(object):
       self.client.create_dataset(dataset)
       logging.info('Dataset %s created.', fully_qualified_dataset_id)
 
-
   def read_file(self, file_path: str) -> str:
     """Reads and returns contents of the file.
 
@@ -79,10 +78,10 @@ class CloudBigQueryUtils(object):
       with open(file_path, 'r') as stream:
         content = stream.read()
     except FileNotFoundError:
-      raise FileNotFoundError(f'The file "{file_path}" could not be found.')
+      raise FileNotFoundError(
+        f'The file "{file_path}" could not be found.')
     else:
       return content
-
 
   def configure_sql(self, sql_path: str, query_params: Dict[str, Any]) -> str:
     """Configures parameters of SQL script with variables supplied.
@@ -107,27 +106,27 @@ class CloudBigQueryUtils(object):
 
     return sql_script.format(**params)
 
-
   def execute_queries(self, sql_files: Sequence[str], dataset_id: str, dataset_location: str, merchant_id: str, customer_id: str) -> None:
     """Executes list of queries."""
 
     prefix = 'scripts'
     query_params = {
-        'project_id': self.project_id,
-        'dataset': dataset_id,
-        'merchant_id': merchant_id,
-        'external_customer_id': customer_id
+      'project_id': self.project_id,
+      'dataset': dataset_id,
+      'merchant_id': merchant_id,
+      'external_customer_id': customer_id
     }
 
     for sql_file in sql_files:
       try:
-        query = self.configure_sql(os.path.join(prefix, sql_file), query_params)
+        query = self.configure_sql(
+            os.path.join(prefix, sql_file), 
+            query_params)
         query_job = self.client.query(query, location=dataset_location)
         query_job.result()
       except:
         logging.exception('Error in %s', sql_file)
         raise
-
 
   def get_main_workflow_sql(self, dataset_id: str, merchant_id: str,
                             customer_id: str) -> str:
@@ -140,9 +139,9 @@ class CloudBigQueryUtils(object):
       customer_id: Google Ads customer id.
     """
     query_params = {
-        'project_id': self.project_id,
-        'dataset': dataset_id,
-        'merchant_id': merchant_id,
-        'external_customer_id': customer_id
+      'project_id': self.project_id,
+      'dataset': dataset_id,
+      'merchant_id': merchant_id,
+      'external_customer_id': customer_id
     }
     return self.configure_sql(_MAIN_WORKFLOW_SQL, query_params)

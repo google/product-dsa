@@ -64,8 +64,7 @@ class CloudDataTransferUtils(object):
     """
     self.project_id = project_id
     self.dataset_location = dataset_location
-    self.client = bigquery_datatransfer_v1.DataTransferServiceClient(
-        credentials=credentials)
+    self.client = bigquery_datatransfer_v1.DataTransferServiceClient(credentials=credentials)
 
   def wait_for_transfer_completion(self, transfer_config: Dict[str, Any]) -> None:
     """Waits for the completion of data transfer operation.

@@ -32,6 +32,7 @@ from google_auth_oauthlib import flow
 from google.auth import credentials
 from google.cloud import bigquery
 import yaml
+from pprint import pprint
 
 import cloud_bigquery
 import cloud_data_transfer
@@ -46,13 +47,14 @@ _SCOPES = ['https://www.googleapis.com/auth/cloud-platform',
 
 # BigQuery dataset name to use by default
 _DATASET_ID = 'gmcdsa'
-
+# Location for BigQuery dataset and BQ data transfers to use by default
+_DATASET_LOCATION = 'us'
 
 class Config(object):
-  project_id: str
-  dataset_location: str
-  dataset_id: str
-  merchant_id: int
+  project_id: str = ''
+  dataset_location: str = ''
+  dataset_id: str = ''
+  merchant_id: int = 0
 
   def update(self, kw):
     for k in kw:
@@ -69,8 +71,8 @@ def parse_arguments() -> argparse.Namespace:
   parser.add_argument('--config', help='Config file name')
   parser.add_argument('--project_id', help='GCP project id.')
   parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
-  parser.add_argument('--dataset_id', help='BigQuery dataset id.', default=_DATASET_ID)
-  parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).', default=_DATASET_ID)
+  parser.add_argument('--dataset_id', help='BigQuery dataset id.')
+  parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).')
 
   parser.add_argument('--client-secrets-file', dest='client_secrets_file',
                       help='Path to user secrets file with oauth credentials (authenticating as a user).')
@@ -85,14 +87,16 @@ def parse_arguments() -> argparse.Namespace:
 
   return parser.parse_args()
 
+
 def open_relative_file(file_name: str) -> TextIOWrapper:
   """Opens a file for reading relatively to the current module."""
   working_directory = os.path.dirname(__file__)
-  return open(os.path.join(working_directory, file_name), "r")
+  return open(os.path.join(working_directory, file_name), "rb")
 
-def load_language_codes(project_id: str, dataset_id: str) -> None:
+
+def load_language_codes(project_id: str, dataset_id: str, credentials: credentials.Credentials) -> None:
   """Loads language codes."""
-  client = bigquery.Client(project=project_id)
+  client = bigquery.Client(project=project_id, credentials=credentials)
   fully_qualified_table_id = f'{project_id}.{dataset_id}.language_codes'
   job_config = bigquery.LoadJobConfig(
       source_format=bigquery.SourceFormat.CSV,
@@ -144,8 +148,12 @@ def get_config(args: argparse.Namespace) -> Config:
       config.project_id = args.project_id
     if (args.dataset_id):
       config.dataset_id = args.dataset_id
+    elif (not config.dataset_id):
+      config.dataset_id = _DATASET_ID
     if (args.dataset_location):
       config.dataset_location = args.dataset_location
+    elif (not config.dataset_location):
+      config.dataset_location = _DATASET_LOCATION
     if (args.merchant_id):
       config.merchant_id = args.merchant_id
     return config
@@ -155,8 +163,8 @@ def main():
   args = parse_arguments()
 
   config = get_config(args)
+  pprint(vars(config))
   credentials = get_credentials(args)
-  #TODO: dump config to logging
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_util = cloud_bigquery.CloudBigQueryUtils(config.project_id, credentials)
@@ -184,7 +192,7 @@ def main():
   # data_transfer.wait_for_transfer_completion(ads_config)
   # logging.info('The Google Ads data have been successfully transferred.')
 
-  load_language_codes(args.project_id, args.dataset_id)
+  #load_language_codes(args.project_id, args.dataset_id, credentials)
 
   # logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.

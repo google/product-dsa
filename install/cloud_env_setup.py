@@ -68,8 +68,10 @@ def parse_arguments() -> argparse.Namespace:
   parser = argparse.ArgumentParser()
   parser.add_argument('--config', help='Config file name')
   parser.add_argument('--project_id', help='GCP project id.')
-  parser.add_argument('--dataset_id', help='BigQuery dataset id.', default=_DATASET_ID)
   parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
+  parser.add_argument('--dataset_id', help='BigQuery dataset id.', default=_DATASET_ID)
+  parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).', default=_DATASET_ID)
+
   parser.add_argument('--client-secrets-file', dest='client_secrets_file',
                       help='Path to user secrets file with oauth credentials (authenticating as a user).')
   parser.add_argument('--service-account-key-file', dest='service_account_file',
@@ -142,6 +144,8 @@ def get_config(args: argparse.Namespace) -> Config:
       config.project_id = args.project_id
     if (args.dataset_id):
       config.dataset_id = args.dataset_id
+    if (args.dataset_location):
+      config.dataset_location = args.dataset_location
     if (args.merchant_id):
       config.merchant_id = args.merchant_id
     return config
@@ -152,7 +156,7 @@ def main():
 
   config = get_config(args)
   credentials = get_credentials(args)
-  #TODO: dump config to log logging
+  #TODO: dump config to logging
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_util = cloud_bigquery.CloudBigQueryUtils(config.project_id, credentials)

@@ -55,6 +55,7 @@ class Config(object):
   dataset_location: str = ''
   dataset_id: str = ''
   merchant_id: int = 0
+  ads_customer_id: str = ''
 
   def update(self, kw):
     for k in kw:
@@ -80,10 +81,7 @@ def parse_arguments() -> argparse.Namespace:
                       help='Path to service account key file (authenticating as a service account).')
   parser.add_argument('--non-interactive', dest='non_interactive',
                       help='Specify if using client-secrets-file option and running via ssh.')
-  # parser.add_argument(
-  #     '--ads_customer_id',
-  #     help='Google Ads External Customer Id.',
-  #     required=True)
+  parser.add_argument('--ads_customer_id', help='Google Ads External Customer Id.')
 
   return parser.parse_args()
 
@@ -156,6 +154,9 @@ def get_config(args: argparse.Namespace) -> Config:
       config.dataset_location = _DATASET_LOCATION
     if (args.merchant_id):
       config.merchant_id = args.merchant_id
+    if (args.ads_customer_id):
+      config.ads_customer_id = args.ads_customer_id
+
     return config
 
 
@@ -175,7 +176,7 @@ def main():
   merchant_center_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id)
 
-  # ads_customer_id = args.ads_customer_id.replace('-', '')
+  ads_customer_id = config.ads_customer_id.replace('-', '')
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id,
   #                                                       args.dataset_id)
   try:
@@ -192,37 +193,31 @@ def main():
   # data_transfer.wait_for_transfer_completion(ads_config)
   # logging.info('The Google Ads data have been successfully transferred.')
 
-  #load_language_codes(args.project_id, args.dataset_id, credentials)
+  # load_language_codes(args.project_id, args.dataset_id)
 
-  # logging.info('Creating solution specific views.')
+  logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.
-  # sql_files = [
-  #    '1_product_view.sql',
-  #    'targeted_products/targeted_product_ddl.sql',
-  #    'targeted_products/construct_parsed_criteria.sql',
-  #    '2_product_metrics_view.sql',
-  #    '3_customer_view.sql',
-  #    '4_product_detailed_view.sql',
-  #    'materialize_product_detailed.sql',
-  #    'materialize_product_historical.sql',
-  # ]
-  # cloud_bigquery.execute_queries(sql_files, args.project_id, args.dataset_id, args.merchant_id, ads_customer_id)
+  sql_files = [
+     'product_filter.sql',
+  ]
+  bigquery_util.execute_queries(sql_files, config.dataset_id, config.dataset_location,
+    config.merchant_id, ads_customer_id)
 
-  # logging.info('Updating targeted products')
-  # query_params = {
-  #     'project_id': args.project_id,
-  #     'dataset': args.dataset_id,
-  #     'merchant_id': args.merchant_id,
-  #     'external_customer_id': ads_customer_id
-  # }
-  # query = cloud_bigquery.get_main_workflow_sql(
-  #   args.project_id, args.dataset_id, args.merchant_id, ads_customer_id)
-  # data_transfer.schedule_query(f'Main workflow - {args.dataset_id} - {ads_customer_id}',
-  #                              query)
-  # logging.info('Job created to run markup main workflow.')
+  logging.info('Curating PageFeeds URLs')
+  query_params = {
+      'project_id': config.project_id,
+      'dataset': config.dataset_id,
+      'merchant_id': config.merchant_id
+  }
+  query = bigquery_util.get_main_workflow_sql( config.dataset_id,
+    config.merchant_id, config.ads_customer_id)
+  data_transfer.schedule_query(f'Product DSA workflow - {config.dataset_id} - {config.merchant_id}',
+                               query)
+  logging.info('Job created to run Product DSA main workflow.')
 
   logging.info('installation is complete!')
 
 
 if __name__ == '__main__':
   main()
+

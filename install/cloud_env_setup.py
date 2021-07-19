@@ -92,23 +92,6 @@ def open_relative_file(file_name: str) -> TextIOWrapper:
   return open(os.path.join(working_directory, file_name), "rb")
 
 
-def load_language_codes(project_id: str, dataset_id: str, credentials: credentials.Credentials) -> None:
-  """Loads language codes."""
-  client = bigquery.Client(project=project_id, credentials=credentials)
-  fully_qualified_table_id = f'{project_id}.{dataset_id}.language_codes'
-  job_config = bigquery.LoadJobConfig(
-      source_format=bigquery.SourceFormat.CSV,
-      skip_leading_rows=1,
-      autodetect=True,
-  )
-  file_name = 'data/language_codes.csv'
-  with open_relative_file(file_name) as source_file:
-    job = client.load_table_from_file(
-        source_file, fully_qualified_table_id, job_config=job_config)
-
-  job.result()
-
-
 def get_credentials(args: argparse.Namespace) -> credentials.Credentials:
   if args.client_secrets_file:
     try:
@@ -192,8 +175,6 @@ def main():
   # logging.info('Checking the Google Ads data transfer status.')
   # data_transfer.wait_for_transfer_completion(ads_config)
   # logging.info('The Google Ads data have been successfully transferred.')
-
-  # load_language_codes(args.project_id, args.dataset_id)
 
   logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.

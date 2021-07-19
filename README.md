@@ -5,6 +5,8 @@
 
 ## 2. Installation
 
+>WIP: please ignore the content
+
 ### 2.1 Create/use a Google Cloud Project(GCP) with a billing account
 
 * [How to Creating and Managing Projects](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
@@ -62,4 +64,8 @@ or via gcloud:
 ```shell
 gcloud auth activate-service-account --key-file=/home/user/product-dsas/service_account.json
 ./setup.sh
+```
+You can also run using Application Default Creadentials, just execute in your shell first:
+```
+gcloud auth application-default login
 ```

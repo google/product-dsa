@@ -23,7 +23,7 @@ def filterByColumnExpression(columns_opts) -> str:
     column_value = column_opts['value']
     if (len(column_value) > 1):
       in_expr = ''
-      for val in column_value:        
+      for val in column_value:
         in_expr += f"'{val}', "
       expression = f"{column_name} IN [{in_expr[-1]}]"
     else:
@@ -103,8 +103,7 @@ def create_page_feed(cfg, context):
 def generate_campaign_for_adeditor(context):
   pass
 
-def get_config(args: argparse.Namespace):
-  config_file_name = args.config or 'config.yaml'
+def get_config(config_file_name = 'config.yaml'):
   """ Read config.yml file and return Config object."""
   with open(config_file_name, "r") as config_file:
     cfg_dict = yaml.load(config_file, Loader=yaml.SafeLoader)
@@ -115,12 +114,12 @@ def main():
   args = parse_arguments()
   credentials = auth.get_credentials(args)
 
-  config = get_config('config.yaml')
+  config = get_config()
 
   if not len(config['scenarios']):
     print('No scenarios are defined, exiting')
     exit()
-  
+
   context = {'stat': {}, 'xcom': {}}
   for scenario in config['scenarios']:
     ts = time.strftime('%H:%M:%S %z')

@@ -346,7 +346,7 @@ class CloudDataTransferUtils(object):
         'params': params,
         'schedule': 'every 24 hours',
       },
-      bigquery_datatransfer_v1.types.TransferConfig(),
+      bigquery_datatransfer_v1.types.TransferConfig()._pb,
     )
     request = types.CreateTransferConfigRequest()
     request.parent = parent

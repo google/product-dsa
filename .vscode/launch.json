@@ -9,10 +9,27 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/install/cloud_env_setup.py",
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "args": [
         "--client-secrets-file", "client_secrets.json"        
-      ],      
+      ],
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }, {
+      "name": "Python: debug main script",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/app/main.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": [
+        "--client-secrets-file", "client_secrets.json"        
+      ],
+      "env": {
+        "PYTHONPATH": "."
+      }
     }
   ]
 }

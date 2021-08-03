@@ -2,7 +2,19 @@ import time
 import os
 import argparse
 import yaml
+from common import auth
 import wf_execute_sql
+
+def parse_arguments() -> argparse.Namespace:
+  """Initialize command line parser using argparse.
+
+  Returns:
+    An argparse.ArgumentParser.
+  """
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--config', help='Config file name')
+  auth.add_auth_arguments(parser)
+  return parser.parse_args()
 
 def filterByColumnExpression(columns_opts) -> str:
   expression = ''
@@ -100,7 +112,11 @@ def get_config(args: argparse.Namespace):
 
 
 def main():
+  args = parse_arguments()
+  credentials = auth.get_credentials(args)
+
   config = get_config('config.yaml')
+
   if not len(config['scenarios']):
     print('No scenarios are defined, exiting')
     exit()

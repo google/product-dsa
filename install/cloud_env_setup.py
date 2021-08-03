@@ -26,14 +26,11 @@ from io import TextIOWrapper
 import logging
 import os
 from typing import NamedTuple, Dict, Union
-import google.auth
-from google.oauth2 import service_account  # type: ignore
-from google_auth_oauthlib import flow
-from google.auth import credentials
 from google.cloud import bigquery
 import yaml
 from pprint import pprint
 
+from common import auth
 import cloud_bigquery
 import cloud_data_transfer
 
@@ -74,14 +71,9 @@ def parse_arguments() -> argparse.Namespace:
   parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
   parser.add_argument('--dataset_id', help='BigQuery dataset id.')
   parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).')
-
-  parser.add_argument('--client-secrets-file', dest='client_secrets_file',
-                      help='Path to user secrets file with oauth credentials (authenticating as a user).')
-  parser.add_argument('--service-account-key-file', dest='service_account_file',
-                      help='Path to service account key file (authenticating as a service account).')
-  parser.add_argument('--non-interactive', dest='non_interactive',
-                      help='Specify if using client-secrets-file option and running via ssh.')
   parser.add_argument('--ads_customer_id', help='Google Ads External Customer Id.')
+
+  auth.add_auth_arguments(parser)
 
   return parser.parse_args()
 
@@ -90,32 +82,6 @@ def open_relative_file(file_name: str) -> TextIOWrapper:
   """Opens a file for reading relatively to the current module."""
   working_directory = os.path.dirname(__file__)
   return open(os.path.join(working_directory, file_name), "rb")
-
-
-def get_credentials(args: argparse.Namespace) -> credentials.Credentials:
-  if args.client_secrets_file:
-    try:
-      appflow = flow.InstalledAppFlow.from_client_secrets_file(
-          args.client_secrets_file, scopes=_SCOPES)
-      if args.non_interactive:
-        appflow.run_console()
-      else:
-        appflow.run_local_server()
-      credentials = appflow.credentials
-    except ValueError as e:
-      raise Exception(
-          "Invalid json file for web app authenication") from e
-  elif args.service_account_file:
-    try:
-      credentials = service_account.Credentials.from_service_account_file(
-          args.service_account_file, _SCOPES)
-    except ValueError as e:
-      raise Exception(
-          "Invalid json file for service account authenication") from e
-  else:
-    credentials = google.auth.default()
-
-  return credentials
 
 
 def get_config(args: argparse.Namespace) -> Config:
@@ -148,7 +114,7 @@ def main():
 
   config = get_config(args)
   pprint(vars(config))
-  credentials = get_credentials(args)
+  credentials = auth.get_credentials(args, _SCOPES)
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_util = cloud_bigquery.CloudBigQueryUtils(config.project_id, credentials)

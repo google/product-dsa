@@ -1,34 +1,4 @@
 dataset_location: us
 project_id: gmc-dsa-segy
 merchant_id: 117920006
-scenarios:
-  - 
-    name: scenario1
-    mode: one-to-one
-    filter:
-      filter-by: label
-      select-label: PDSA_Products   # a custom label to check to form a subset of products for DSA feed
-      select-label-column: custom_labels.label_1 # if omitted we'll check all custom_labels.* columns
-    page-feed:
-      feed-name: test-dsa-one2one      # name of DSA Feed in Google Ads
-      label-column: offer_id          # a GMC column's name to use as a source for labels in pagefeed
-    campaign:
-      use-image: true
-  -
-    name: scenario2
-    mode: many-to-one
-    filter:
-      filter-by: column
-      columns:
-        -
-          name: brand
-          value:
-            - Oackley
-            - Rudy Project
-            - Smith
-        -
-          name: target_country
-          value: US
-    page-feed:
-      feed-name: test-dsa-many2one
-      label-column: product_type      # a GMC column's name to use as a source for labels in pagefeed
+feed-name: test-dsa

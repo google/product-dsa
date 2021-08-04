@@ -1,4 +1,18 @@
 # Lint as: python3
+# coding=utf-8
+# Copyright 2021 Google LLC..
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """A workflow implementation for app.py. Run arbitrary sql from a file or files.
 
 Support reading sql files locally or from GCS.
@@ -6,18 +20,19 @@ Support reading sql files locally or from GCS.
 
 import time
 import datetime
+from google.auth import credentials
 from google.cloud import bigquery
 import cloud_utils
 
 def run(cfg, context):
   # either sql_file or sql_fiels can be used, but not together
   wf = ExecuteSqlWorkflow(
-    project_id = cfg['project_id'],
+    project_id = cfg.get('project_id'),
     sql_file = cfg.get('sql_file'),
     sql_files = cfg.get('sql_files'),
     macros = cfg.get('macros')
     )
-  wf.run(context)
+  return wf.run(context)
 
 
 class ExecuteSqlWorkflow:
@@ -49,15 +64,15 @@ class ExecuteSqlWorkflow:
     sql = self._substitute_macros(sql_template, context)
     #ts = time.strftime('%d %b %Y %H:%M:%S %z')
     #print(f'{ts}: Executing a query: ')
-    #print(sql)
-    bq_client = bigquery.Client()
+    bq_client = bigquery.Client(project=self.project_id, credentials=context['gcp_credentials'])
     # see https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery
     #job_config = bigquery.QueryJobConfig(destination='', write_disposition='WRITE_TRUNCATE')
-    print(sql)
+    #print(sql)
     query_job = bq_client.query(sql)
     res = query_job.result()
-    print(res)
+    return res
 
   def run(self, context):
     for tmpl in self.sql_templates:
-        self._execute_query(tmpl, context)
+      result = self._execute_query(tmpl, context)
+    return result

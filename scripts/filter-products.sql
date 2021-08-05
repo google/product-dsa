@@ -13,19 +13,42 @@
 # limitations under the License.
 
 -- Filters the products from the latest snapshot of the GMC Data Transfer
--- based on a specific criteria
 --
--- This filtered view includes a subset of the products in the products feed 
--- containing a specified custom label. 
 -- The query only runs on in-stock products from the latest data transfer
 /*
 Parameters:
   - project_id
   - dataset
   - merchant_id
-  - max_rows
-  - filter_expression
 */
+
+-- Creates a command sepearated list of Product DSA's custom labels from custom_label GMC field
+CREATE OR REPLACE FUNCTION {dataset}.combineLabels(custom_labels STRUCT<label0 STRING, label1 STRING, label2 STRING, label3 STRING, label4 STRING>, offer_id STRING)
+RETURNS STRING
+LANGUAGE js
+AS r"""
+  function getLabelValue(label, offer_id) {{
+    if (!label) return null;
+    if (label.toUpperCase().indexOf('PDSA_PRODUCT') === 0) {{
+      return 'product_' + offer_id;
+    }}
+    let prefix = 'PDSA_CATEGORY_';
+    if (label.toUpperCase().indexOf(prefix) === 0) {{
+      return label.slice(prefix.length);
+    }}
+  }}
+  let result = '';
+  if (!custom_labels) return result;
+  for (label of Object.values(custom_labels)) {{
+    let norm_label = getLabelValue(label, offer_id);
+    if (norm_label) {{
+      if (result) result += ','
+      result += norm_label;
+    }}
+  }}
+  return result;
+""";
+
 CREATE OR REPLACE VIEW `{project_id}.{dataset}.Products_{merchant_id}_Filtered`
 AS (
   WITH
@@ -50,7 +73,6 @@ AS (
     target_country,
     brand,
     color,
-    custom_labels,
     item_group_id,
     google_product_category_path,
     product_type,
@@ -67,14 +89,19 @@ AS (
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(2)], 'N/A') AS google_product_category_l3,
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(3)], 'N/A') AS google_product_category_l4,
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(4)], 'N/A') AS google_product_category_l5,
-    IF(availability = 'in stock', 1, 0) AS in_stock
+    IF(availability = 'in stock', 1, 0) AS in_stock,
+    custom_labels,
+    {dataset}.combineLabels(custom_labels, offer_id) as pdsa_custom_labels
   FROM
     `{project_id}.{dataset}.Products_{merchant_id}` AS Products,
     LatestDate
   WHERE
     _PARTITIONDATE = LatestDate.latest_date
-    {filter_expression}
-    -- TODO: Change to 100,000 in the future
-    LIMIT {max_rows}
+    AND availability = 'in stock'
+    AND (custom_labels.label_0 like 'PDSA_%'
+      OR custom_labels.label_1 like 'PDSA_%'
+      OR custom_labels.label_2 like 'PDSA_%'
+      OR custom_labels.label_3 like 'PDSA_%'
+      OR custom_labels.label_4 like 'PDSA_%'
+    )
 );
-

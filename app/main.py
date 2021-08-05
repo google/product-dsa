@@ -1,168 +1,80 @@
+# coding=utf-8
+# Copyright 2021 Google LLC..
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import time
-import os
-import argparse
-import yaml
-from common import auth
+from google.auth import credentials
+from pprint import pprint
+from common import auth, config_utils
 import wf_execute_sql
 
-def parse_arguments() -> argparse.Namespace:
-  """Initialize command line parser using argparse.
 
-  Returns:
-    An argparse.ArgumentParser.
-  """
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--config', help='Config file name')
-  auth.add_auth_arguments(parser)
-  return parser.parse_args()
+def validate_config(config: config_utils.Config):
+  if (not config.merchant_id):
+    print('No merchant_id was defined, exiting')
+    exit()
 
-def filterByColumnExpression(columns_opts) -> str:
-  expression = ''
-  for column_opts in columns_opts:
-    column_name = column_opts['name']
-    column_value = column_opts['value']
-    if (len(column_value) > 1):
-      in_expr = ''
-      for val in column_value:
-        in_expr += f"'{val}', "
-      expression = f"{column_name} IN [{in_expr[-1]}]"
-    else:
-      expression = f"{column_name} = '{column_value}'"
-  return expression
 
-def filterByLabelExpression(label: str, label_column: str) -> str:
-  if (label_column):
-    return f"{label_column} = '{label}'"
-  return f"""AND (custom_labels.label_0 = '{label}'
-      OR custom_labels.label_1 = '{label}'
-      OR custom_labels.label_2 = '{label}'
-      OR custom_labels.label_3 = '{label}'
-      OR custom_labels.label_4 = '{label}'
-    )
-    """
+def create_page_feed(config: config_utils.Config, context):
 
-def execute_filter(cfg, context):
-  macros = cfg['macros']
-  name = 'filtering'
-  filter_opts = cfg['filter']
+  step_name = 'page feed creation'
   t0 = time.time()
   ts = time.strftime('%H:%M:%S %z')
-  print(f'[{ts}] Starting "{name}" step')
-  try:
-    # standard filter (by availability):
-    expression = "AND availability = 'in stock'"
-    filter_by = filter_opts['filter-by']
-    if (filter_by == 'label'):
-      # filter by label
-      expression = expression + " AND " + filterByLabelExpression(filter_opts['select-label'] or 'PDSA_Products', filter_opts['select-label-column'])
-    elif (filter_by == 'column'):
-      # filter by column
-      expression = expression + " AND " + filterByColumnExpression(filter_opts['columns'])
-    else:
-      raise Exception('Unsupported filter mode: ' + filter_by)
-    macros['filter_expression'] = expression
-    macros['max_rows'] = filter_opts['max_rows'] or 100
-    wf_execute_sql.run(cfg, context)
-    # it should create a table {project_id}.{dataset}.Products_{merchant_id}_Filtered
-  except:
-    print(f'An error occured on "{name}" step')
-    print(f'\tcontext dump: {context}')
-    raise
+  print(f'[{ts}] Starting "{step_name}" step')
+  cfg = {
+    'sql_file': 'scripts/create-page-feed.sql',
+    'project_id': config.project_id,
+    'macros': {
+      'project_id': config.project_id,
+      'dataset': config.dataset_id,
+      'merchant_id': config.merchant_id,
+    }
+  }
+  data = wf_execute_sql.run(cfg, context)
+  context['page-feed-data'] = data
+  print('Returned {data.total_rows} rows')
+  with open('page-feed.csv', 'w') as csv_file:
+    csv_file.write('Page_URL,pdsa_custom_labels\n')
+    for row in data:
+      csv_file.write(row['Page_URL'] + ',' + row['pdsa_custom_labels'] + '\n')
   elapsed = time.time() - t0
-  print(f'Finished "{name}" step, it took {elapsed} sec')
-  context['stat'][name] = elapsed
+  print(f'Finished "{step_name}" step, it took {elapsed} sec')
 
-def create_page_feed(cfg, context):
-  macros = cfg['macros']
-  name = 'create page feed'
-  pagefeed_opts = cfg['page-feed']
-  t0 = time.time()
-  ts = time.strftime('%H:%M:%S %z')
-  print(f'[{ts}] Starting "{name}" step')
-  try:
-    label_column = pagefeed_opts['label-column']
-    macros['label-column'] = label_column
-    macros['feedname'] = pagefeed_opts['feed-name']
-    macros['custom_label_select'] = f"${label_column} AS Custom_label"
-    # TODO:
-    ## for one-to-one mapping
-    # macros['custom_label_select'] = "CONCAT('product_', offer_id) AS Custom_label"
-    ## for one-to-many mapping
-    # macros['custom_label_select'] = "CONCAT('brand_', brand) as Custom_label"
-    wf_execute_sql.run(cfg, context)
-    # it should create a table {project_id}.{dataset}.product_page_feed_{merchant_id}_{feedname}
-    context['xcom']['pagefeed-table'] = f"{macros['project_id']}.{macros['dataset']}.product_page_feed_{macros['merchant_id']}_{macros['feedname']}"
-  except:
-    print(f'An error occured on "{name}" step')
-    print(f'\tcontext dump: {context}')
-    raise
-  elapsed = time.time() - t0
-  print(f'Finished "{name}" step, it took {elapsed} sec')
-  context['stat'][name] = elapsed
 
-def generate_campaign_for_adeditor(context):
+def generate_campaign_for_adeditor(config: config_utils.Config, context):
+  page_feed_data = context['page-feed-data']
+  # TODO
   pass
-
-def get_config(config_file_name = 'config.yaml'):
-  """ Read config.yml file and return Config object."""
-  with open(config_file_name, "r") as config_file:
-    cfg_dict = yaml.load(config_file, Loader=yaml.SafeLoader)
-    return cfg_dict
 
 
 def main():
-  args = parse_arguments()
-  credentials = auth.get_credentials(args)
+  args = config_utils.parse_arguments()
+  config = config_utils.get_config(args)
+  pprint(vars(config))
+  cred: credentials.Credentials = auth.get_credentials(args)
 
-  config = get_config()
+  validate_config(config)
+  context = {'xcom': {}, 'gcp_credentials': cred}
 
-  if not len(config['scenarios']):
-    print('No scenarios are defined, exiting')
-    exit()
+  # #1 creating page feed
+  create_page_feed(config, context)
+  # TODO: support updating
+  #   generate a CSV with data from pagefeed
 
-  context = {'stat': {}, 'xcom': {}}
-  for scenario in config['scenarios']:
-    ts = time.strftime('%H:%M:%S %z')
-    print(f'[{ts}] Starting processing {scenario["name"]}" scenario')
-    mode = scenario['mode']
-    filter_opts = scenario['filter']
-    if (not filter_opts):
-      # default filter
-      filter_opts = {
-        'filter-by': 'label',
-        'select-label': 'PDSA_Products'
-      }
+  # #2 generating ad campaigns
+  # TODO: fetch data from context['xcom']['pagefeed-table'] table and generate CSV with data for Ads Editor
+  generate_campaign_for_adeditor(config, context)
 
-    # filtering
-    cfg = {
-      'sql_file': 'scripts/filter-products.sql',
-      'macros': {
-        'project_id': config['project_id'],
-        'dataset': 'gmcdsa',
-        'merchant_id': config['merchant_id'],
-      }
-    }
-    cfg['filter'] = filter_opts
-    execute_filter(cfg, context)
-
-    # creating page feed
-    cfg = {
-      'sql_file': 'scripts/create-page-feed.sql',
-      'macros': {
-        'project_id': config['project_id'],
-        'dataset': 'gmcdsa',
-        'merchant_id': config['merchant_id'],
-      }
-    }
-    cfg['page-feed'] = scenario['page-feed']
-    create_page_feed(cfg, context)
-
-    # generating ad campaigns
-    # TODO: fetch data from context['xcom']['pagefeed-table'] table and generate CSV with data for Ads Editor
-    generate_campaign_for_adeditor(context)
-
-    # TODO: support updating
-    #   generate a CSV with data from pagefeed
 
 if __name__ == '__main__':
   main()

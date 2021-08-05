@@ -322,7 +322,6 @@ class CloudDataTransferUtils(object):
                      name: str,
                      query_string: str) -> types.TransferConfig:
     """Schedules query to run every day.
-       NOTE: currently not used, To Be Deleted
 
     Args:
       name: Name of the scheduled query.

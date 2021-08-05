@@ -30,7 +30,6 @@ enable_apis() {
 # enable required APIs
 enable_apis
 
-export PYTHONPATH="."
 # install and activate Python virtual environment
 python3 -m venv .venv
 . .venv/bin/activate

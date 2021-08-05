@@ -23,6 +23,9 @@ from google.auth import credentials
 from google.cloud import bigquery
 from google.cloud import exceptions
 
+# Main workflow sql.
+_MAIN_WORKFLOW_SQL = 'scripts/main_workflow.sql'
+
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
@@ -111,16 +114,34 @@ class CloudBigQueryUtils(object):
       'project_id': self.project_id,
       'dataset': dataset_id,
       'merchant_id': merchant_id,
-      #'external_customer_id': customer_id
+      'external_customer_id': customer_id
     }
 
     for sql_file in sql_files:
       try:
         query = self.configure_sql(
-            os.path.join(prefix, sql_file),
+            os.path.join(prefix, sql_file), 
             query_params)
         query_job = self.client.query(query, location=dataset_location)
         query_job.result()
-      except Exception as e:
-        logging.exception(f'Error occurred during {sql_file} execution: {e}', )
+      except:
+        logging.exception('Error in %s', sql_file)
         raise
+
+  def get_main_workflow_sql(self, dataset_id: str, merchant_id: str,
+                            customer_id: str) -> str:
+    """Returns main workflow sql.
+
+    Args:
+      project_id: A cloud project id.
+      dataset_id: BigQuery dataset id.
+      merchant_id: Merchant center id.
+      customer_id: Google Ads customer id.
+    """
+    query_params = {
+      'project_id': self.project_id,
+      'dataset': dataset_id,
+      'merchant_id': merchant_id,
+      'external_customer_id': customer_id
+    }
+    return self.configure_sql(_MAIN_WORKFLOW_SQL, query_params)

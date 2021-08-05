@@ -15,18 +15,12 @@
 -- Filters the products from the latest snapshot of the GMC Data Transfer
 -- based on a specific criteria
 --
--- This filtered view includes a subset of the products in the products feed 
--- containing a specified custom label. 
+-- This filtered view includes a subset of the products in the products feed
+-- and only some of the product details. The filtering can be done based on
+-- different criteria like "custom label" or "product category"
 -- The query only runs on in-stock products from the latest data transfer
-/*
-Parameters:
-  - project_id
-  - dataset
-  - merchant_id
-  - max_rows
-  - filter_expression
-*/
-CREATE OR REPLACE VIEW `{project_id}.{dataset}.Products_{merchant_id}_Filtered`
+
+CREATE OR REPLACE VIEW `{project_id}.{dataset}.filtered_product_view_{merchant_id}`
 AS (
   WITH
     LatestDate AS (
@@ -67,14 +61,15 @@ AS (
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(2)], 'N/A') AS google_product_category_l3,
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(3)], 'N/A') AS google_product_category_l4,
     IFNULL(SPLIT(google_product_category_path, '>')[SAFE_OFFSET(4)], 'N/A') AS google_product_category_l5,
-    IF(availability = 'in stock', 1, 0) AS in_stock
+    IF(availability = 'in stock', 1, 0) AS in_stock,
   FROM
     `{project_id}.{dataset}.Products_{merchant_id}` AS Products,
     LatestDate
   WHERE
     _PARTITIONDATE = LatestDate.latest_date
-    {filter_expression}
+    AND availability = 'in stock'
+    -- AND custom_labels.label_0 = filter_label
     -- TODO: Change to 100,000 in the future
-    LIMIT {max_rows}
+    LIMIT 100
 );
 

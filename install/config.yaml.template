@@ -1,3 +1,4 @@
+# coding=utf-8
 # Copyright 2021 Google LLC..
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,10 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from io import TextIOWrapper
-import os
 
-def open_relative_file(file_name: str) -> TextIOWrapper:
-  """Opens a file for reading relatively to the current module."""
-  working_directory = os.path.dirname(__file__)
-  return open(os.path.join(working_directory, file_name), "rb")
+# Configuration for installation process.
+# Rename the file to `config.yaml` (or any other and then specify its name via --config cli argument)
+
+# The BigQuery dataset location.
+dataset_location: us             # can be passed via cmdline as well as --dataset_location
+project_id: YOUR_GCP_PROJECT_ID  # can be passed via cmdline as well as --project_id
+merchant_id: YOUR_GMC_ACCOUNT_ID # can be passed via cmdline as well as --merchant_id
+ads_customer_id: YOUR_GOOGLE_ADS_ACCOUNT_ID # can be passed via cmdline as well as --ads_customer_id

@@ -21,14 +21,19 @@ This module automates the following steps:
   2. Setup tables and views in BigQuery
 """
 
+import argparse
+from io import TextIOWrapper
 import logging
+import os
 from typing import NamedTuple, Dict, Union
+from google.cloud import bigquery
+import yaml
 from pprint import pprint
-# if you're getting an error on the next line "ModuleNotFound",
-# make sure you define env var PYTHONPATH="."
-from common import auth, config_utils
+
+from common import auth
 import cloud_bigquery
 import cloud_data_transfer
+
 
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
@@ -37,11 +42,77 @@ logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 _SCOPES = ['https://www.googleapis.com/auth/cloud-platform',
            'https://www.googleapis.com/auth/bigquery']
 
+# BigQuery dataset name to use by default
+_DATASET_ID = 'gmcdsa'
+# Location for BigQuery dataset and BQ data transfers to use by default
+_DATASET_LOCATION = 'us'
+
+class Config(object):
+  project_id: str = ''
+  dataset_location: str = ''
+  dataset_id: str = ''
+  merchant_id: int = 0
+  ads_customer_id: str = ''
+
+  def update(self, kw):
+    for k in kw:
+      setattr(self, k, kw[k])
+
+
+def parse_arguments() -> argparse.Namespace:
+  """Initialize command line parser using argparse.
+
+  Returns:
+    An argparse.ArgumentParser.
+  """
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--config', help='Config file name')
+  parser.add_argument('--project_id', help='GCP project id.')
+  parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
+  parser.add_argument('--dataset_id', help='BigQuery dataset id.')
+  parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).')
+  parser.add_argument('--ads_customer_id', help='Google Ads External Customer Id.')
+
+  auth.add_auth_arguments(parser)
+
+  return parser.parse_args()
+
+
+def open_relative_file(file_name: str) -> TextIOWrapper:
+  """Opens a file for reading relatively to the current module."""
+  working_directory = os.path.dirname(__file__)
+  return open(os.path.join(working_directory, file_name), "rb")
+
+
+def get_config(args: argparse.Namespace) -> Config:
+  config_file_name = args.config or 'config.yaml'
+  """ Read config.yml file and return Config object."""
+  with open_relative_file(config_file_name) as config_file:
+    cfg_dict = yaml.load(config_file, Loader=yaml.SafeLoader)
+    config = Config()
+    config.update(cfg_dict)
+    if (args.project_id):
+      config.project_id = args.project_id
+    if (args.dataset_id):
+      config.dataset_id = args.dataset_id
+    elif (not config.dataset_id):
+      config.dataset_id = _DATASET_ID
+    if (args.dataset_location):
+      config.dataset_location = args.dataset_location
+    elif (not config.dataset_location):
+      config.dataset_location = _DATASET_LOCATION
+    if (args.merchant_id):
+      config.merchant_id = args.merchant_id
+    if (args.ads_customer_id):
+      config.ads_customer_id = args.ads_customer_id
+
+    return config
+
 
 def main():
-  args = config_utils.parse_arguments()
+  args = parse_arguments()
 
-  config = config_utils.get_config(args)
+  config = get_config(args)
   pprint(vars(config))
   credentials = auth.get_credentials(args, _SCOPES)
 
@@ -74,10 +145,22 @@ def main():
   logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.
   sql_files = [
-     'filter-products.sql',
+     'product_filter.sql',
   ]
   bigquery_util.execute_queries(sql_files, config.dataset_id, config.dataset_location,
     config.merchant_id, ads_customer_id)
+
+  logging.info('Curating PageFeeds URLs')
+  query_params = {
+      'project_id': config.project_id,
+      'dataset': config.dataset_id,
+      'merchant_id': config.merchant_id
+  }
+  query = bigquery_util.get_main_workflow_sql( config.dataset_id,
+    config.merchant_id, config.ads_customer_id)
+  data_transfer.schedule_query(f'Product DSA workflow - {config.dataset_id} - {config.merchant_id}',
+                               query)
+  logging.info('Job created to run Product DSA main workflow.')
 
   logging.info('installation is complete!')
 

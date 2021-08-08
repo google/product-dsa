@@ -19,7 +19,10 @@ from google_auth_oauthlib import flow
 from google.auth import credentials
 
 _SCOPES = ['https://www.googleapis.com/auth/cloud-platform',
-           'https://www.googleapis.com/auth/bigquery']
+           'https://www.googleapis.com/auth/bigquery',
+           'https://www.googleapis.com/auth/spreadsheets',
+           'https://www.googleapis.com/auth/drive'
+          ]
 
 def add_auth_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
   parser.add_argument('--client-secrets-file', dest='client_secrets_file',
@@ -52,6 +55,8 @@ def get_credentials(args: argparse.Namespace, scopes = _SCOPES) -> credentials.C
       raise Exception(
           "Invalid json file for service account authenication") from e
   else:
-    credentials = google.auth.default()
+    # NOTE: if you use `gcloud auth application-default login` then the scopes here will be ignored,
+    #       you should specify them as parameter --scopes for the gcloud command
+    credentials, project = google.auth.default(scopes = scopes)
 
   return credentials

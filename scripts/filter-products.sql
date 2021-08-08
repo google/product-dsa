@@ -13,7 +13,8 @@
 # limitations under the License.
 
 -- Filters the products from the latest snapshot of the GMC Data Transfer
---
+-- based on product availability and presence of our custom labels:
+-- PDSA_Product
 -- The query only runs on in-stock products from the latest data transfer
 /*
 Parameters:
@@ -42,7 +43,7 @@ AS r"""
   for (label of Object.values(custom_labels)) {{
     let norm_label = getLabelValue(label, offer_id);
     if (norm_label) {{
-      if (result) result += ','
+      if (result) result += '; '
       result += norm_label;
     }}
   }}

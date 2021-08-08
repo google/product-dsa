@@ -6,7 +6,7 @@
 
 SELECT
   link AS Page_URL,
-  pdsa_custom_labels
+  pdsa_custom_labels AS Custom_label
 FROM `{project_id}.{dataset}.Products_{merchant_id}_Filtered`
 WHERE
   LENGTH(IFNULL(link,'')) > 0  AND

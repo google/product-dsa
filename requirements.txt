@@ -1,9 +1,9 @@
 google-api-python-client
+google-auth
 google-auth-oauthlib
 google-cloud-bigquery
 google-cloud-bigquery-datatransfer
 google-cloud-storage
 grpcio
-grpcio-tools
+grpcio-tools # do we really need it? It's very heavy on installing
 PyYAML
-google-auth

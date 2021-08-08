@@ -13,16 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""A workflow implementation for app.py. Run arbitrary sql from a file or files.
-
-Support reading sql files locally or from GCS.
+"""Run arbitrary SQL script in BigQuery, supporting reading their content from file/files or GCSE.
 """
 
 import time
 import datetime
 from google.auth import credentials
 from google.cloud import bigquery
-import cloud_utils
+from common import file_utils
 
 def run(cfg, context):
   # either sql_file or sql_fiels can be used, but not together
@@ -40,9 +38,9 @@ class ExecuteSqlWorkflow:
   def __init__(self, project_id, sql_file, sql_files, macros):
     self.project_id = project_id
     if sql_file:
-      self.sql_templates = [cloud_utils.get_file_content(sql_file)]
+      self.sql_templates = [file_utils.get_file_content(sql_file)]
     elif sql_files:
-      self.sql_templates = [cloud_utils.get_file_content(s) for s in sql_files]
+      self.sql_templates = [file_utils.get_file_content(s) for s in sql_files]
     else:
       raise Exception('Either sql_file or sql_files argument should be specified')
     if macros:

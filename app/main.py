@@ -12,27 +12,39 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+from typing import Dict, List
 import time
 from google.auth import credentials
 from pprint import pprint
-from common import auth, config_utils
+from common import auth, config_utils, sheets_utils
 import wf_execute_sql
 
+logging.getLogger().setLevel(logging.INFO)
 
 def validate_config(config: config_utils.Config):
   if (not config.merchant_id):
-    print('No merchant_id was defined, exiting')
+    print('No merchant_id found in configuration (merchant_id), exiting')
+    exit()
+  if (not config.page_feed_spreadsheetid):
+    print('No spreadsheet id for page feed found in configuration (page_feed_spreadsheetid), exiting')
     exit()
 
 
-def create_page_feed(config: config_utils.Config, context):
-
+def create_page_feed(config: config_utils.Config, context: Dict):
   step_name = 'page feed creation'
   t0 = time.time()
   ts = time.strftime('%H:%M:%S %z')
+  # Execute a SQL script (TODO: read its name from config) to get data for DSA page feed
+  # The contract for the script:
+  #   we expect 2-columns: 'Page_URL' and 'Custom_label'
+  #   both columns should be empty or NULL
+  #   the Custom_label column can contain one or many label, separated by ';'
+  #   values in Page_URL column should be unique
+  # NOTE: currently we don't validate all those invariants, only assume they
   print(f'[{ts}] Starting "{step_name}" step')
   cfg = {
-    'sql_file': 'scripts/create-page-feed.sql',
+    'sql_file': './scripts/create-page-feed.sql',
     'project_id': config.project_id,
     'macros': {
       'project_id': config.project_id,
@@ -42,13 +54,27 @@ def create_page_feed(config: config_utils.Config, context):
   }
   data = wf_execute_sql.run(cfg, context)
   context['page-feed-data'] = data
-  print('Returned {data.total_rows} rows')
+  logging.info('Page-feed query returned {data.total_rows} rows')
+
+  values = []
+  for row in data:
+    values.append([row[0], row[1]])
+
+  sheets_client = sheets_utils.GoogleSpreadsheetUtils(context['gcp_credentials'])
+
   with open('page-feed.csv', 'w') as csv_file:
-    csv_file.write('Page_URL,pdsa_custom_labels\n')
-    for row in data:
-      csv_file.write(row['Page_URL'] + ',' + row['pdsa_custom_labels'] + '\n')
+    csv_file.write('Page URL,Custom label\n')
+    for row in values:
+      csv_file.write(",".join(str(item) for item in row) + "\n")
+  url = f'https://docs.google.com/spreadsheets/d/1{config.page_feed_spreadsheetid}'
+  logging.info('Generated page feed in Google Spreadsheet ' + url)
+
+  sheets_client.update_values(config.page_feed_spreadsheetid, "Main!A1:Z",
+      [['Page URL', 'Custom label']] + values)
+  logging.info('Generated page feed in page-feed.csv file')
+
   elapsed = time.time() - t0
-  print(f'Finished "{step_name}" step, it took {elapsed} sec')
+  logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
 
 
 def generate_campaign_for_adeditor(config: config_utils.Config, context):
@@ -66,15 +92,13 @@ def main():
   validate_config(config)
   context = {'xcom': {}, 'gcp_credentials': cred}
 
-  # #1 creating page feed
+  # #1 crete page feed
   create_page_feed(config, context)
-  # TODO: support updating
-  #   generate a CSV with data from pagefeed
 
-  # #2 generating ad campaigns
-  # TODO: fetch data from context['xcom']['pagefeed-table'] table and generate CSV with data for Ads Editor
+  # #2 generate ad campaigns
   generate_campaign_for_adeditor(config, context)
 
 
 if __name__ == '__main__':
+  # TODO: support commands: create | update | install
   main()

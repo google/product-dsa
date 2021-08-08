@@ -27,9 +27,9 @@ Make sure the user running the installation has following permissions.
 ### 2.4 Run install script
 
 #### 2.4.1 Setup parameters
-You can either put all parameters in `config.yaml` or pass them as command line arguments.
+You can either put all parameters into `config.yaml` or pass them as command line arguments.
 
-To get initial structure of config.yaml use a template in install folder: `cp ./install/config.yaml.template ./install/config.yaml`:
+To get initial structure of config.yaml use a template in install folder: `cp ./config.yaml.template ./config.yaml`:
 ```
 dataset_location: us
 project_id: YOUR_GCP_PROJECT_ID
@@ -40,6 +40,19 @@ merchant_id: YOUR_GMC_ACCOUNT_ID
 ./setup.sh --project_id YOUR_GCP_PROJECT_ID --merchant_id YOUR_GMC_ACCOUNT_ID --dataset_location us
 ```
 
+Or specify config file explicitly:
+```
+./setup.sh --config config.MY_PROJECT1.yaml
+```
+If `--config` is omitted then `config.yaml` will be assumed.
+
+You can use not only local path but also file on GCS:
+```
+./setup.sh --config gs://MY_BUCKET/config.MY_PROJECT1.yaml
+```
+but in this case you have to use Application Default Credentials (that means you can't use neither `--service-account-key-file` nor `--client-secrets-file`)
+
+
 #### 2.4.2 Running from local machine
 
 To run the setup script we'll need to setup authentication
@@ -47,7 +60,7 @@ To run the setup script we'll need to setup authentication
 * As a service account - see https://cloud.google.com/docs/authentication/production
 
 
-Running as a end user assuming you exported user secrets to `client_secrets.json`:  
+Running as a end user assuming you exported user secrets to `client_secrets.json`:
 ```shell
 ./setup.sh --client-secrets-file client_secrets.json
 ```
@@ -67,5 +80,6 @@ gcloud auth activate-service-account --key-file=/home/user/product-dsas/service_
 ```
 You can also run using Application Default Creadentials, just execute in your shell first:
 ```
-gcloud auth application-default login
+gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive
 ```
+

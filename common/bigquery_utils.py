@@ -103,7 +103,7 @@ class CloudBigQueryUtils(object):
 
     return sql_script.format(**params)
 
-  def execute_queries(self, sql_files: Sequence[str], dataset_id: str, dataset_location: str, merchant_id: str, customer_id: str) -> None:
+  def execute_queries(self, sql_files: Sequence[str], dataset_id: str, dataset_location: str, merchant_id: str) -> None:
     """Executes list of queries."""
 
     prefix = 'scripts'

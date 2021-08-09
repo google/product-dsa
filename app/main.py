@@ -19,6 +19,7 @@ from google.auth import credentials
 from pprint import pprint
 from common import auth, config_utils, sheets_utils
 import wf_execute_sql
+import campaign_mgr
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -42,7 +43,7 @@ def create_page_feed(config: config_utils.Config, context: Dict):
   #   the Custom_label column can contain one or many label, separated by ';'
   #   values in Page_URL column should be unique
   # NOTE: currently we don't validate all those invariants, only assume they
-  print(f'[{ts}] Starting "{step_name}" step')
+  logging.info(f'[{ts}] Starting "{step_name}" step')
   cfg = {
     'sql_file': './scripts/create-page-feed.sql',
     'project_id': config.project_id,
@@ -53,8 +54,7 @@ def create_page_feed(config: config_utils.Config, context: Dict):
     }
   }
   data = wf_execute_sql.run(cfg, context)
-  context['page-feed-data'] = data
-  logging.info('Page-feed query returned {data.total_rows} rows')
+  logging.info(f'Page-feed query returned {data.total_rows} rows')
 
   values = []
   for row in data:
@@ -78,9 +78,25 @@ def create_page_feed(config: config_utils.Config, context: Dict):
 
 
 def generate_campaign_for_adeditor(config: config_utils.Config, context):
-  page_feed_data = context['page-feed-data']
-  # TODO
-  pass
+  step_name = 'campaign csv file creation'
+  t0 = time.time()
+  ts = time.strftime('%H:%M:%S %z')
+  logging.info(f'[{ts}] Starting "{step_name}" step')
+  cfg = {
+    'sql_file': 'scripts/get-products.sql',
+    'project_id': config.project_id,
+    'macros': {
+      'project_id': config.project_id,
+      'dataset': config.dataset_id,
+      'merchant_id': config.merchant_id,
+    }
+  }
+  products = wf_execute_sql.run(cfg, context)
+  logging.info(f'Returned {products.total_rows} products')
+  if products.total_rows:
+    campaign_mgr.generate_csv(config, products)
+  elapsed = time.time() - t0
+  logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
 
 
 def main():

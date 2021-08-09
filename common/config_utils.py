@@ -29,6 +29,10 @@ class Config(object):
   dataset_id: str = ''
   merchant_id: int = 0
   ads_customer_id: str = ''
+  product_campaign_name: str = ''
+  category_campaign_name: str = ''
+  dsa_website: str = ''
+  dsa_lang: str = ''
   page_feed_name: str = ''
   page_feed_spreadsheetid: str = ''
 

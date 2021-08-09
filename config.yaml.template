@@ -21,5 +21,11 @@ dataset_location: us             # can be passed via cmdline as well as --datase
 project_id: YOUR_GCP_PROJECT_ID  # can be passed via cmdline as well as --project_id
 merchant_id: YOUR_GMC_ACCOUNT_ID # can be passed via cmdline as well as --merchant_id
 ads_customer_id: YOUR_GOOGLE_ADS_ACCOUNT_ID # can be passed via cmdline as well as --ads_customer_id
+
+# Product DSAs run settings
+product_campaign_name:           # [optional] Should only be provided if the campaign has already been creted
+category_campaign_name:          # [optional] Should only be provided if the campaign has already been creted
+dsa_website:
+dsa_lang: en
 page_feed_name: YOUR_PAGE_FEED_NAME
 page_feed_spreadsheetid: YOUR_GSHEET_ID

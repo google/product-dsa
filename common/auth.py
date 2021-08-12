@@ -18,8 +18,10 @@ from google.oauth2 import service_account  # type: ignore
 from google_auth_oauthlib import flow
 from google.auth import credentials
 
+# NOTE bigquery.readonly is not covered by bigquery scope, do not remove it
 _SCOPES = ['https://www.googleapis.com/auth/cloud-platform',
            'https://www.googleapis.com/auth/bigquery',
+           'https://www.googleapis.com/auth/bigquery.readonly',
            'https://www.googleapis.com/auth/spreadsheets',
            'https://www.googleapis.com/auth/drive'
           ]

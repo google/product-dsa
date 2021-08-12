@@ -15,6 +15,7 @@
 import logging
 from typing import Dict, List
 import time
+import csv
 from google.auth import credentials
 from pprint import pprint
 from common import auth, config_utils, sheets_utils
@@ -63,15 +64,15 @@ def create_page_feed(config: config_utils.Config, context: Dict):
   sheets_client = sheets_utils.GoogleSpreadsheetUtils(context['gcp_credentials'])
 
   with open('page-feed.csv', 'w') as csv_file:
-    csv_file.write('Page URL,Custom label\n')
-    for row in values:
-      csv_file.write(",".join(str(item) for item in row) + "\n")
-  url = f'https://docs.google.com/spreadsheets/d/1{config.page_feed_spreadsheetid}'
-  logging.info('Generated page feed in Google Spreadsheet ' + url)
+    writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
+    writer.writerow(['Page URL','Custom label'])
+    writer.writerows(values)
+  logging.info('Generated page feed in page-feed.csv file')
 
   sheets_client.update_values(config.page_feed_spreadsheetid, "Main!A1:Z",
       [['Page URL', 'Custom label']] + values)
-  logging.info('Generated page feed in page-feed.csv file')
+  url = f'https://docs.google.com/spreadsheets/d/{config.page_feed_spreadsheetid}'
+  logging.info('Generated page feed in Google Spreadsheet ' + url)
 
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')

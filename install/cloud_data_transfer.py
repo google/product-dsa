@@ -29,6 +29,8 @@ from google.cloud.bigquery_datatransfer_v1 import types
 from google.protobuf import struct_pb2
 from google.protobuf import timestamp_pb2
 
+logging.getLogger().setLevel(logging.INFO)
+
 _MERCHANT_CENTER_ID = 'merchant_center'  # Data source id for Merchant Center.
 _GOOGLE_ADS_ID = 'adwords'  # Data source id for Google Ads.
 _SLEEP_SECONDS = 10  # Seconds to sleep before checking resource status.

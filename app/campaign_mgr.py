@@ -81,6 +81,7 @@ class GoogleAdsEditorMgr:
     adgroup = self.__create_row()
     adgroup_details = {
       CAMP_NAME : campaign_name,
+      # TODO: for product-adgroup use smth different
       ADGROUP_NAME : 'Ad group ' + product.title,
       ADGROUP_MAX_CPM : '0.01',
       ADGROUP_TARGET_CPM : '0.01',
@@ -88,6 +89,7 @@ class GoogleAdsEditorMgr:
       TARGET_CONDITION : 'CUSTOM_LABEL',
       TARGET_VALUE : label,
       AD_TYPE : 'Expanded Dynamic Search Ad',
+      # NOTE: the limit for description is 90 characters, easily can be exceeded
       AD_DESCRIPTION : product.description if is_product_level else ''
     }
     adgroup.update(adgroup_details)

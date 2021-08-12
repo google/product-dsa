@@ -78,8 +78,9 @@ or via gcloud:
 gcloud auth activate-service-account --key-file=/home/user/product-dsas/service_account.json
 ./setup.sh
 ```
+
 You can also run using Application Default Creadentials, just execute in your shell first:
 ```
-gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive
+gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/bigquery.readonly,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive
 ```
-
+and then you can run scripts without any auth argument. It's the recommended approach.

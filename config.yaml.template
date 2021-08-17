@@ -25,7 +25,7 @@ ads_customer_id: YOUR_GOOGLE_ADS_ACCOUNT_ID # can be passed via cmdline as well 
 # Product DSAs run settings
 product_campaign_name:           # [optional] Should only be provided if the campaign has already been creted
 category_campaign_name:          # [optional] Should only be provided if the campaign has already been creted
-dsa_website:
+dsa_website: YOUR_DSA_WEBSITE
 dsa_lang: en
 page_feed_name: YOUR_PAGE_FEED_NAME
 page_feed_spreadsheetid: YOUR_GSHEET_ID

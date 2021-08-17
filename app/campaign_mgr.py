@@ -19,6 +19,7 @@ Uploading will initially be only supported through Google Ads Editor
 i.e. The expected output is a CSV file.
 """
 import csv
+import re
 from common import config_utils
 
 # Google Ads Editor header names
@@ -49,6 +50,8 @@ AD_DESCRIPTION = 'Description Line 1'
 # Default campaign names to use
 PDSA_PRODUCT_CAMPAIGN_NAME = 'PDSA Products'
 PDSA_CATEGORY_CAMPAIGN_NAME = 'PDSA Categories'
+AD_DESCRIPTION_MAX_LENGTH = 90
+AD_DESCRIPTION_MIN_LENGTH = 35
 
 class GoogleAdsEditorMgr:
   def __init__(self, config: config_utils.Config):
@@ -60,37 +63,66 @@ class GoogleAdsEditorMgr:
     self._rows = []
 
   def __create_row(self):
+    ''' Creates an object that represents an empty row of the csv file '''
     row = {}
     for header in self._headers:
       row[header] = ''
     return row
 
+  def __split_to_sentances(self, descrption):
+    ''' break a paragraph into sentences and return a list '''
+    sentenceEnders = re.compile('[.!?-]')
+    sentenceList = sentenceEnders.split(descrption)
+    return sentenceList
+
+  def __get_ad_description(self, product):
+    ''' The limit for description is 90 characters, which can be easily exceeded.
+    This method will decide what information to take as the ad description. It also
+    removes any commas that exist in the string to avoid messing up the CSV file
+    If no valid sentance is found, we will leave it empty to be modified from
+    Google Ads Editor
+    '''
+    if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
+      return product.description
+
+    if len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
+      return product.title
+
+    # The description and title are too long, split them to sentances
+    all_sentences = self.__split_to_sentances(product.description) + self.__split_to_sentances(product.title)
+    for sentence in all_sentences:
+      if (len(sentence) >= AD_DESCRIPTION_MIN_LENGTH and
+          len(sentence) <= AD_DESCRIPTION_MAX_LENGTH ):
+        return sentence
+    return ''
+
   def add_campaign(self, name):
     campaign = self.__create_row()
     campaign_details = {
       CAMP_NAME : name,
-      DSA_WEBSITE : self._config.dsa_website or '',
+      DSA_WEBSITE : self._config.dsa_website,
       DSA_LANG : self._config.dsa_lang or '',
       DSA_TARGETING_SOURCE: 'Page feed',
-      DSA_PAGE_FEEDS: self._config.page_feed_name or 'PDSA_Pagefeed'
+      DSA_PAGE_FEEDS: self._config.page_feed_name or 'PDSA Pagefeed'
     }
     campaign.update(campaign_details)
     self._rows.append(campaign)
 
   def add_adgroup(self, campaign_name, is_product_level, product, label):
     adgroup = self.__create_row()
+    # If it's category level, use the label without 'PDSA_CATEGORY_'
+    adgroup_name = product.offer_id if is_product_level else label[14:]
+    ad_description = '' if not is_product_level else self.__get_ad_description(product)
     adgroup_details = {
       CAMP_NAME : campaign_name,
-      # TODO: for product-adgroup use smth different
-      ADGROUP_NAME : 'Ad group ' + product.title,
+      ADGROUP_NAME : 'Ad group ' + adgroup_name,
       ADGROUP_MAX_CPM : '0.01',
       ADGROUP_TARGET_CPM : '0.01',
       ADGROUP_TYPE : 'Dynamic',
       TARGET_CONDITION : 'CUSTOM_LABEL',
       TARGET_VALUE : label,
       AD_TYPE : 'Expanded Dynamic Search Ad',
-      # NOTE: the limit for description is 90 characters, easily can be exceeded
-      AD_DESCRIPTION : product.description if is_product_level else ''
+      AD_DESCRIPTION : ad_description.strip()
     }
     adgroup.update(adgroup_details)
     self._rows.append(adgroup)

@@ -31,6 +31,9 @@ def validate_config(config: config_utils.Config):
   if (not config.page_feed_spreadsheetid):
     print('No spreadsheet id for page feed found in configuration (page_feed_spreadsheetid), exiting')
     exit()
+  if (not config.dsa_website):
+    print('No DSA website found in configuration (dsa_website), exiting')
+    exit()
 
 
 def create_page_feed(config: config_utils.Config, context: Dict):

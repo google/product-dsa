@@ -3,3 +3,5 @@
 .venv
 !/.gitignore
 __pycache__/
+.DS_Store
+config.yaml

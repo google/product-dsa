@@ -63,7 +63,7 @@ def create_page_feed_spreadsheet(config: config_utils.Config, credentials):
 
 def backup_config(config_file_name: str, config: config_utils.Config, credentials):
   if not config_file_name.startswith('gs://'):
-    storage_client = storage.Client(credentials = credentials)
+    storage_client = storage.Client(project = config.project_id, credentials = credentials)
     # create (or reuse) a GCS bucket and put the config there
     bucket_name = f'{config.project_id}-setup'
     try:

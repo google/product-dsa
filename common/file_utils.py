@@ -17,6 +17,7 @@ from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
 
+
 def get_file_content(uri):
   """Read file content supporting file paths on Cloud Storage (gs://)"""
   if uri.startswith('gs://'):
@@ -25,6 +26,7 @@ def get_file_content(uri):
     with open(uri, 'r') as f:
       return f.read()
   raise ValueError(f'File {uri} wasn\'t found')
+
 
 def get_file_from_gcs(uri):
   """Read file content from Cloud Storage url"""
@@ -43,11 +45,13 @@ def get_file_from_gcs(uri):
     print(f'Error fetching file {uri} from GCS')
     raise
 
+
 def save_file_content(uri, content):
   if uri.startswith('gs://'):
     return save_file_to_gcs(uri, content)
   with open(uri, 'w') as file:
     file.write(content)
+
 
 def save_file_to_gcs(uri, content):
   result = parse.urlparse(uri)
@@ -61,6 +65,7 @@ def save_file_to_gcs(uri, content):
   except:
     print(f'Error on saving file {uri} to GCS')
     raise
+
 
 def open_relative_file(file_name: str) -> TextIOWrapper:
   """Opens a file for reading relatively to the current module."""

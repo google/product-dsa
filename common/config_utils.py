@@ -23,6 +23,7 @@ _DATASET_ID = 'gmcdsa'
 # Location for BigQuery dataset and BQ data transfers to use by default
 _DATASET_LOCATION = 'us'
 
+
 class Config(object):
   project_id: str = ''
   dataset_location: str = ''
@@ -50,10 +51,15 @@ def parse_arguments() -> argparse.Namespace:
   parser = argparse.ArgumentParser()
   parser.add_argument('--config', help='Config file name')
   parser.add_argument('--project_id', help='GCP project id.')
-  parser.add_argument('--merchant_id', help='Google Merchant Center Account Id.')
+  parser.add_argument('--merchant_id',
+                      help='Google Merchant Center Account Id.')
   parser.add_argument('--dataset_id', help='BigQuery dataset id.')
-  parser.add_argument('--dataset_location', help='BigQuery dataset and BigQuery Data Transfer location (by default: US).')
-  parser.add_argument('--ads_customer_id', help='Google Ads External Customer Id.')
+  parser.add_argument(
+      '--dataset_location',
+      help=
+      'BigQuery dataset and BigQuery Data Transfer location (by default: US).')
+  parser.add_argument('--ads_customer_id',
+                      help='Google Ads External Customer Id.')
 
   auth.add_auth_arguments(parser)
 
@@ -86,6 +92,7 @@ def get_config(args: argparse.Namespace) -> Config:
   validate_project_id(config)
   return config
 
+
 def validate_project_id(config: Config):
   project_id = config.project_id
   if project_id:
@@ -102,9 +109,9 @@ def validate_project_id(config: Config):
     raise Exception('Failed to determine project_id')
   config.project_id = project_id
 
+
 def save_config(config: Config, filename: str):
   config_file_name = filename or 'config.yaml'
   yaml.emitter.Emitter.process_tag = lambda self, *args, **kw: None
   content = yaml.dump(config)
   file_utils.save_file_content(config_file_name, content)
-

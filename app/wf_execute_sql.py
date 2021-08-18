@@ -22,14 +22,13 @@ from google.auth import credentials
 from google.cloud import bigquery
 from common import file_utils
 
+
 def run(cfg, context):
   # either sql_file or sql_fiels can be used, but not together
-  wf = ExecuteSqlWorkflow(
-    project_id = cfg.get('project_id'),
-    sql_file = cfg.get('sql_file'),
-    sql_files = cfg.get('sql_files'),
-    macros = cfg.get('macros')
-    )
+  wf = ExecuteSqlWorkflow(project_id=cfg.get('project_id'),
+                          sql_file=cfg.get('sql_file'),
+                          sql_files=cfg.get('sql_files'),
+                          macros=cfg.get('macros'))
   return wf.run(context)
 
 
@@ -42,7 +41,8 @@ class ExecuteSqlWorkflow:
     elif sql_files:
       self.sql_templates = [file_utils.get_file_content(s) for s in sql_files]
     else:
-      raise Exception('Either sql_file or sql_files argument should be specified')
+      raise Exception(
+          'Either sql_file or sql_files argument should be specified')
     if macros:
       self.macros = {**macros}
     else:
@@ -62,7 +62,8 @@ class ExecuteSqlWorkflow:
     sql = self._substitute_macros(sql_template, context)
     #ts = time.strftime('%d %b %Y %H:%M:%S %z')
     #print(f'{ts}: Executing a query: ')
-    bq_client = bigquery.Client(project=self.project_id, credentials=context['gcp_credentials'])
+    bq_client = bigquery.Client(project=self.project_id,
+                                credentials=context['gcp_credentials'])
     # see https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationquery
     #job_config = bigquery.QueryJobConfig(destination='', write_disposition='WRITE_TRUNCATE')
     #print(sql)

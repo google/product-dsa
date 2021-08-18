@@ -19,20 +19,21 @@ from google.auth import credentials
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
 
+
 class GoogleSpreadsheetUtils(object):
   """This class provides methods to simplify BigQuery API usage."""
+
   def __init__(self, credentials: credentials.Credentials):
     self.sheetsAPI = build('sheets', 'v4', credentials=credentials)
 
   def update_values(self, docid: str, range, values):
     result = self.sheetsAPI.spreadsheets().values().update(
-      spreadsheetId = docid,
-      range = range,
-      valueInputOption = 'USER_ENTERED',
-      body = {
-        "range": range,
-        "majorDimension": "ROWS",
-        "values": values
-      }
-      ).execute()
+        spreadsheetId=docid,
+        range=range,
+        valueInputOption='USER_ENTERED',
+        body={
+            "range": range,
+            "majorDimension": "ROWS",
+            "values": values
+        }).execute()
     logging.info(f'Spreadsheet {docid} updated')

@@ -37,33 +37,46 @@ logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 
-def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils, config: config_utils.Config):
+def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
+                    config: config_utils.Config):
   logging.info('Creating solution specific views.')
   # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.
   sql_files = [
-     'filter-products.sql',
+      'filter-products.sql',
   ]
-  bigquery_util.execute_queries(sql_files, config.dataset_id, config.dataset_location, config.merchant_id)
+  bigquery_util.execute_queries(sql_files, config.dataset_id,
+                                config.dataset_location, config.merchant_id)
 
 
 def create_page_feed_spreadsheet(config: config_utils.Config, credentials):
   if config.page_feed_spreadsheetid:
-    logging.info('Skipped spreadsheet creation as config contains a docid: ' + config.page_feed_spreadsheetid)
+    logging.info('Skipped spreadsheet creation as config contains a docid: ' +
+                 config.page_feed_spreadsheetid)
     return
   logging.info('Creating a spreadsheet for page feed data')
   logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
   sheetsAPI = build('sheets', 'v4', credentials=credentials)
-  result = sheetsAPI.spreadsheets().create(body={
-      "sheets": [{"properties": {"title": "Main"}}],
-      "properties": {"title": f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"}
-    }).execute()
+  result = sheetsAPI.spreadsheets().create(
+      body={
+          "sheets": [{
+              "properties": {
+                  "title": "Main"
+              }
+          }],
+          "properties": {
+              "title":
+                  f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"
+          }
+      }).execute()
   config.page_feed_spreadsheetid = result['spreadsheetId']
   logging.info('Created spreadsheet: ' + config.page_feed_spreadsheetid)
 
 
-def backup_config(config_file_name: str, config: config_utils.Config, credentials):
+def backup_config(config_file_name: str, config: config_utils.Config,
+                  credentials):
   if not config_file_name.startswith('gs://'):
-    storage_client = storage.Client(project = config.project_id, credentials = credentials)
+    storage_client = storage.Client(project=config.project_id,
+                                    credentials=credentials)
     # create (or reuse) a GCS bucket and put the config there
     bucket_name = f'{config.project_id}-setup'
     try:
@@ -72,7 +85,9 @@ def backup_config(config_file_name: str, config: config_utils.Config, credential
       bucket = storage_client.create_bucket(bucket_name)
     blob = bucket.blob(config_file_name)
     blob.upload_from_filename(config_file_name)
-    logging.info(f'config file ({config_file_name}) has been copied to gs://{bucket_name}')
+    logging.info(
+        f'config file ({config_file_name}) has been copied to gs://{bucket_name}'
+    )
 
 
 def main():
@@ -84,14 +99,15 @@ def main():
   credentials = auth.get_credentials(args)
 
   logging.info('Creating %s dataset.', config.dataset_id)
-  bigquery_client = bigquery_utils.CloudBigQueryUtils(config.project_id, credentials)
-  bigquery_client.create_dataset_if_not_exists(config.dataset_id, config.dataset_location)
+  bigquery_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
+                                                      credentials)
+  bigquery_client.create_dataset_if_not_exists(config.dataset_id,
+                                               config.dataset_location)
 
-  data_transfer = cloud_data_transfer.CloudDataTransferUtils(config.project_id,
-      config.dataset_location, credentials)
+  data_transfer = cloud_data_transfer.CloudDataTransferUtils(
+      config.project_id, config.dataset_location, credentials)
   merchant_center_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id)
-
 
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
   try:
@@ -125,4 +141,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-

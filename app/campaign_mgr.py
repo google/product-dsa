@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 Responsible for campaign creation of Product DSAs to upload into Google Ads
 Uploading will initially be only supported through Google Ads Editor
@@ -24,7 +23,7 @@ from common import config_utils
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
-CAMP_BUDGET=	'Budget'
+CAMP_BUDGET = 'Budget'
 # BUDGET_TYPE = 'Budget type'
 # BID_STRATEGY_TYPE = 'Bid Strategy Type'
 # TARGET_ROAS = 'Target ROAS'
@@ -53,13 +52,16 @@ PDSA_CATEGORY_CAMPAIGN_NAME = 'PDSA Categories'
 AD_DESCRIPTION_MAX_LENGTH = 90
 AD_DESCRIPTION_MIN_LENGTH = 35
 
+
 class GoogleAdsEditorMgr:
+
   def __init__(self, config: config_utils.Config):
     self._config = config
-    self._headers = [CAMP_NAME, CAMP_BUDGET, DSA_WEBSITE, DSA_LANG,
-      DSA_TARGETING_SOURCE, DSA_PAGE_FEEDS, ADGROUP_NAME, ADGROUP_MAX_CPM,
-      ADGROUP_TARGET_CPM, ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE,
-      AD_TYPE, AD_DESCRIPTION]
+    self._headers = [
+        CAMP_NAME, CAMP_BUDGET, DSA_WEBSITE, DSA_LANG, DSA_TARGETING_SOURCE,
+        DSA_PAGE_FEEDS, ADGROUP_NAME, ADGROUP_MAX_CPM, ADGROUP_TARGET_CPM,
+        ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE, AD_TYPE, AD_DESCRIPTION
+    ]
     self._rows = []
 
   def __create_row(self):
@@ -89,21 +91,22 @@ class GoogleAdsEditorMgr:
       return product.title
 
     # The description and title are too long, split them to sentances
-    all_sentences = self.__split_to_sentances(product.description) + self.__split_to_sentances(product.title)
+    all_sentences = self.__split_to_sentances(
+        product.description) + self.__split_to_sentances(product.title)
     for sentence in all_sentences:
       if (len(sentence) >= AD_DESCRIPTION_MIN_LENGTH and
-          len(sentence) <= AD_DESCRIPTION_MAX_LENGTH ):
+          len(sentence) <= AD_DESCRIPTION_MAX_LENGTH):
         return sentence
     return ''
 
   def add_campaign(self, name):
     campaign = self.__create_row()
     campaign_details = {
-      CAMP_NAME : name,
-      DSA_WEBSITE : self._config.dsa_website,
-      DSA_LANG : self._config.dsa_lang or '',
-      DSA_TARGETING_SOURCE: 'Page feed',
-      DSA_PAGE_FEEDS: self._config.page_feed_name or 'PDSA Pagefeed'
+        CAMP_NAME: name,
+        DSA_WEBSITE: self._config.dsa_website,
+        DSA_LANG: self._config.dsa_lang or '',
+        DSA_TARGETING_SOURCE: 'Page feed',
+        DSA_PAGE_FEEDS: self._config.page_feed_name or 'PDSA Pagefeed'
     }
     campaign.update(campaign_details)
     self._rows.append(campaign)
@@ -112,17 +115,18 @@ class GoogleAdsEditorMgr:
     adgroup = self.__create_row()
     # If it's category level, use the label without 'PDSA_CATEGORY_'
     adgroup_name = product.offer_id if is_product_level else label[14:]
-    ad_description = '' if not is_product_level else self.__get_ad_description(product)
+    ad_description = '' if not is_product_level else self.__get_ad_description(
+        product)
     adgroup_details = {
-      CAMP_NAME : campaign_name,
-      ADGROUP_NAME : 'Ad group ' + adgroup_name,
-      ADGROUP_MAX_CPM : '0.01',
-      ADGROUP_TARGET_CPM : '0.01',
-      ADGROUP_TYPE : 'Dynamic',
-      TARGET_CONDITION : 'CUSTOM_LABEL',
-      TARGET_VALUE : label,
-      AD_TYPE : 'Expanded Dynamic Search Ad',
-      AD_DESCRIPTION : ad_description.strip()
+        CAMP_NAME: campaign_name,
+        ADGROUP_NAME: 'Ad group ' + adgroup_name,
+        ADGROUP_MAX_CPM: '0.01',
+        ADGROUP_TARGET_CPM: '0.01',
+        ADGROUP_TYPE: 'Dynamic',
+        TARGET_CONDITION: 'CUSTOM_LABEL',
+        TARGET_VALUE: label,
+        AD_TYPE: 'Expanded Dynamic Search Ad',
+        AD_DESCRIPTION: ad_description.strip()
     }
     adgroup.update(adgroup_details)
     self._rows.append(adgroup)
@@ -138,6 +142,7 @@ class CampaignMgr:
   """ Responsible for creating the campaign and ad group structure that targets
   the pagefeed generated from the GMC feed
   """
+
   def __init__(self, config: config_utils.Config, products):
     self._all_products = products
     self._config = config
@@ -179,14 +184,16 @@ class CampaignMgr:
     for label in self._custom_labels:
       is_product_level = is_product_label(label)
       campaign_name = product_campaign_name if is_product_level else category_campaign_name
-      gae.add_adgroup(campaign_name, is_product_level, self._custom_labels[label], label)
+      gae.add_adgroup(campaign_name, is_product_level,
+                      self._custom_labels[label], label)
 
     gae.generate_csv()
 
 
 def generate_csv(config: config_utils.Config, products):
-  campaign_mgr = CampaignMgr( config, products)
+  campaign_mgr = CampaignMgr(config, products)
   return campaign_mgr.generate_csv()
 
+
 def is_product_label(label):
-    return label.startswith('product_')
+  return label.startswith('product_')

@@ -40,7 +40,8 @@ class CloudBigQueryUtils(object):
     self.project_id = project_id
     self.client = bigquery.Client(project=project_id, credentials=credentials)
 
-  def create_dataset_if_not_exists(self, dataset_id: str, dataset_location: str) -> None:
+  def create_dataset_if_not_exists(self, dataset_id: str,
+                                   dataset_location: str) -> None:
     """Creates BigQuery dataset if it doesn't exists.
 
     Args:
@@ -75,8 +76,7 @@ class CloudBigQueryUtils(object):
       with open(file_path, 'r') as stream:
         content = stream.read()
     except FileNotFoundError:
-      raise FileNotFoundError(
-        f'The file "{file_path}" could not be found.')
+      raise FileNotFoundError(f'The file "{file_path}" could not be found.')
     else:
       return content
 
@@ -103,24 +103,23 @@ class CloudBigQueryUtils(object):
 
     return sql_script.format(**params)
 
-  def execute_queries(self, sql_files: Sequence[str], dataset_id: str, dataset_location: str, merchant_id: str) -> None:
+  def execute_queries(self, sql_files: Sequence[str], dataset_id: str,
+                      dataset_location: str, merchant_id: str) -> None:
     """Executes list of queries."""
 
     prefix = 'scripts'
     query_params = {
-      'project_id': self.project_id,
-      'dataset': dataset_id,
-      'merchant_id': merchant_id,
-      #'external_customer_id': customer_id
+        'project_id': self.project_id,
+        'dataset': dataset_id,
+        'merchant_id': merchant_id,
+        #'external_customer_id': customer_id
     }
 
     for sql_file in sql_files:
       try:
-        query = self.configure_sql(
-            os.path.join(prefix, sql_file),
-            query_params)
+        query = self.configure_sql(os.path.join(prefix, sql_file), query_params)
         query_job = self.client.query(query, location=dataset_location)
         query_job.result()
       except Exception as e:
-        logging.exception(f'Error occurred during {sql_file} execution: {e}', )
+        logging.exception(f'Error occurred during {sql_file} execution: {e}',)
         raise

@@ -24,12 +24,15 @@ import campaign_mgr
 
 logging.getLogger().setLevel(logging.INFO)
 
+
 def validate_config(config: config_utils.Config):
   if (not config.merchant_id):
     print('No merchant_id found in configuration (merchant_id), exiting')
     exit()
   if (not config.page_feed_spreadsheetid):
-    print('No spreadsheet id for page feed found in configuration (page_feed_spreadsheetid), exiting')
+    print(
+        'No spreadsheet id for page feed found in configuration (page_feed_spreadsheetid), exiting'
+    )
     exit()
   if (not config.dsa_website):
     print('No DSA website found in configuration (dsa_website), exiting')
@@ -49,13 +52,13 @@ def create_page_feed(config: config_utils.Config, context: Dict):
   # NOTE: currently we don't validate all those invariants, only assume they
   logging.info(f'[{ts}] Starting "{step_name}" step')
   cfg = {
-    'sql_file': './scripts/create-page-feed.sql',
-    'project_id': config.project_id,
-    'macros': {
+      'sql_file': './scripts/create-page-feed.sql',
       'project_id': config.project_id,
-      'dataset': config.dataset_id,
-      'merchant_id': config.merchant_id,
-    }
+      'macros': {
+          'project_id': config.project_id,
+          'dataset': config.dataset_id,
+          'merchant_id': config.merchant_id,
+      }
   }
   data = wf_execute_sql.run(cfg, context)
   logging.info(f'Page-feed query returned {data.total_rows} rows')
@@ -64,16 +67,17 @@ def create_page_feed(config: config_utils.Config, context: Dict):
   for row in data:
     values.append([row[0], row[1]])
 
-  sheets_client = sheets_utils.GoogleSpreadsheetUtils(context['gcp_credentials'])
+  sheets_client = sheets_utils.GoogleSpreadsheetUtils(
+      context['gcp_credentials'])
 
   with open('page-feed.csv', 'w') as csv_file:
     writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(['Page URL','Custom label'])
+    writer.writerow(['Page URL', 'Custom label'])
     writer.writerows(values)
   logging.info('Generated page feed in page-feed.csv file')
 
   sheets_client.update_values(config.page_feed_spreadsheetid, "Main!A1:Z",
-      [['Page URL', 'Custom label']] + values)
+                              [['Page URL', 'Custom label']] + values)
   url = f'https://docs.google.com/spreadsheets/d/{config.page_feed_spreadsheetid}'
   logging.info('Generated page feed in Google Spreadsheet ' + url)
 
@@ -87,13 +91,13 @@ def generate_campaign_for_adeditor(config: config_utils.Config, context):
   ts = time.strftime('%H:%M:%S %z')
   logging.info(f'[{ts}] Starting "{step_name}" step')
   cfg = {
-    'sql_file': 'scripts/get-products.sql',
-    'project_id': config.project_id,
-    'macros': {
+      'sql_file': 'scripts/get-products.sql',
       'project_id': config.project_id,
-      'dataset': config.dataset_id,
-      'merchant_id': config.merchant_id,
-    }
+      'macros': {
+          'project_id': config.project_id,
+          'dataset': config.dataset_id,
+          'merchant_id': config.merchant_id,
+      }
   }
   products = wf_execute_sql.run(cfg, context)
   logging.info(f'Returned {products.total_rows} products')

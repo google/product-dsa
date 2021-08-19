@@ -47,6 +47,20 @@ def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
                                 config.dataset_location, config.merchant_id)
 
 
+def set_permission_on_drive(fileId, email, credentials):
+  driveAPI = build('drive', 'v3', credentials=credentials)
+  access = driveAPI.permissions().create(
+      fileId=fileId,
+      body={
+          'type': 'user',
+          'role': 'writer',
+          'emailAddress': email
+      },
+      fields='id',
+      #transferOwnership=True  - use it if you want to transfer ownership (change role  to 'owner' then, and comment out sendNotificationEmail=False)
+      sendNotificationEmail=False
+      ).execute()
+
 def create_page_feed_spreadsheet(config: config_utils.Config,
                                  credentials) -> bool:
   if config.page_feed_spreadsheetid:
@@ -70,6 +84,10 @@ def create_page_feed_spreadsheet(config: config_utils.Config,
       }).execute()
   config.page_feed_spreadsheetid = result['spreadsheetId']
   logging.info('Created spreadsheet: ' + config.page_feed_spreadsheetid)
+  # set permission on the created spreadsheet for GAE default service account
+  saEmail = f"{config.project_id}@appspot.gserviceaccount.com"
+  set_permission_on_drive(config.page_feed_spreadsheetid, saEmail, credentials)
+
   return True
 
 

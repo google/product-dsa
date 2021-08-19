@@ -1,0 +1,10 @@
+runtime: python39
+automatic_scaling:
+  min_instances: 0
+  max_instances: 1
+
+env_variables:
+  CONFIG: gs://gmc-dsa-segy-setup/config.tenengroup.yaml
+#  PYTHONPATH: .
+
+entrypoint: gunicorn -b :$PORT app.server:app

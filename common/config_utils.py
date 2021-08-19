@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
-from common import file_utils
+from common import auth, file_utils
 import os
-from . import auth
 import yaml
 import json
 
@@ -22,6 +21,8 @@ import json
 _DATASET_ID = 'gmcdsa'
 # Location for BigQuery dataset and BQ data transfers to use by default
 _DATASET_LOCATION = 'us'
+# Location for Cloud Scheduler
+_SCHEDULER_LOCATION = 'europe-west1'
 
 
 class Config(object):
@@ -36,13 +37,16 @@ class Config(object):
   dsa_lang: str = ''
   page_feed_name: str = ''
   page_feed_spreadsheetid: str = ''
+  page_feed_output_file: str = ''
+  campaign_output_file: str = ''
+  scheduler_location: str = ''
 
   def update(self, kw):
     for k in kw:
       setattr(self, k, kw[k])
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(only_known: bool = False) -> argparse.Namespace:
   """Initialize command line parser using argparse.
 
   Returns:
@@ -58,36 +62,58 @@ def parse_arguments() -> argparse.Namespace:
       '--dataset_location',
       help=
       'BigQuery dataset and BigQuery Data Transfer location (by default: US).')
+  parser.add_argument('--scheduler_location', help='Cloud Scheduler location id (by default: europe-west1)')
   parser.add_argument('--ads_customer_id',
                       help='Google Ads External Customer Id.')
 
   auth.add_auth_arguments(parser)
-
-  return parser.parse_args()
-
+  if only_known:
+    args = parser.parse_known_args()[0]
+  else:
+    args = parser.parse_args()
+  args.config = args.config or os.environ.get('CONFIG') or 'config.yaml'
+  return args
 
 def get_config(args: argparse.Namespace) -> Config:
-  config_file_name = args.config or 'config.yaml'
+  config_file_name = args.config or os.environ.get('CONFIG') or 'config.yaml'
   """ Read config.yml file and return Config object."""
   content = file_utils.get_file_content(config_file_name)
   cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
   config = Config()
   config.update(cfg_dict)
-  if (args.project_id):
+  # project id
+  if args.project_id:
     config.project_id = args.project_id
-  if (args.dataset_id):
+
+  # dataset id
+  if args.dataset_id:
     config.dataset_id = args.dataset_id
-  elif (not config.dataset_id):
-    config.dataset_id = _DATASET_ID
-  if (args.dataset_location):
+  elif not config.dataset_id:
+    config.dataset_id = os.environ.get('DATASET_ID') or _DATASET_ID
+  # dataset location
+  if args.dataset_location:
     config.dataset_location = args.dataset_location
-  elif (not config.dataset_location):
-    config.dataset_location = _DATASET_LOCATION
-  if (args.merchant_id):
+  elif not config.dataset_location:
+    config.dataset_location = os.environ.get(
+        'DATASET_LOCATION') or _DATASET_LOCATION
+  # merchant id
+  if args.merchant_id:
     config.merchant_id = args.merchant_id
-  if (args.ads_customer_id):
+  elif not config.merchant_id:
+    config.merchant_id = os.environ.get('MERCHANT_ID')
+  # ads customer id
+  if args.ads_customer_id:
     config.ads_customer_id = args.ads_customer_id
+  elif not config.ads_customer_id:
+    config.ads_customer_id = os.environ.get('ADS_CUSTOMER_ID')
+  if config.ads_customer_id:
     config.ads_customer_id = config.ads_customer_id.replace('-', '')
+  # scheduler location
+  if args.scheduler_location:
+    config.scheduler_location = args.scheduler_location
+  elif not config.scheduler_location:
+    config.scheduler_location = os.getenv(
+        'SCHEDULER_LOCATION') or _SCHEDULER_LOCATION
 
   validate_project_id(config)
   return config

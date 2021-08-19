@@ -131,8 +131,8 @@ class GoogleAdsEditorMgr:
     adgroup.update(adgroup_details)
     self._rows.append(adgroup)
 
-  def generate_csv(self):
-    with open('gae-campaigns.csv', 'w') as csv_file:
+  def generate_csv(self, output_path: str):
+    with open(output_path, 'w') as csv_file:
       writer = csv.DictWriter(csv_file, fieldnames=self._headers)
       writer.writeheader()
       writer.writerows(self._rows)
@@ -163,7 +163,7 @@ class CampaignMgr:
         if label not in self._custom_labels:
           self._custom_labels[label] = prod
 
-  def generate_csv(self):
+  def generate_csv(self, output_path: str):
     if not self._custom_labels:
       return
 
@@ -187,12 +187,14 @@ class CampaignMgr:
       gae.add_adgroup(campaign_name, is_product_level,
                       self._custom_labels[label], label)
 
-    gae.generate_csv()
+    gae.generate_csv(output_path)
 
 
-def generate_csv(config: config_utils.Config, products):
+def generate_csv(config: config_utils.Config,
+                 products,
+                 output_path: str = 'gae-campaigns.csv'):
   campaign_mgr = CampaignMgr(config, products)
-  return campaign_mgr.generate_csv()
+  return campaign_mgr.generate_csv(output_path)
 
 
 def is_product_label(label):

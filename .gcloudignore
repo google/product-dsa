@@ -1,0 +1,9 @@
+.git
+.venv
+.vscode
+DS_Store
+.gcloudignore
+.gitignore
+client_secrets.json 
+*.csv
+*.sh

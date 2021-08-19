@@ -17,23 +17,6 @@
 COLOR='\033[0;36m' # Cyan
 NC='\033[0m' # No Color
 
-PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
-
-enable_apis() {
-  echo -e "${COLOR}Enabling APIs:${NC}"
-  # Google BigQuery
-  echo -e "${COLOR}\tGoogle BigQuery API...${NC}"
-  gcloud services enable bigquery.googleapis.com
-  # Google BigQuery
-  echo -e "${COLOR}\tGoogle BigQuery Data Transfer API...${NC}"
-  gcloud services enable bigquerydatatransfer.googleapis.com
-  echo -e "${COLOR}\tGoogle Sheets API...${NC}"
-  gcloud services enable sheets.googleapis.com
-}
-
-# enable required APIs
-enable_apis
-
 export PYTHONPATH="."
 # install and activate Python virtual environment
 python3 -m venv .venv
@@ -45,3 +28,9 @@ python3 -m pip install -r requirements.txt
 # run installation
 python3 ./install/cloud_env_setup.py "$@"
 
+# NOTE: despite other GCP services GAE supports only two regions: europe-west and us-central
+GAE_LOCATION=europe-west
+PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
+
+gcloud app create --region $GAE_LOCATION
+gcloud app deploy -q

@@ -17,7 +17,7 @@ from googleapiclient.discovery import build
 from google.auth import credentials
 
 logging.getLogger().setLevel(logging.INFO)
-logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 
 class GoogleSpreadsheetUtils(object):

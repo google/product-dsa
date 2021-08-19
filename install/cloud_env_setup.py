@@ -22,15 +22,14 @@ This module automates the following steps:
 """
 
 import logging
-from typing import NamedTuple, Dict, Union
+from typing import NamedTuple, Dict, Union, List
 from googleapiclient.discovery import build
 from google.cloud import storage, exceptions
 from pprint import pprint
 # if you're getting an error on the next line "ModuleNotFound",
 # make sure you define env var PYTHONPATH="."
-from common import auth, config_utils
-from common import bigquery_utils
-import cloud_data_transfer
+from common import auth, config_utils, cloud_utils, bigquery_utils
+from install import cloud_data_transfer
 
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
@@ -48,11 +47,12 @@ def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
                                 config.dataset_location, config.merchant_id)
 
 
-def create_page_feed_spreadsheet(config: config_utils.Config, credentials):
+def create_page_feed_spreadsheet(config: config_utils.Config,
+                                 credentials) -> bool:
   if config.page_feed_spreadsheetid:
     logging.info('Skipped spreadsheet creation as config contains a docid: ' +
                  config.page_feed_spreadsheetid)
-    return
+    return False
   logging.info('Creating a spreadsheet for page feed data')
   logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
   sheetsAPI = build('sheets', 'v4', credentials=credentials)
@@ -70,6 +70,7 @@ def create_page_feed_spreadsheet(config: config_utils.Config, credentials):
       }).execute()
   config.page_feed_spreadsheetid = result['spreadsheetId']
   logging.info('Created spreadsheet: ' + config.page_feed_spreadsheetid)
+  return True
 
 
 def backup_config(config_file_name: str, config: config_utils.Config,
@@ -90,6 +91,50 @@ def backup_config(config_file_name: str, config: config_utils.Config,
     )
 
 
+def enable_apis(apis: List[str], config: config_utils.Config, credentials):
+  """Enables multiple Cloud APIs for a GCP project.
+
+  Args:
+    apis: The list of APIs to be enabled.
+
+  Raises:
+      Error: If the request was not processed successfully.
+  """
+  parent = f'projects/{config.project_id}'
+  request_body = {'serviceIds': apis}
+  client = build('serviceusage',
+                 'v1',
+                 credentials=credentials,
+                 cache_discovery=False)
+  operation = client.services().batchEnable(parent=parent,
+                                            body=request_body).execute()
+  cloud_utils.wait_for_operation(client.operations(), operation)
+
+
+def create_scheduler_job(config: config_utils.Config, credentials):
+  from google.cloud import scheduler
+
+  client = scheduler.CloudSchedulerClient(credentials=credentials)
+  parent = f"projects/{config.project_id}/locations/{config.scheduler_location}"
+  job = {
+      'app_engine_http_target': {
+          'relative_uri': '/pagefeed/update',
+          'http_method': 1,
+          #'body': 'Hello World'.encode()
+      },
+      # TODO: set current time in UTC
+      'schedule': '0 * * * *',
+      'time_zone': 'America/Los_Angeles'
+  }
+  response = client.create_job(
+      request={
+          "parent": parent,
+          "job": job
+      }
+  )
+  logging.info(f'Created Scheduler job ${response.name}')
+
+
 def main():
   args = config_utils.parse_arguments()
 
@@ -97,6 +142,14 @@ def main():
   pprint(vars(config))
 
   credentials = auth.get_credentials(args)
+
+  logging.info('Enabling apis')
+  enable_apis([
+      'bigquery.googleapis.com', 'bigquerydatatransfer.googleapis.com',
+      'sheets.googleapis.com', 'drive.googleapis.com',
+      'cloudscheduler.googleapis.com'
+  ], config, credentials)
+  logging.info('apis have been enabled')
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
@@ -127,14 +180,19 @@ def main():
   execute_queries(bigquery_client, config)
 
   # creating a spreadsheet for page feed data
-  create_page_feed_spreadsheet(config, credentials)
+  created = create_page_feed_spreadsheet(config, credentials)
 
   config_file_name = args.config or 'config.yaml'
-  # overwrite config file with new data
-  config_utils.save_config(config, config_file_name)
+  if created:
+    # overwrite config file with new data
+    config_utils.save_config(config, config_file_name)
+
   # As we could have modified the config (e.g. put a spreadsheet id),
   # we need to save it to a well-known location - GCS bucket {project_id}-setup:
   backup_config(config_file_name, config, credentials)
+
+  # create a Scheduler job to execute API /pagefeed/update to update the spreadsheet with pagefeed data
+  create_scheduler_job(config, credentials)
 
   logging.info('installation is complete!')
 

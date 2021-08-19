@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Run arbitrary SQL script in BigQuery, supporting reading their content from file/files or GCSE.
+"""Run arbitrary SQL script in BigQuery, supporting reading their content from file/files or GCS.
 """
 
 import time

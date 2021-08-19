@@ -19,8 +19,8 @@ import csv
 from google.auth import credentials
 from pprint import pprint
 from common import auth, config_utils, sheets_utils
-import wf_execute_sql
-import campaign_mgr
+from app import wf_execute_sql
+from app import campaign_mgr
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -39,8 +39,8 @@ def validate_config(config: config_utils.Config):
     exit()
 
 
-def create_page_feed(config: config_utils.Config, context: Dict):
-  step_name = 'page feed creation'
+def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config, context: Dict):
+  step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
   t0 = time.time()
   ts = time.strftime('%H:%M:%S %z')
   # Execute a SQL script (TODO: read its name from config) to get data for DSA page feed
@@ -67,15 +67,16 @@ def create_page_feed(config: config_utils.Config, context: Dict):
   for row in data:
     values.append([row[0], row[1]])
 
+  if generate_csv:
+    csv_file_name = config.page_feed_output_file or 'page-feed.csv'
+    with open(csv_file_name, 'w') as csv_file:
+      writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
+      writer.writerow(['Page URL', 'Custom label'])
+      writer.writerows(values)
+    logging.info(f'Generated page feed in {csv_file_name} file')
+
   sheets_client = sheets_utils.GoogleSpreadsheetUtils(
       context['gcp_credentials'])
-
-  with open('page-feed.csv', 'w') as csv_file:
-    writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
-    writer.writerow(['Page URL', 'Custom label'])
-    writer.writerows(values)
-  logging.info('Generated page feed in page-feed.csv file')
-
   sheets_client.update_values(config.page_feed_spreadsheetid, "Main!A1:Z",
                               [['Page URL', 'Custom label']] + values)
   url = f'https://docs.google.com/spreadsheets/d/{config.page_feed_spreadsheetid}'
@@ -102,7 +103,9 @@ def generate_campaign_for_adeditor(config: config_utils.Config, context):
   products = wf_execute_sql.run(cfg, context)
   logging.info(f'Returned {products.total_rows} products')
   if products.total_rows:
-    campaign_mgr.generate_csv(config, products)
+    output_path = config.campaign_output_file or 'gae-campaigns.csv'
+    campaign_mgr.generate_csv(config, products, output_path)
+    logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
 
@@ -117,7 +120,7 @@ def main():
   context = {'xcom': {}, 'gcp_credentials': cred}
 
   # #1 crete page feed
-  create_page_feed(config, context)
+  create_or_update_page_feed(True, config, context)
 
   # #2 generate ad campaigns
   generate_campaign_for_adeditor(config, context)

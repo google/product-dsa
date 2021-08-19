@@ -29,3 +29,5 @@ dsa_website: YOUR_DSA_WEBSITE
 dsa_lang: en
 page_feed_name: YOUR_PAGE_FEED_NAME
 page_feed_spreadsheetid: YOUR_GSHEET_ID
+page_feed_output_file:           # [optional] File name for output CSV file with page feed (page-feed.csv by default)
+campaign_output_file:            # [optional] File name for output CSV file with campaign data for Ads Editor

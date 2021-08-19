@@ -29,18 +29,21 @@ Make sure the user running the installation has following permissions.
 #### 2.4.1 Setup parameters
 You can either put all parameters into `config.yaml` or pass them as command line arguments.
 
-To get initial structure of config.yaml use a template in install folder: `cp ./config.yaml.template ./config.yaml`:
+To get initial structure of config.yaml use a template: `cp ./config.yaml.template ./config.yaml`.
+
+Example of config.yaml
 ```
 dataset_location: us
 project_id: YOUR_GCP_PROJECT_ID
 merchant_id: YOUR_GMC_ACCOUNT_ID
 ```
-
+using it you can run `./setup.sh` without any arguments.
+Alternately you can supply all parameters via command line arguments:
 ```
 ./setup.sh --project_id YOUR_GCP_PROJECT_ID --merchant_id YOUR_GMC_ACCOUNT_ID --dataset_location us
 ```
 
-Or specify config file explicitly:
+You can specify config file explicitly:
 ```
 ./setup.sh --config config.MY_PROJECT1.yaml
 ```
@@ -50,7 +53,7 @@ You can use not only local path but also file on GCS:
 ```
 ./setup.sh --config gs://MY_BUCKET/config.MY_PROJECT1.yaml
 ```
-but in this case you have to use Application Default Credentials (that means you can't use neither `--service-account-key-file` nor `--client-secrets-file`)
+but in this case you have to use Application Default Credentials (that means you can't use either `--service-account-key-file` or `--client-secrets-file`)
 
 
 #### 2.4.2 Running from local machine

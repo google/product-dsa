@@ -58,8 +58,8 @@ def set_permission_on_drive(fileId, email, credentials):
       },
       fields='id',
       #transferOwnership=True  - use it if you want to transfer ownership (change role  to 'owner' then, and comment out sendNotificationEmail=False)
-      sendNotificationEmail=False
-      ).execute()
+      sendNotificationEmail=False).execute()
+
 
 def create_page_feed_spreadsheet(config: config_utils.Config,
                                  credentials) -> bool:
@@ -144,12 +144,7 @@ def create_scheduler_job(config: config_utils.Config, credentials):
       'schedule': '0 * * * *',
       'time_zone': 'America/Los_Angeles'
   }
-  response = client.create_job(
-      request={
-          "parent": parent,
-          "job": job
-      }
-  )
+  response = client.create_job(request={"parent": parent, "job": job})
   logging.info(f'Created Scheduler job ${response.name}')
 
 

@@ -15,6 +15,7 @@
 import logging
 from typing import Dict, List
 import time
+import os
 import csv
 from google.auth import credentials
 from pprint import pprint
@@ -39,7 +40,8 @@ def validate_config(config: config_utils.Config):
     exit()
 
 
-def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config, context: Dict):
+def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
+                               context: Dict):
   step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
   t0 = time.time()
   ts = time.strftime('%H:%M:%S %z')
@@ -68,7 +70,9 @@ def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config, 
     values.append([row[0], row[1]])
 
   if generate_csv:
-    csv_file_name = config.page_feed_output_file or 'page-feed.csv'
+    csv_file_name = os.path.join(
+        config.output_folder or '', config.page_feed_output_file or
+        'page-feed.csv')
     with open(csv_file_name, 'w') as csv_file:
       writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
       writer.writerow(['Page URL', 'Custom label'])
@@ -103,7 +107,9 @@ def generate_campaign_for_adeditor(config: config_utils.Config, context):
   products = wf_execute_sql.run(cfg, context)
   logging.info(f'Returned {products.total_rows} products')
   if products.total_rows:
-    output_path = config.campaign_output_file or 'gae-campaigns.csv'
+    output_path = os.path.join(
+        config.output_folder or '', config.campaign_output_file or
+        'gae-campaigns.csv')
     campaign_mgr.generate_csv(config, products, output_path)
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
@@ -118,6 +124,9 @@ def main():
 
   validate_config(config)
   context = {'xcom': {}, 'gcp_credentials': cred}
+
+  if config.output_folder:
+    os.mkdir(config.output_folder)
 
   # #1 crete page feed
   create_or_update_page_feed(True, config, context)

@@ -13,19 +13,43 @@
 # limitations under the License.
 from io import TextIOWrapper
 import os
+import requests
 from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
 
 
-def get_file_content(uri):
+def get_file_content(uri: str):
   """Read file content supporting file paths on Cloud Storage (gs://)"""
   if uri.startswith('gs://'):
     return get_file_from_gcs(uri)
   elif os.path.exists(uri):
     with open(uri, 'r') as f:
       return f.read()
+  elif uri.startswith(['http://', 'https://', 'ftp://', 'ftps://']):
+    return requests.get(uri).text
   raise ValueError(f'File {uri} wasn\'t found')
+
+
+def download_file(uri, folder):
+  if not os.path.exists(folder):
+    os.mkdir(folder)
+  response = requests.get(uri)
+  if response.status_code == 200:
+    result = parse.urlparse(uri)
+    file_name = os.path.basename(result.path)
+    local_path = os.path.join(folder, file_name)
+    with open(local_path, 'wb') as f:
+      f.write(response.content)
+    return local_path
+  raise Exception(f"Couldn't download file {uri}: {response.reason}")
+
+  """
+  response = requests.get('http://www.example.com/image.jpg', stream=True)
+  with open('output.jpg', 'wb') as handle:
+    for block in response.iter_content(1024):
+        handle.write(block)
+  """
 
 
 def get_file_from_gcs(uri):

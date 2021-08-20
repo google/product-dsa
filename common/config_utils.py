@@ -26,19 +26,37 @@ _SCHEDULER_LOCATION = 'europe-west1'
 
 
 class Config(object):
+  # GCP project id
   project_id: str = ''
+  # location for dataset in BigQuery
   dataset_location: str = ''
+  # dataset id in BigQuery for GMC-BQ data transfer
   dataset_id: str = ''
+  # GMC merchant id
   merchant_id: int = 0
+  # Google Ads customer id
   ads_customer_id: str = ''
+  # campaign name for product-level
   product_campaign_name: str = ''
+  # campaign name for category-level
   category_campaign_name: str = ''
+  # DSA website
   dsa_website: str = ''
+  # DSA language (en)
   dsa_lang: str = ''
+  # name of page feed
   page_feed_name: str = ''
+  # spreadsheet id for DSA page feed
   page_feed_spreadsheetid: str = ''
+  # file name for output csv file with page feed
   page_feed_output_file: str = ''
+  # file name for output csv file with campaign data for Ads Editor
   campaign_output_file: str = ''
+  # folder for downloading images from GMC, if relative and output_folder specified then they will be joined
+  image_folder: str = ''
+  # output folder path, will be common base path for all outputs
+  output_folder: str = ''
+  # location Cloud Scheduler (europe-west1)
   scheduler_location: str = ''
 
   def update(self, kw):
@@ -62,7 +80,9 @@ def parse_arguments(only_known: bool = False) -> argparse.Namespace:
       '--dataset_location',
       help=
       'BigQuery dataset and BigQuery Data Transfer location (by default: US).')
-  parser.add_argument('--scheduler_location', help='Cloud Scheduler location id (by default: europe-west1)')
+  parser.add_argument(
+      '--scheduler_location',
+      help='Cloud Scheduler location id (by default: europe-west1)')
   parser.add_argument('--ads_customer_id',
                       help='Google Ads External Customer Id.')
 
@@ -74,9 +94,10 @@ def parse_arguments(only_known: bool = False) -> argparse.Namespace:
   args.config = args.config or os.environ.get('CONFIG') or 'config.yaml'
   return args
 
+
 def get_config(args: argparse.Namespace) -> Config:
+  """ Read config file and merge settings from it, command line args and env vars."""
   config_file_name = args.config or os.environ.get('CONFIG') or 'config.yaml'
-  """ Read config.yml file and return Config object."""
   content = file_utils.get_file_content(config_file_name)
   cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
   config = Config()

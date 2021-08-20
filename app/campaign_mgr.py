@@ -19,7 +19,8 @@ i.e. The expected output is a CSV file.
 """
 import csv
 import re
-from common import config_utils
+import os
+from common import config_utils, file_utils
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -84,6 +85,7 @@ class GoogleAdsEditorMgr:
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
+    # TODO: use ad customizers instead of description/title
     if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.description
 
@@ -114,9 +116,11 @@ class GoogleAdsEditorMgr:
   def add_adgroup(self, campaign_name, is_product_level, product, label):
     adgroup = self.__create_row()
     # If it's category level, use the label without 'PDSA_CATEGORY_'
-    adgroup_name = product.offer_id if is_product_level else label[14:]
-    ad_description = '' if not is_product_level else self.__get_ad_description(
-        product)
+    adgroup_name = product.offer_id if is_product_level else label[
+        len('PDSA_CATEGORY_'):]
+    # TODO: generate description for category-level adgroups
+    ad_description = self.__get_ad_description(
+        product) if is_product_level else ''
     adgroup_details = {
         CAMP_NAME: campaign_name,
         ADGROUP_NAME: 'Ad group ' + adgroup_name,
@@ -128,6 +132,12 @@ class GoogleAdsEditorMgr:
         AD_TYPE: 'Expanded Dynamic Search Ad',
         AD_DESCRIPTION: ad_description.strip()
     }
+    if product.image_link:
+      folder = os.path.join(self._config.output_folder or '',
+                            self._config.image_folder or 'images')
+      local_image_path = file_utils.download_file(product.image_link, folder)
+      # TODO(mariam): put image ref into the CSV
+      # adgroup_details['Image']?
     adgroup.update(adgroup_details)
     self._rows.append(adgroup)
 

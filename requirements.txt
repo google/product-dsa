@@ -11,3 +11,4 @@ PyYAML
 flask
 gunicorn
 pytz
+requests

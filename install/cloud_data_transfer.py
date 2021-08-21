@@ -18,6 +18,7 @@
 
 import datetime
 import logging
+from pprint import pprint
 import time
 from typing import Any, Dict
 
@@ -70,58 +71,11 @@ class CloudDataTransferUtils(object):
     self.client = bigquery_datatransfer_v1.DataTransferServiceClient(
         credentials=credentials)
 
-  def wait_for_transfer_completion(self, transfer_config: Dict[str,
-                                                               Any]) -> None:
-    """Waits for the completion of data transfer operation.
-
-    This method retrieves data transfer operation and checks for its status. If
-    the operation is not completed, then the operation is re-checked after
-    `_SLEEP_SECONDS` seconds.
-
-    Args:
-      transfer_config: Resource representing data transfer.
-
-    Raises:
-      DataTransferError: If the data transfer is not successfully completed.
-    """
-    # TODO: instead of polling use pub/sub notification
-    transfer_config_name = transfer_config.name
-    transfer_config_id = transfer_config_name.split('/')[-1]
-    poll_counter = 0  # Counter to keep polling count.
-    while True:
-      transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
-      response = self.client.list_transfer_runs(parent=transfer_config_path)
-      latest_transfer = None
-      for transfer in response:
-        latest_transfer = transfer
-        break
-      if not latest_transfer:
-        return
-      if latest_transfer.state == _SUCCESS_STATE:
-        logging.info('Transfer %s was successful.', transfer_config_name)
-        return
-      if (latest_transfer.state == _FAILED_STATE or
-          latest_transfer.state == _CANCELLED_STATE):
-        error_message = (f'Transfer {transfer_config_name} was not successful. '
-                         f'Error - {latest_transfer.error_status}')
-        logging.error(error_message)
-        raise DataTransferError(error_message)
-      logging.info(
-          'Transfer %s still in progress. Sleeping for %s seconds before '
-          'checking again.', transfer_config_name, _SLEEP_SECONDS)
-      time.sleep(_SLEEP_SECONDS)
-      poll_counter += 1
-      if poll_counter >= _MAX_POLL_COUNTER:
-        error_message = (f'Transfer {transfer_config_name} is taking too long'
-                         ' to finish. Hence failing the request.')
-        logging.error(error_message)
-        raise DataTransferError(error_message)
-
   def _get_existing_transfer(self,
                              data_source_id: str,
                              destination_dataset_id: str = None,
                              params: Dict[str, str] = None,
-                             name: str = None) -> bool:
+                             name: str = None) -> types.TransferConfig:
     """Gets data transfer if it already exists.
 
     Args:
@@ -186,6 +140,7 @@ class CloudDataTransferUtils(object):
       logging.info(
           'The data transfer config "%s" parameters match. Hence '
           'skipping update.', transfer_config.display_name)
+      # NOTE: if other parameters (e.g. notification_pubsub_topic) mismatch we won't catch this
       return transfer_config
     new_transfer_config = types.TransferConfig()
     new_transfer_config.CopyFrom(transfer_config)
@@ -202,7 +157,8 @@ class CloudDataTransferUtils(object):
     return new_transfer_config
 
   def create_merchant_center_transfer(
-      self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:
+      self, merchant_id: int, destination_dataset: str,
+      pubsub_topic: str) -> types.TransferConfig:
     """Creates a new merchant center transfer.
 
     Merchant center allows retailers to store product info into Google. This
@@ -211,6 +167,7 @@ class CloudDataTransferUtils(object):
     Args:
       merchant_id: Google Merchant Center(GMC) account id.
       destination_dataset: BigQuery dataset id.
+      pubsub_topic: Pub/Sub topic id to publish message on DT completion
 
     Returns:
       Transfer config.
@@ -225,20 +182,31 @@ class CloudDataTransferUtils(object):
     # "export_local_inventories":"true",
     # "export_price_benchmarks":"true",
     # "export_best_sellers":"true"
+    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
 
     data_transfer_config = self._get_existing_transfer(_MERCHANT_CENTER_ID,
                                                        destination_dataset,
                                                        parameters)
     if data_transfer_config:
       logging.info(
-          f'Found an existing data transfer for merchant id {merchant_id} and dataset \'{destination_dataset}\''
+          f"Found an existing data transfer for merchant id {merchant_id} and dataset '{destination_dataset}' ({data_transfer_config.name})"
       )
-      return self._update_existing_transfer(data_transfer_config, parameters)
+      data_transfer_config = self._update_existing_transfer(
+          data_transfer_config, parameters)
+      # trigger execution start_manual_transfer_runs
+      logging.info(f'Triggering data transfer to run...')
+      run_time = datetime.datetime.now(tz=pytz.utc)
+      run_time_pb = timestamp_pb2.Timestamp()
+      run_time_pb.FromDatetime(run_time)
+      transfer_run = self.client.start_manual_transfer_runs(
+          types.StartManualTransferRunsRequest(parent=data_transfer_config.name,
+                                               requested_run_time=run_time_pb)).runs
+      logging.info(f'Data transfer has been run')
+      return data_transfer_config
+
     logging.info(
         f'Creating a new data transfer for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )
-
-    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
 
     transfer_config_input = {
         'display_name': f'Merchant Center Transfer - {merchant_id}',
@@ -246,18 +214,16 @@ class CloudDataTransferUtils(object):
         'destination_dataset_id': destination_dataset,
         'params': parameters,
         'data_refresh_window_days': 0,
+        'notification_pubsub_topic': pubsub_topic
     }
-    request = types.CreateTransferConfigRequest()
-    request.parent = parent
-    request.transfer_config = transfer_config_input
-
     logging.info(
         f'Creating BQ Data Transfer in {parent} for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )
-    transfer_config = self.client.create_transfer_config(request=request)
+    transfer_config = self.client.create_transfer_config(
+        parent=parent, transfer_config=transfer_config_input)
     logging.info(
-        'Data transfer created for merchant id %s to destination dataset %s',
-        merchant_id, destination_dataset)
+        f'Data transfer created for merchant id {merchant_id} to destination dataset {destination_dataset}'
+    )
     return transfer_config
 
   def create_google_ads_transfer(

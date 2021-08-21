@@ -4,7 +4,7 @@ google-auth-oauthlib
 google-cloud-bigquery
 google-cloud-bigquery-datatransfer
 google-cloud-storage
-google-cloud-scheduler
+google-cloud-pubsub
 grpcio
 #grpcio-tools # do we really need it? It's very heavy on installing
 PyYAML

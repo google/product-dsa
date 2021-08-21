@@ -21,8 +21,6 @@ import json
 _DATASET_ID = 'gmcdsa'
 # Location for BigQuery dataset and BQ data transfers to use by default
 _DATASET_LOCATION = 'us'
-# Location for Cloud Scheduler
-_SCHEDULER_LOCATION = 'europe-west1'
 
 
 class Config(object):
@@ -56,8 +54,8 @@ class Config(object):
   image_folder: str = ''
   # output folder path, will be common base path for all outputs
   output_folder: str = ''
-  # location Cloud Scheduler (europe-west1)
-  scheduler_location: str = ''
+  # pub/sub topic id for publishing message on GMC Data Transfer completions
+  pubsub_topic_dt_finish: str = 'gmc-dt-finish'
 
   def update(self, kw):
     for k in kw:
@@ -80,9 +78,6 @@ def parse_arguments(only_known: bool = False) -> argparse.Namespace:
       '--dataset_location',
       help=
       'BigQuery dataset and BigQuery Data Transfer location (by default: US).')
-  parser.add_argument(
-      '--scheduler_location',
-      help='Cloud Scheduler location id (by default: europe-west1)')
   parser.add_argument('--ads_customer_id',
                       help='Google Ads External Customer Id.')
 
@@ -129,12 +124,6 @@ def get_config(args: argparse.Namespace) -> Config:
     config.ads_customer_id = os.environ.get('ADS_CUSTOMER_ID')
   if config.ads_customer_id:
     config.ads_customer_id = config.ads_customer_id.replace('-', '')
-  # scheduler location
-  if args.scheduler_location:
-    config.scheduler_location = args.scheduler_location
-  elif not config.scheduler_location:
-    config.scheduler_location = os.getenv(
-        'SCHEDULER_LOCATION') or _SCHEDULER_LOCATION
 
   validate_project_id(config)
   return config

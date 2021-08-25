@@ -40,11 +40,24 @@ def validate_config(config: config_utils.Config):
     exit()
 
 
+def execute_sql_query(name: str, config: config_utils.Config, context: Dict, macros: Dict = None):
+  cfg = {
+      'sql_file': './scripts/' + name,
+      'project_id': config.project_id,
+      'macros': {
+          'project_id': config.project_id,
+          'dataset': config.dataset_id,
+          'merchant_id': config.merchant_id,
+      }
+  }
+  return wf_execute_sql.run(cfg, context)
+
+
 def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
                                context: Dict):
   step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
   t0 = time.time()
-  ts = time.strftime('%H:%M:%S %z')
+  ts = time.strftime('%H:%M:%S')
   # Execute a SQL script (TODO: read its name from config) to get data for DSA page feed
   # The contract for the script:
   #   we expect 2-columns: 'Page_URL' and 'Custom_label'
@@ -53,16 +66,7 @@ def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
   #   values in Page_URL column should be unique
   # NOTE: currently we don't validate all those invariants, only assume they
   logging.info(f'[{ts}] Starting "{step_name}" step')
-  cfg = {
-      'sql_file': './scripts/create-page-feed.sql',
-      'project_id': config.project_id,
-      'macros': {
-          'project_id': config.project_id,
-          'dataset': config.dataset_id,
-          'merchant_id': config.merchant_id,
-      }
-  }
-  data = wf_execute_sql.run(cfg, context)
+  data = execute_sql_query('create-page-feed.sql', config, context)
   logging.info(f'Page-feed query returned {data.total_rows} rows')
 
   values = []
@@ -90,27 +94,16 @@ def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
 
 
-def generate_campaign_for_adeditor(config: config_utils.Config, context):
-  step_name = 'campaign csv file creation'
+def generate_campaign(config: config_utils.Config, context):
+  step_name = 'campaign creation'
   t0 = time.time()
-  ts = time.strftime('%H:%M:%S %z')
+  ts = time.strftime('%H:%M:%S')
   logging.info(f'[{ts}] Starting "{step_name}" step')
-  cfg = {
-      'sql_file': 'scripts/get-products.sql',
-      'project_id': config.project_id,
-      'macros': {
-          'project_id': config.project_id,
-          'dataset': config.dataset_id,
-          'merchant_id': config.merchant_id,
-      }
-  }
-  products = wf_execute_sql.run(cfg, context)
-  logging.info(f'Returned {products.total_rows} products')
+  products = execute_sql_query('get-products.sql', config, context)
+  logging.info(f'Fetched {products.total_rows} products')
   if products.total_rows:
-    output_path = os.path.join(
-        config.output_folder or '', config.campaign_output_file or
-        'gae-campaigns.csv')
-    campaign_mgr.generate_csv(config, products, output_path)
+    output_path = campaign_mgr.generate_csv(config, products,
+                                         context['gcp_credentials'])
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
@@ -125,14 +118,14 @@ def main():
   validate_config(config)
   context = {'xcom': {}, 'gcp_credentials': cred}
 
-  if config.output_folder:
+  if config.output_folder and not os.path.exists(config.output_folder):
     os.mkdir(config.output_folder)
 
   # #1 crete page feed
   create_or_update_page_feed(True, config, context)
 
-  # #2 generate ad campaigns
-  generate_campaign_for_adeditor(config, context)
+  # #2 generate ad campaigns (with adcustomizers)
+  generate_campaign(config, context)
 
 
 if __name__ == '__main__':

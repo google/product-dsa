@@ -158,7 +158,7 @@ class CloudDataTransferUtils(object):
 
   def create_merchant_center_transfer(
       self, merchant_id: int, destination_dataset: str,
-      pubsub_topic: str) -> types.TransferConfig:
+      pubsub_topic: str, skip_dt_run: bool) -> types.TransferConfig:
     """Creates a new merchant center transfer.
 
     Merchant center allows retailers to store product info into Google. This
@@ -194,14 +194,17 @@ class CloudDataTransferUtils(object):
       data_transfer_config = self._update_existing_transfer(
           data_transfer_config, parameters)
       # trigger execution start_manual_transfer_runs
-      logging.info(f'Triggering data transfer to run...')
-      run_time = datetime.datetime.now(tz=pytz.utc)
-      run_time_pb = timestamp_pb2.Timestamp()
-      run_time_pb.FromDatetime(run_time)
-      transfer_run = self.client.start_manual_transfer_runs(
-          types.StartManualTransferRunsRequest(parent=data_transfer_config.name,
-                                               requested_run_time=run_time_pb)).runs
-      logging.info(f'Data transfer has been run')
+      if not skip_dt_run:
+        logging.info(f'Triggering data transfer to run...')
+        run_time = datetime.datetime.now(tz=pytz.utc)
+        run_time_pb = timestamp_pb2.Timestamp()
+        run_time_pb.FromDatetime(run_time)
+        transfer_run = self.client.start_manual_transfer_runs(
+            types.StartManualTransferRunsRequest(parent=data_transfer_config.name,
+                                                requested_run_time=run_time_pb)).runs
+        logging.info(f'Data transfer has been run')
+      else:
+        logging.info('Skipping data transfer running because of skip-dt-run flag')
       return data_transfer_config
 
     logging.info(
@@ -219,6 +222,7 @@ class CloudDataTransferUtils(object):
     logging.info(
         f'Creating BQ Data Transfer in {parent} for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )
+    # NOTE: DT will run on creation, we can't suppress running (if skip_dt_run=True)
     transfer_config = self.client.create_transfer_config(
         parent=parent, transfer_config=transfer_config_input)
     logging.info(

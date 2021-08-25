@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
+from typing import Callable
 from common import auth, file_utils
 import os
 import yaml
@@ -24,6 +25,7 @@ _DATASET_LOCATION = 'us'
 
 
 class Config(object):
+  #NOTE: do no put default values for settings that can be initialized from cmdline/envvar (use dataset_location as example)
   # GCP project id
   project_id: str = ''
   # location for dataset in BigQuery
@@ -42,27 +44,38 @@ class Config(object):
   dsa_website: str = ''
   # DSA language (en)
   dsa_lang: str = ''
-  # name of page feed
-  page_feed_name: str = ''
+  # name of page feed (by default 'PDSA Pagefeed')
+  page_feed_name: str = 'PDSA Pagefeed'
   # spreadsheet id for DSA page feed
   page_feed_spreadsheetid: str = ''
+  # spreadsheet id for adcustomizers feed
+  adcustomizer_spreadsheetid: str = ''
+  # name of adcustomizer feed ()
+  adcustomizer_feed_name: str = 'PDSA Adcustomizer'
   # file name for output csv file with page feed
   page_feed_output_file: str = ''
   # file name for output csv file with campaign data for Ads Editor
   campaign_output_file: str = ''
+  # file name for output csv file with ad-customizer data
+  adcustomizer_output_file: str = ''
   # folder for downloading images from GMC, if relative and output_folder specified then they will be joined
   image_folder: str = ''
   # output folder path, will be common base path for all outputs
   output_folder: str = ''
   # pub/sub topic id for publishing message on GMC Data Transfer completions
   pubsub_topic_dt_finish: str = 'gmc-dt-finish'
+  # template for ad descriptions
+  ad_description_template: str = ''
+
 
   def update(self, kw):
     for k in kw:
       setattr(self, k, kw[k])
 
 
-def parse_arguments(only_known: bool = False) -> argparse.Namespace:
+def parse_arguments(
+    only_known: bool = False,
+    func: Callable[[argparse.ArgumentParser], None] = None) -> argparse.Namespace:
   """Initialize command line parser using argparse.
 
   Returns:
@@ -82,6 +95,8 @@ def parse_arguments(only_known: bool = False) -> argparse.Namespace:
                       help='Google Ads External Customer Id.')
 
   auth.add_auth_arguments(parser)
+  if func:
+    func(parser)
   if only_known:
     args = parser.parse_known_args()[0]
   else:

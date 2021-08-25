@@ -17,10 +17,15 @@ Responsible for campaign creation of Product DSAs to upload into Google Ads
 Uploading will initially be only supported through Google Ads Editor
 i.e. The expected output is a CSV file.
 """
+import collections
 import csv
 import re
 import os
-from common import config_utils, file_utils
+import decimal
+import logging
+from typing import Dict
+from google.auth import credentials
+from common import config_utils, file_utils, sheets_utils
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -85,7 +90,17 @@ class GoogleAdsEditorMgr:
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
-    # TODO: use ad customizers instead of description/title
+    # Try to use adcustomizers
+    if self._config.ad_description_template:
+      # NOTE: inside template we have macros like {field},
+      # they should be translated to adcustomizer syntax  {=AD_CUSTOMIZER_FEED.field}
+      def replacer(match: re.Match):
+        return '{=' + self._config.adcustomizer_feed_name + '.' + match.group(1) + '}'
+
+      description = re.sub('\{([^}]+)\}', replacer, self._config.ad_description_template)
+      if description != self._config.ad_description_template:
+        return description
+
     if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.description
 
@@ -108,22 +123,20 @@ class GoogleAdsEditorMgr:
         DSA_WEBSITE: self._config.dsa_website,
         DSA_LANG: self._config.dsa_lang or '',
         DSA_TARGETING_SOURCE: 'Page feed',
-        DSA_PAGE_FEEDS: self._config.page_feed_name or 'PDSA Pagefeed'
+        DSA_PAGE_FEEDS: self._config.page_feed_name
     }
     campaign.update(campaign_details)
     self._rows.append(campaign)
 
-  def add_adgroup(self, campaign_name, is_product_level, product, label):
+  def add_adgroup(self, campaign_name: str, adgroup_name: str,
+                  is_product_level: bool, product, label: str):
     adgroup = self.__create_row()
-    # If it's category level, use the label without 'PDSA_CATEGORY_'
-    adgroup_name = product.offer_id if is_product_level else label[
-        len('PDSA_CATEGORY_'):]
-    # TODO: generate description for category-level adgroups
+    # TODO: generate description for category-level adgroups as well
     ad_description = self.__get_ad_description(
         product) if is_product_level else ''
     adgroup_details = {
         CAMP_NAME: campaign_name,
-        ADGROUP_NAME: 'Ad group ' + adgroup_name,
+        ADGROUP_NAME: adgroup_name,
         ADGROUP_MAX_CPM: '0.01',
         ADGROUP_TARGET_CPM: '0.01',
         ADGROUP_TYPE: 'Dynamic',
@@ -148,35 +161,157 @@ class GoogleAdsEditorMgr:
       writer.writerows(self._rows)
 
 
+def _get_ads_attribute_type(field_type: str) -> str:
+  # https://support.google.com/google-ads/answer/6093368
+  # supported attrubute types: text, number, price, date
+  if field_type == 'STRING':
+    return 'text'
+  if field_type == 'INTEGER' or field_type == 'NUMERIC':
+    return 'number'
+  if field_type == 'DATE' or field_type == 'TIMESTAMP':
+    return 'date'
+
+
+def _get_product_adgroup_name(product) -> str:
+  return 'Ad group ' + product.offer_id
+
+
+def _get_subfield_name(field, subfield):
+  """Create a field name for adcustomizer from a nested field (field of RECORD)"""
+  # NOTE: Google Ads doesn't support "." in field names
+  return field.name + '_' + subfield.name
+
+
+class AdCustomizerGenerator:
+
+  def __init__(self, products) -> None:
+    self._adcustomizer_values = []
+    self._adcustomizer_columns = []
+    self._attr_types_by_name = {}
+    self._schema = products.schema
+    # initialize columns:
+    # ignoring repeated fields(array) and expanding records, also ignoring unsupported types
+    for field in products.schema:
+      if field.mode == 'REPEATED':
+        continue
+      elif field.field_type == 'RECORD':
+        for subfield in field.fields:
+          # prefix subfield with field (e.g. custom_labels.label_0)
+          attr_type = _get_ads_attribute_type(subfield.field_type)
+          if not attr_type:
+            continue
+          field_name = _get_subfield_name(field, subfield)
+          self._attr_types_by_name[field_name] = attr_type
+          self._adcustomizer_columns.append(field_name + ' (' + attr_type + ')')
+      else:
+        attr_type = _get_ads_attribute_type(field.field_type)
+        if not attr_type:
+          continue
+        self._attr_types_by_name[field.name] = attr_type
+        self._adcustomizer_columns.append(field.name + ' (' + attr_type + ')')
+    self._adcustomizer_columns.append('Target campaign')
+    self._adcustomizer_columns.append('Target ad group')
+
+  def _serialize_value(self, bg_value, field_schema):
+    if bg_value is None:
+      return ''
+    if field_schema.field_type in ['INTEGER', 'NUMERIC']:
+      if type(bg_value) is decimal.Decimal:
+        return str(bg_value)
+      return bg_value
+    # NOTE: Google Ads requires fields to be 80 symbols or less (otherwise there will be an error: AD_PLACEHOLDER_STRING_TOO_LONG)
+    return str(bg_value)[:80]
+
+  def add_product(self, prod, target_campaign, target_adgroup):
+    row_values = []
+    for i in range(len(prod)):
+      field_schema = self._schema[i]
+      if field_schema.mode == 'REPEATED':
+        continue
+      field_value = prod[i]
+      if field_schema.field_type == 'RECORD':
+        for subfield in field_schema.fields:
+          field_name = _get_subfield_name(field_schema.name, subfield.name)
+          if field_name in self._attr_types_by_name:
+            # NOTE: we expect field_value to be a value of collections.Mapping
+            if field_value is None:
+              row_values.append('')
+            else:
+              row_values.append(
+                  self._serialize_value(field_value.get(subfield.name, ''),
+                                        subfield))
+      elif field_schema.name in self._attr_types_by_name:
+        row_values.append(self._serialize_value(field_value, field_schema))
+    # finally add standard columns 'Target campaign' and 'Target ad group'
+    row_values.append(target_campaign)
+    row_values.append(target_adgroup)
+    self._adcustomizer_values.append(row_values)
+
+  def get_values(self):
+    return [self._adcustomizer_columns] + self._adcustomizer_values
+
+
 class CampaignMgr:
   """ Responsible for creating the campaign and ad group structure that targets
   the pagefeed generated from the GMC feed
   """
 
-  def __init__(self, config: config_utils.Config, products):
-    self._all_products = products
+  def __init__(self, config: config_utils.Config, products, credentials):
     self._config = config
-    self._custom_labels = {}
+    self._credentials = credentials
+    self._products_by_label = {}
     self._create_product_campaign = self._create_category_campaign = False
+    self._adcustomizer_gen = AdCustomizerGenerator(products)
 
-    for prod in self._all_products:
+    for prod in products:
       custom_labels = prod['pdsa_custom_labels'].split(';')
-
+      product_level_adgroup = False
       for label in custom_labels:
         if is_product_label(label.strip()):
           self._create_product_campaign = True
+          product_level_adgroup = True
         else:
           self._create_category_campaign = True
 
         # Only add the product if this custom label wasn't added before
         # i.e. for category labels, take the first product info
-        if label not in self._custom_labels:
-          self._custom_labels[label] = prod
+        if label not in self._products_by_label:
+          self._products_by_label[label] = prod
 
-  def generate_csv(self, output_path: str):
-    if not self._custom_labels:
+      # TODO: it's OK for MVP, but in the future we should avoid read all data into the memory
+      # read out all columns for adcustomizer feed
+      if product_level_adgroup:
+        self._adcustomizer_gen.add_product(
+            prod, self._config.product_campaign_name or
+            PDSA_PRODUCT_CAMPAIGN_NAME, _get_product_adgroup_name(prod))
+
+  def generate_adcustomizers(self, generate_csv: bool):
+    values = self._adcustomizer_gen.get_values()
+    # generate CSV (for creating)
+    if generate_csv:
+      output_path = os.path.join(
+          self._config.output_folder or '',
+          self._config.adcustomizer_output_file or 'ad-customizer.csv')
+      with open(output_path, 'w') as csv_file:
+        writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
+        writer.writerows(values)
+      logging.info(f'Generated adcustomizers data in {output_path} file')
+
+    # generate spreadsheet (for updating)
+    sheets_client = sheets_utils.GoogleSpreadsheetUtils(self._credentials)
+    sheets_client.update_values(self._config.adcustomizer_spreadsheetid,
+                                "Main!A1:AZ", values)
+    url = f'https://docs.google.com/spreadsheets/d/{self._config.adcustomizer_spreadsheetid}'
+    logging.info('Generated adcustomizers feed in Google Spreadsheet ' + url)
+
+  def generate_csv(self) -> str:
+    """Generate a CSV for Google Ads Editor with DSA campaign data"""
+    if not self._products_by_label:
       return
 
+    output_path = os.path.join(
+        self._config.output_folder or '', self._config.campaign_output_file or
+        'gae-campaigns.csv')
     gae = GoogleAdsEditorMgr(self._config)
     # If the campaign doesn't exist, create an empty one with default settings
     product_campaign_name = self._config.product_campaign_name
@@ -191,20 +326,29 @@ class CampaignMgr:
       if self._create_category_campaign:
         gae.add_campaign(category_campaign_name)
 
-    for label in self._custom_labels:
+    for label in self._products_by_label:
       is_product_level = is_product_label(label)
       campaign_name = product_campaign_name if is_product_level else category_campaign_name
-      gae.add_adgroup(campaign_name, is_product_level,
-                      self._custom_labels[label], label)
+      product = self._products_by_label[label]
+      # If it's category level, use the label without 'PDSA_CATEGORY_'
+      adgroup_name = _get_product_adgroup_name(
+          product
+      ) if is_product_level else 'Ad group ' + label[len('PDSA_CATEGORY_'):]
+      # NOTE: adgroup name is important as we use it in adcustomizers as well
+      gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
+                      label)
 
     gae.generate_csv(output_path)
 
+    return output_path
 
-def generate_csv(config: config_utils.Config,
-                 products,
-                 output_path: str = 'gae-campaigns.csv'):
-  campaign_mgr = CampaignMgr(config, products)
-  return campaign_mgr.generate_csv(output_path)
+
+def generate_csv(config: config_utils.Config, products, credentials):
+  campaign_mgr = CampaignMgr(config, products, credentials)
+
+  campaign_mgr.generate_adcustomizers(generate_csv=True)
+
+  return campaign_mgr.generate_csv()
 
 
 def is_product_label(label):

@@ -36,4 +36,3 @@ class GoogleSpreadsheetUtils(object):
             "majorDimension": "ROWS",
             "values": values
         }).execute()
-    logging.info(f'Spreadsheet {docid} updated')

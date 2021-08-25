@@ -37,6 +37,7 @@ from install import cloud_data_transfer
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 logging.getLogger('google.cloud.pubsub_v1.subscriber').setLevel(logging.WARNING)
 
 
@@ -68,15 +69,35 @@ def get_service_account_email(config: config_utils.Config):
   return f"{config.project_id}@appspot.gserviceaccount.com"
 
 
-def create_page_feed_spreadsheet(config: config_utils.Config,
-                                 credentials) -> bool:
-  """Create a Google Spreadsheet (if there's no spreadsheet id in config) with data for page feed"""
+def create_spreadsheets(config: config_utils.Config, credentials: credentials.Credentials) -> bool:
+  created = False
   if config.page_feed_spreadsheetid:
-    logging.info('Skipped spreadsheet creation as config contains a docid: ' +
-                 config.page_feed_spreadsheetid)
-    return False
-  logging.info('Creating a spreadsheet for page feed data')
-  logging.getLogger('googleapicliet.discovery_cache').setLevel(logging.ERROR)
+    logging.info(
+        'Skipped page feed spreadsheet creation as config contains a docid: ' +
+        config.page_feed_spreadsheetid)
+  else:
+    logging.info('Creating a spreadsheet for page feed data')
+    title = f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"
+    config.page_feed_spreadsheetid = create_spreadsheet(
+        title, get_service_account_email(config), credentials)
+    created = True
+
+  if config.adcustomizer_spreadsheetid:
+    logging.info(
+        'Skipped adcustomizer spreadsheet creation as config contains a docid: '
+        + config.adcustomizer_spreadsheetid)
+  else:
+    logging.info('Creating a spreadsheet for ad customizer')
+    title = f"Ad customizers feed (GMC {config.merchant_id} / GCP project {config.project_id})"
+    config.adcustomizer_spreadsheetid = create_spreadsheet(
+        title, get_service_account_email(config), credentials)
+    created = True
+  return created
+
+
+def create_spreadsheet(title: str, userEmail: str,
+                       credentials: credentials.Credentials) -> str:
+  """Create a Google Spreadsheet (either for page feed or adcustomizers data)"""
   sheetsAPI = build('sheets', 'v4', credentials=credentials)
   result = sheetsAPI.spreadsheets().create(
       body={
@@ -86,17 +107,15 @@ def create_page_feed_spreadsheet(config: config_utils.Config,
               }
           }],
           "properties": {
-              "title":
-                  f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"
+              "title": title
           }
       }).execute()
-  config.page_feed_spreadsheetid = result['spreadsheetId']
-  logging.info('Created spreadsheet: ' + config.page_feed_spreadsheetid)
+  spreadsheet_id = result['spreadsheetId']
+  logging.info('Created spreadsheet: ' + spreadsheet_id)
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(config.page_feed_spreadsheetid,
-                          get_service_account_email(config), credentials)
+  set_permission_on_drive(spreadsheet_id, userEmail, credentials)
 
-  return True
+  return spreadsheet_id
 
 
 def backup_config(config_file_name: str, config: config_utils.Config,
@@ -193,6 +212,7 @@ def create_subscription_to_update_pagefeed(pubsub_topic: str,
     if not_found:
       # TODO: by default pubsub creates a subscription with expriration of 31 days of inactivity,
       # in UI it can be set as 'never exprire' but how to do it via API?
+      # NOTE: now it's not only about updating pagefeed (updates adcustomizer feed as well)
       subscriber.create_subscription(
           name=subscription_name,
           topic=pubsub_topic,
@@ -204,7 +224,13 @@ def create_subscription_to_update_pagefeed(pubsub_topic: str,
 
 
 def main():
-  args = config_utils.parse_arguments()
+  args = config_utils.parse_arguments(
+      only_known=False,
+      func=lambda p: p.add_argument(
+          '--skip-dt-run',
+          dest='skip_dt_run',
+          action="store_true",
+          help='Suppress running data transfer if it exists'))
 
   config = config_utils.get_config(args)
   pprint(vars(config))
@@ -227,21 +253,22 @@ def main():
   data_transfer = cloud_data_transfer.CloudDataTransferUtils(
       config.project_id, config.dataset_location, credentials)
   pubsub_topic = create_pubsub_topic(config, credentials)
+  # create or reuse data transfer for GMC
   merchant_center_config = data_transfer.create_merchant_center_transfer(
-      config.merchant_id, config.dataset_id, pubsub_topic)
+      config.merchant_id, config.dataset_id, pubsub_topic, args.skip_dt_run)
 
-  # TODO: we need to trigger DT to run if it wasn't created
-  logging.info('Waiting for Data Transfer to complete...')
-  wait_for_transfer_completion(pubsub_topic, config, credentials)
-  logging.info('Data Transfer has completed')
+  if not args.skip_dt_run:
+    logging.info('Waiting for Data Transfer to complete...')
+    wait_for_transfer_completion(pubsub_topic, config, credentials)
+    logging.info('Data Transfer has completed')
 
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
 
   logging.info('Creating solution specific views.')
   execute_queries(bigquery_client, config)
 
-  # creating a spreadsheet for page feed data
-  created = create_page_feed_spreadsheet(config, credentials)
+  # creating spreadsheets for page feed data and adcustomizers
+  created = create_spreadsheets(config, credentials)
 
   config_file_name = args.config or 'config.yaml'
   if created:

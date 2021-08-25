@@ -13,14 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import logging
+from pprint import pprint
 from flask import Flask, request
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from pprint import pprint
 from common import config_utils
 from common.auth import _SCOPES
-from app.main import create_or_update_page_feed
+from app.main import create_or_update_page_feed, execute_sql_query
+from app.campaign_mgr import CampaignMgr
+
+logging.getLogger().setLevel(logging.INFO)
 
 app = Flask(__name__)
 
@@ -32,6 +36,8 @@ pprint(vars(config))
 
 def verify_token():
   bearer_token = request.headers.get('Authorization')
+  if not bearer_token:
+    return
   token = bearer_token.split(' ')[1]
   claim = id_token.verify_oauth2_token(token, requests.Request())
   pprint(claim)
@@ -51,10 +57,23 @@ def pagefeed_update():
   credentials, project = google.auth.default(scopes=_SCOPES)
 
   context = {'xcom': {}, 'gcp_credentials': credentials}
-
   # Update page feed spreadsheet
   create_or_update_page_feed(False, config, context)
+
+  # Update adcustomizers spreadsheet
+  update_adcustomizers(config, context)
+
   return f"Updated pagefeed in https://docs.google.com/spreadsheets/d/{config.page_feed_spreadsheetid}", 200
+
+
+def update_adcustomizers(config: config_utils.Config, context):
+  products = execute_sql_query('get-products.sql', config, context)
+  if products.total_rows == 0:
+    logging.info('Skipping ad-customizer updating as there\'s no products')
+    return
+
+  campaign_mgr = CampaignMgr(config, products, context['gcp_credentials'])
+  campaign_mgr.generate_adcustomizers(generate_csv=False)
 
 
 if __name__ == '__main__':

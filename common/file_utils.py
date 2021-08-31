@@ -18,6 +18,8 @@ from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
 
+CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
+
 
 def get_file_content(uri: str):
   """Read file content supporting file paths on Cloud Storage (gs://)"""
@@ -34,7 +36,9 @@ def get_file_content(uri: str):
 def download_file(uri, folder):
   if not os.path.exists(folder):
     os.mkdir(folder)
-  response = requests.get(uri)
+  # Change the user agent because some websites don't like traffic from "non-browsers"
+  headers = {'User-Agent': CHROME_USER_AGENT}
+  response = requests.get(uri, headers=headers)
   if response.status_code == 200:
     result = parse.urlparse(uri)
     file_name = os.path.basename(result.path)

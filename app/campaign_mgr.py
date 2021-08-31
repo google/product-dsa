@@ -95,9 +95,11 @@ class GoogleAdsEditorMgr:
       # NOTE: inside template we have macros like {field},
       # they should be translated to adcustomizer syntax  {=AD_CUSTOMIZER_FEED.field}
       def replacer(match: re.Match):
-        return '{=' + self._config.adcustomizer_feed_name + '.' + match.group(1) + '}'
+        return '{=' + self._config.adcustomizer_feed_name + '.' + match.group(
+            1) + '}'
 
-      description = re.sub('\{([^}]+)\}', replacer, self._config.ad_description_template)
+      description = re.sub('\{([^}]+)\}', replacer,
+                           self._config.ad_description_template)
       if description != self._config.ad_description_template:
         return description
 
@@ -231,7 +233,7 @@ class AdCustomizerGenerator:
       field_value = prod[i]
       if field_schema.field_type == 'RECORD':
         for subfield in field_schema.fields:
-          field_name = _get_subfield_name(field_schema.name, subfield.name)
+          field_name = _get_subfield_name(field_schema, subfield)
           if field_name in self._attr_types_by_name:
             # NOTE: we expect field_value to be a value of collections.Mapping
             if field_value is None:
@@ -333,7 +335,7 @@ class CampaignMgr:
       # If it's category level, use the label without 'PDSA_CATEGORY_'
       adgroup_name = _get_product_adgroup_name(
           product
-      ) if is_product_level else 'Ad group ' + label[len('PDSA_CATEGORY_'):]
+      ) if is_product_level else 'Ad group ' + label
       # NOTE: adgroup name is important as we use it in adcustomizers as well
       gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
                       label)

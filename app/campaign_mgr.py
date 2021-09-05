@@ -51,6 +51,7 @@ ADGROUP_TYPE = 'Ad Group Type'
 TARGET_CONDITION = 'Dynamic Ad Target Condition 1'
 TARGET_VALUE = 'Dynamic Ad Target Value 1'
 AD_TYPE = 'Ad type'
+AD_DESCRIPTION_ORIG = 'Description Line 1#Original'
 AD_DESCRIPTION = 'Description Line 1'
 IMAGE = 'Image'
 
@@ -68,10 +69,11 @@ class GoogleAdsEditorMgr:
     self._headers = [
         CAMP_NAME, CAMP_BUDGET, DSA_WEBSITE, DSA_LANG, DSA_TARGETING_SOURCE,
         DSA_PAGE_FEEDS, ADGROUP_NAME, ADGROUP_MAX_CPM, ADGROUP_TARGET_CPM,
-        ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE, AD_TYPE, AD_DESCRIPTION,
-        IMAGE
+        ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE, AD_TYPE,
+        AD_DESCRIPTION_ORIG, AD_DESCRIPTION, IMAGE
     ]
     self._rows = []
+    self._orig_descriptions = {}
 
   def __create_row(self):
     ''' Creates an object that represents an empty row of the csv file '''
@@ -121,6 +123,12 @@ class GoogleAdsEditorMgr:
         return sentence
     return ''
 
+  def get_headers(self):
+    return self._headers
+
+  def set_original_description(self, orig_desc):
+    self._orig_descriptions = orig_desc
+
   def add_campaign(self, name):
     campaign = self.__create_row()
     campaign_details = {
@@ -137,6 +145,7 @@ class GoogleAdsEditorMgr:
                   is_product_level: bool, product, label: str):
     adgroup = self.__create_row()
     # TODO: generate description for category-level adgroups as well
+    orig_ad_description = self._orig_descriptions.get((campaign_name,adgroup_name)) or ''
     ad_description = self.__get_ad_description(
         product) if is_product_level else ''
     adgroup_details = {
@@ -148,6 +157,7 @@ class GoogleAdsEditorMgr:
         TARGET_CONDITION: 'CUSTOM_LABEL',
         TARGET_VALUE: label,
         AD_TYPE: 'Expanded Dynamic Search Ad',
+        AD_DESCRIPTION_ORIG: orig_ad_description,
         AD_DESCRIPTION: ad_description.strip()
     }
     adgroup.update(adgroup_details)
@@ -170,8 +180,8 @@ class GoogleAdsEditorMgr:
     image.update(image_details)
     self._rows.append(image)
 
-  def generate_csv(self, output_path: str):
-    with open(output_path, 'w') as csv_file:
+  def generate_csv(self, output_csv_path: str):
+    with open(output_csv_path, 'w') as csv_file:
       writer = csv.DictWriter(csv_file, fieldnames=self._headers)
       writer.writeheader()
       writer.writerows(self._rows)
@@ -305,13 +315,13 @@ class CampaignMgr:
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
     if generate_csv:
-      output_path = os.path.join(
+      output_csv_path = os.path.join(
           self._config.output_folder or '',
           self._config.adcustomizer_output_file or 'ad-customizer.csv')
-      with open(output_path, 'w') as csv_file:
+      with open(output_csv_path, 'w') as csv_file:
         writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(values)
-      logging.info(f'Generated adcustomizers data in {output_path} file')
+      logging.info(f'Generated adcustomizers data in {output_csv_path} file')
 
     # generate spreadsheet (for updating)
     sheets_client = sheets_utils.GoogleSpreadsheetUtils(self._credentials)
@@ -325,10 +335,22 @@ class CampaignMgr:
     if not self._products_by_label:
       return
 
-    output_path = os.path.join(
+    output_csv_path = os.path.join(
         self._config.output_folder or '', self._config.campaign_output_file or
         'gae-campaigns.csv')
     gae = GoogleAdsEditorMgr(self._config)
+
+    # Before generating the new file, get ad descriptions from the old csv if
+    # it exists (If the ad description changes, the old one will be needed)
+    if os.path.isfile(output_csv_path):
+      with open(output_csv_path, 'r') as csv_file:
+        reader = csv.DictReader(csv_file, gae.get_headers())
+        orig_desc = {
+            tuple((row[CAMP_NAME], row[ADGROUP_NAME])): row[AD_DESCRIPTION]
+            for row in reader
+            if row[AD_DESCRIPTION] != ''
+        }
+        gae.set_original_description(orig_desc)
     # If the campaign doesn't exist, create an empty one with default settings
     product_campaign_name = self._config.product_campaign_name
     if not product_campaign_name:
@@ -348,15 +370,14 @@ class CampaignMgr:
       product = self._products_by_label[label]
       # If it's category level, use the label without 'PDSA_CATEGORY_'
       adgroup_name = _get_product_adgroup_name(
-          product
-      ) if is_product_level else 'Ad group ' + label
+          product) if is_product_level else 'Ad group ' + label
       # NOTE: adgroup name is important as we use it in adcustomizers as well
       gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
                       label)
 
-    gae.generate_csv(output_path)
+    gae.generate_csv(output_csv_path)
 
-    return output_path
+    return output_csv_path
 
 
 def generate_csv(config: config_utils.Config, products, credentials):

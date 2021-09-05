@@ -12,3 +12,4 @@ flask
 gunicorn
 pytz
 requests
+Pillow

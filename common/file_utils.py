@@ -17,6 +17,7 @@ import requests
 from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
+from common import image_utils
 
 CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
 
@@ -31,6 +32,13 @@ def get_file_content(uri: str):
   elif uri.startswith(['http://', 'https://', 'ftp://', 'ftps://']):
     return requests.get(uri).text
   raise ValueError(f'File {uri} wasn\'t found')
+
+
+def download_image(uri, folder):
+  local_image_path = download_file(uri, folder)
+  # Resize the local image to follow guidelines
+  image_utils.resize(local_image_path)
+  return local_image_path
 
 
 def download_file(uri, folder):

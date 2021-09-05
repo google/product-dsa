@@ -19,6 +19,7 @@ i.e. The expected output is a CSV file.
 """
 import collections
 import csv
+from posixpath import relpath
 import re
 import os
 import decimal
@@ -51,6 +52,7 @@ TARGET_CONDITION = 'Dynamic Ad Target Condition 1'
 TARGET_VALUE = 'Dynamic Ad Target Value 1'
 AD_TYPE = 'Ad type'
 AD_DESCRIPTION = 'Description Line 1'
+IMAGE = 'Image'
 
 # Default campaign names to use
 PDSA_PRODUCT_CAMPAIGN_NAME = 'PDSA Products'
@@ -66,7 +68,8 @@ class GoogleAdsEditorMgr:
     self._headers = [
         CAMP_NAME, CAMP_BUDGET, DSA_WEBSITE, DSA_LANG, DSA_TARGETING_SOURCE,
         DSA_PAGE_FEEDS, ADGROUP_NAME, ADGROUP_MAX_CPM, ADGROUP_TARGET_CPM,
-        ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE, AD_TYPE, AD_DESCRIPTION
+        ADGROUP_TYPE, TARGET_CONDITION, TARGET_VALUE, AD_TYPE, AD_DESCRIPTION,
+        IMAGE
     ]
     self._rows = []
 
@@ -147,14 +150,25 @@ class GoogleAdsEditorMgr:
         AD_TYPE: 'Expanded Dynamic Search Ad',
         AD_DESCRIPTION: ad_description.strip()
     }
+    adgroup.update(adgroup_details)
+    self._rows.append(adgroup)
     if product.image_link:
       folder = os.path.join(self._config.output_folder or '',
                             self._config.image_folder or 'images')
-      local_image_path = file_utils.download_file(product.image_link, folder)
-      # TODO(mariam): put image ref into the CSV
-      # adgroup_details['Image']?
-    adgroup.update(adgroup_details)
-    self._rows.append(adgroup)
+      local_image_path = file_utils.download_image(product.image_link, folder)
+      rel_image_path = os.path.relpath(local_image_path,
+                                       self._config.output_folder or '')
+      self.add_image_ext(campaign_name, adgroup_name, rel_image_path)
+
+  def add_image_ext(self, campaign_name: str, adgroup_name: str, img_path: str):
+    image = self.__create_row()
+    image_details = {
+        CAMP_NAME: campaign_name,
+        ADGROUP_NAME: adgroup_name,
+        IMAGE: img_path
+    }
+    image.update(image_details)
+    self._rows.append(image)
 
   def generate_csv(self, output_path: str):
     with open(output_path, 'w') as csv_file:

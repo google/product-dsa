@@ -143,6 +143,7 @@ class GoogleAdsEditorMgr:
 
   def add_adgroup(self, campaign_name: str, adgroup_name: str,
                   is_product_level: bool, product, label: str):
+    # Add the ad group row
     adgroup = self.__create_row()
     # TODO: generate description for category-level adgroups as well
     orig_ad_description = self._orig_descriptions.get((campaign_name,adgroup_name)) or ''
@@ -162,6 +163,19 @@ class GoogleAdsEditorMgr:
     }
     adgroup.update(adgroup_details)
     self._rows.append(adgroup)
+
+    # Add the Dynamic targeting row
+    dynamic_target = self.__create_row()
+    dynamic_target_details = {
+        CAMP_NAME: campaign_name,
+        ADGROUP_NAME: adgroup_name,
+        TARGET_CONDITION: 'CUSTOM_LABEL',
+        TARGET_VALUE: label,
+    }
+    dynamic_target.update(dynamic_target_details)
+    self._rows.append(dynamic_target)
+
+    # Add the image extension row
     if product.image_link:
       folder = os.path.join(self._config.output_folder or '',
                             self._config.image_folder or 'images')
@@ -351,6 +365,7 @@ class CampaignMgr:
             if row[AD_DESCRIPTION] != ''
         }
         gae.set_original_description(orig_desc)
+
     # If the campaign doesn't exist, create an empty one with default settings
     product_campaign_name = self._config.product_campaign_name
     if not product_campaign_name:

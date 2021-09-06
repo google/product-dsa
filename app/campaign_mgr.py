@@ -19,7 +19,6 @@ i.e. The expected output is a CSV file.
 """
 import collections
 import csv
-from posixpath import relpath
 import re
 import os
 import decimal

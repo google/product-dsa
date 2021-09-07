@@ -122,6 +122,10 @@ class GoogleAdsEditorMgr:
         return sentence
     return ''
 
+  def __get_category_description(self, label):
+    desc = self._config.category_ad_descriptions[label]
+    return desc
+
   def get_headers(self):
     return self._headers
 
@@ -144,10 +148,11 @@ class GoogleAdsEditorMgr:
                   is_product_level: bool, product, label: str):
     # Add the ad group row
     adgroup = self.__create_row()
-    # TODO: generate description for category-level adgroups as well
-    orig_ad_description = self._orig_descriptions.get((campaign_name,adgroup_name)) or ''
+
+    orig_ad_description = self._orig_descriptions.get(
+        (campaign_name, adgroup_name)) or ''
     ad_description = self.__get_ad_description(
-        product) if is_product_level else ''
+        product) if is_product_level else self.__get_category_description(label)
     adgroup_details = {
         CAMP_NAME: campaign_name,
         ADGROUP_NAME: adgroup_name,

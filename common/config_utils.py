@@ -66,6 +66,8 @@ class Config(object):
   pubsub_topic_dt_finish: str = 'gmc-dt-finish'
   # template for ad descriptions
   ad_description_template: str = ''
+  # category descriptions
+  category_ad_descriptions: dict = {}
 
 
   def update(self, kw):

@@ -26,7 +26,23 @@ from app import campaign_mgr
 logging.getLogger().setLevel(logging.INFO)
 
 
-def validate_config(config: config_utils.Config):
+def execute_sql_query(name: str,
+                      config: config_utils.Config,
+                      context: Dict,
+                      macros: Dict = None):
+  cfg = {
+      'sql_file': './scripts/' + name,
+      'project_id': config.project_id,
+      'macros': {
+          'project_id': config.project_id,
+          'dataset': config.dataset_id,
+          'merchant_id': config.merchant_id,
+      }
+  }
+  return wf_execute_sql.run(cfg, context)
+
+
+def validate_config(config: config_utils.Config, context):
   if (not config.merchant_id):
     print('No merchant_id found in configuration (merchant_id), exiting')
     exit()
@@ -39,18 +55,20 @@ def validate_config(config: config_utils.Config):
     print('No DSA website found in configuration (dsa_website), exiting')
     exit()
 
-
-def execute_sql_query(name: str, config: config_utils.Config, context: Dict, macros: Dict = None):
-  cfg = {
-      'sql_file': './scripts/' + name,
-      'project_id': config.project_id,
-      'macros': {
-          'project_id': config.project_id,
-          'dataset': config.dataset_id,
-          'merchant_id': config.merchant_id,
-      }
-  }
-  return wf_execute_sql.run(cfg, context)
+  category_labels = execute_sql_query('get-category-labels.sql', config,
+                                      context)
+  missing_category_desc = False
+  if category_labels.total_rows:
+    for row in category_labels:
+      desc = config.category_ad_descriptions.get(row[0])
+      if not desc or desc == '':
+        missing_category_desc = True
+        print(
+            f'Missing category description for \'{row[0]}\' in configuration (category_ad_descriptions)'
+        )
+    if missing_category_desc:
+      print('Update the missing categories in the config.yaml file, exiting')
+      exit()
 
 
 def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
@@ -103,7 +121,7 @@ def generate_campaign(config: config_utils.Config, context):
   logging.info(f'Fetched {products.total_rows} products')
   if products.total_rows:
     output_path = campaign_mgr.generate_csv(config, products,
-                                         context['gcp_credentials'])
+                                            context['gcp_credentials'])
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
@@ -115,8 +133,8 @@ def main():
   pprint(vars(config))
   cred: credentials.Credentials = auth.get_credentials(args)
 
-  validate_config(config)
   context = {'xcom': {}, 'gcp_credentials': cred}
+  validate_config(config, context)
 
   if config.output_folder and not os.path.exists(config.output_folder):
     os.mkdir(config.output_folder)

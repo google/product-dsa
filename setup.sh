@@ -15,9 +15,23 @@
 # limitations under the License.
 
 COLOR='\033[0;36m' # Cyan
+RED='\033[0;31m' # Red Color
 NC='\033[0m' # No Color
 
 export PYTHONPATH="."
+# Checking version/Installing Python
+python3_installed() {
+  local a b
+  a=$(python3 --version 2>&1 | perl -pe 's/python *//i') ; b="3.8"
+  [ "$( (echo "$a" ; echo "$b") | sort -V | head -1)" == "$b" ]
+}
+if python3_installed ; then
+  echo "Detected Python >= 3.8"
+else
+  echo -e "${RED}"
+  echo "Error: Python version < 3.8 - Product DSAs needs python 3.8+"
+  exit
+fi
 # install and activate Python virtual environment
 python3 -m venv .venv
 . .venv/bin/activate

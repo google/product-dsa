@@ -3,7 +3,35 @@
 ## 1. Introduction
 >TODO
 
-## 2. Installation
+## 2. Configuration
+
+There are bunch of settings that can be specified in your configuration. Some of them can be passed via command line and environment variable.
+
+# The BigQuery dataset location.
+|| Name            || Required? || Default || Description || command line || env var ||
+| `dataset_location` |  No        | us       |              | `--dataset_location` | `DATASET_LOCATION` |
+| `project_id`       |  Yes       | Can be detected from environment | GCP project id | `--project_id` | standard GCP env vars: GCP_PROJECT, GOOGLE_CLOUD_PROJECT, DEVSHELL_PROJECT_ID  |
+| `merchant_id`      |  Yes       | - |  GMC account id | `--merchant_id` | `MERCHANT_ID` |
+
+# Product DSAs run settings
+* `product_campaign_name` - [optional] Should only be provided if the campaign has already been created
+* `category_campaign_name` - [optional] Should only be provided if the campaign has already been created
+* `dsa_website` - [required] DSA websire, do not specify protocol (http/https) (e.g. 'example.com')
+* `dsa_lang` - DSA languare (default: en)
+* `page_feed_name` - DSA page feed name in Google Ads
+* `page_feed_spreadsheetid` - Google Spreadsheet docid for page feed, will be generated on installation
+* `adcustomizer_feed_name` - ad customizer feed name
+* `adcustomizer_spreadsheetid` - Google Spreadsheet docid for ad customizer feed, will be generated on installation
+* `page_feed_output_file` - [optional] File name for output CSV file with page feed (default: 'page-feed.csv')
+* `campaign_output_file` - [optional] File name for output CSV file with campaign data for Ads Editor (default: 'gae-campaigns.csv')
+* `adcustomizer_output_file` - [optional] (default: 'ad-customizer.csv')
+* `image_folder` - [optional] folder for downloading images from GMC, if relative and output_folder specified then they will be joined (default: 'images')
+* `output_folder` - [optional] output folder path, will be common base path for all outputs (default: 'output')
+* `pubsub_topic_dt_finish` - pub/sub topic id for publishing message on GMC Data Transfer completions (default: 'gmc-dt-finish')
+* `ad_description_template` - template for ad descriptions using fields from GMC product table, e.g. "{title} (price: {price_value} {price_currency})"
+* `category_ad_descriptions` - dictionary with mapping labels to category descriptions (for adgroups)
+
+## 3. Installation
 
 >WIP: please ignore the content
 

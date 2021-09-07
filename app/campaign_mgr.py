@@ -23,8 +23,10 @@ import re
 import os
 import decimal
 import logging
-from typing import Dict
+from typing import Any, Dict, List
 from google.auth import credentials
+from google.cloud import storage
+from google.api_core import exceptions
 from common import config_utils, file_utils, sheets_utils
 
 # Google Ads Editor header names
@@ -266,7 +268,7 @@ class AdCustomizerGenerator:
     # NOTE: Google Ads requires fields to be 80 symbols or less (otherwise there will be an error: AD_PLACEHOLDER_STRING_TOO_LONG)
     return str(bg_value)[:80]
 
-  def add_product(self, prod, target_campaign, target_adgroup):
+  def add_product(self, prod, target_campaign: str, target_adgroup: str):
     row_values = []
     for i in range(len(prod)):
       field_schema = self._schema[i]
@@ -291,7 +293,7 @@ class AdCustomizerGenerator:
     row_values.append(target_adgroup)
     self._adcustomizer_values.append(row_values)
 
-  def get_values(self):
+  def get_values(self) -> List[List[Any]]:
     return [self._adcustomizer_columns] + self._adcustomizer_values
 
 
@@ -360,8 +362,9 @@ class CampaignMgr:
 
     # Before generating the new file, get ad descriptions from the old csv if
     # it exists (If the ad description changes, the old one will be needed)
-    if os.path.isfile(output_csv_path):
-      with open(output_csv_path, 'r') as csv_file:
+    csv_file = self._get_previous_data(output_csv_path)
+    if not csv_file is None:
+      with csv_file:
         reader = csv.DictReader(csv_file, gae.get_headers())
         orig_desc = {
             tuple((row[CAMP_NAME], row[ADGROUP_NAME])): row[AD_DESCRIPTION]
@@ -395,8 +398,26 @@ class CampaignMgr:
                       label)
 
     gae.generate_csv(output_csv_path)
+    file_utils.upload_file_to_gcs(self._config.project_id, self._credentials, output_csv_path)
 
     return output_csv_path
+
+
+  def _get_previous_data(self, output_csv_path: str):
+    file_name = os.path.basename(output_csv_path)
+    bucket = file_utils.get_or_create_project_gcs_bucket(
+        self._config.project_id, self._credentials)
+    csv_file = None
+    blob = bucket.get_blob(file_name)
+    if blob:
+      csv_file = blob.open()
+    else:
+      # there's no a previous csv file on GCS, try to reuse a local file
+      if os.path.isfile(output_csv_path):
+        csv_file = open(output_csv_path, 'r')
+      else:
+        logging.info('Previous campaign data file wasn\'t found')
+    return csv_file
 
 
 def generate_csv(config: config_utils.Config, products, credentials):

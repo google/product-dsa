@@ -48,10 +48,10 @@ class Config(object):
   page_feed_name: str = 'PDSA Pagefeed'
   # spreadsheet id for DSA page feed
   page_feed_spreadsheetid: str = ''
-  # spreadsheet id for adcustomizers feed
-  adcustomizer_spreadsheetid: str = ''
   # name of adcustomizer feed ()
   adcustomizer_feed_name: str = 'PDSA Adcustomizer'
+  # spreadsheet id for adcustomizers feed
+  adcustomizer_spreadsheetid: str = ''
   # file name for output csv file with page feed
   page_feed_output_file: str = ''
   # file name for output csv file with campaign data for Ads Editor
@@ -69,7 +69,6 @@ class Config(object):
   # category descriptions
   category_ad_descriptions: dict = {}
 
-
   def update(self, kw):
     for k in kw:
       setattr(self, k, kw[k])
@@ -77,7 +76,8 @@ class Config(object):
 
 def parse_arguments(
     only_known: bool = False,
-    func: Callable[[argparse.ArgumentParser], None] = None) -> argparse.Namespace:
+    func: Callable[[argparse.ArgumentParser],
+                   None] = None) -> argparse.Namespace:
   """Initialize command line parser using argparse.
 
   Returns:
@@ -110,6 +110,9 @@ def parse_arguments(
 def get_config(args: argparse.Namespace) -> Config:
   """ Read config file and merge settings from it, command line args and env vars."""
   config_file_name = args.config or os.environ.get('CONFIG') or 'config.yaml'
+  if config_file_name.find('$PROJECT_ID') > -1:
+    config_file_name = config_file_name.replace(
+        '$PROJECT_ID', args.project_id or _find_project_id())
   content = file_utils.get_file_content(config_file_name)
   cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
   config = Config()
@@ -150,17 +153,22 @@ def validate_project_id(config: Config):
   project_id = config.project_id
   if project_id:
     return
-  project_id = os.environ['GCP_PROJECT'] or \
-               os.environ['GOOGLE_CLOUD_PROJECT'] or \
-               os.environ['DEVSHELL_PROJECT_ID']
-  # else if this is running locally then GOOGLE_APPLICATION_CREDENTIALS should be defined
-  if not project_id and 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-    with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], 'r') as fp:
-      credentials = json.load(fp)
-    project_id = credentials['project_id']
+  project_id = _find_project_id()
   if not project_id:
     raise Exception('Failed to determine project_id')
   config.project_id = project_id
+
+
+def _find_project_id():
+  project_id = os.getenv('GCP_PROJECT') or \
+               os.getenv('GOOGLE_CLOUD_PROJECT') or \
+               os.getenv('DEVSHELL_PROJECT_ID')
+  # else if this is running locally then GOOGLE_APPLICATION_CREDENTIALS should be defined
+  if not project_id and 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
+    with open(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'), 'r') as fp:
+      credentials = json.load(fp)
+    project_id = credentials['project_id']
+  return project_id
 
 
 def save_config(config: Config, filename: str):

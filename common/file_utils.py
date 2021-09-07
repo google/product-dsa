@@ -103,6 +103,24 @@ def save_file_to_gcs(uri, content):
     raise
 
 
+def get_or_create_project_gcs_bucket(project_id: str, credentials) -> storage.bucket.Bucket:
+  storage_client = storage.Client(project=project_id, credentials=credentials)
+  bucket_name = project_id + '-pdsa'
+  try:
+    bucket = storage_client.get_bucket(bucket_name)
+  except exceptions.NotFound:
+    bucket = storage_client.create_bucket(bucket_name)
+  return bucket
+
+
+def upload_file_to_gcs(project_id: str, credentials, local_file_path: str):
+  """Uploads a local file to project's GCS default bucket ({project_id}-pdsa."""
+  bucket = get_or_create_project_gcs_bucket(project_id, credentials)
+  file_name = os.path.basename(local_file_path)
+  blob = bucket.blob(file_name)
+  blob.upload_from_filename(local_file_path)
+
+
 def open_relative_file(file_name: str) -> TextIOWrapper:
   """Opens a file for reading relatively to the current module."""
   working_directory = os.path.dirname(__file__)

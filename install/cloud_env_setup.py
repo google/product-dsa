@@ -31,7 +31,7 @@ from google.api_core import exceptions
 from pprint import pprint
 # if you're getting an error on the next line "ModuleNotFound",
 # make sure you define env var PYTHONPATH="."
-from common import auth, config_utils, cloud_utils, bigquery_utils
+from common import auth, config_utils, cloud_utils, bigquery_utils, file_utils
 from install import cloud_data_transfer
 
 # Set logging level.
@@ -69,7 +69,8 @@ def get_service_account_email(config: config_utils.Config):
   return f"{config.project_id}@appspot.gserviceaccount.com"
 
 
-def create_spreadsheets(config: config_utils.Config, credentials: credentials.Credentials) -> bool:
+def create_spreadsheets(config: config_utils.Config,
+                        credentials: credentials.Credentials) -> bool:
   created = False
   if config.page_feed_spreadsheetid:
     logging.info(
@@ -99,17 +100,16 @@ def create_spreadsheet(title: str, userEmail: str,
                        credentials: credentials.Credentials) -> str:
   """Create a Google Spreadsheet (either for page feed or adcustomizers data)"""
   sheetsAPI = build('sheets', 'v4', credentials=credentials)
-  result = sheetsAPI.spreadsheets().create(
-      body={
-          "sheets": [{
-              "properties": {
-                  "title": "Main"
-              }
-          }],
+  result = sheetsAPI.spreadsheets().create(body={
+      "sheets": [{
           "properties": {
-              "title": title
+              "title": "Main"
           }
-      }).execute()
+      }],
+      "properties": {
+          "title": title
+      }
+  }).execute()
   spreadsheet_id = result['spreadsheetId']
   logging.info('Created spreadsheet: ' + spreadsheet_id)
   # set permission on the created spreadsheet for GAE default service account
@@ -120,20 +120,12 @@ def create_spreadsheet(title: str, userEmail: str,
 
 def backup_config(config_file_name: str, config: config_utils.Config,
                   credentials):
-  """Backs up config file onto GCS (bucket "{project_id}-setup", will be created if doesn't exist)"""
+  """Backs up config file onto GCS (bucket "{project_id}", will be created if doesn't exist)"""
   if not config_file_name.startswith('gs://'):
-    storage_client = storage.Client(project=config.project_id,
-                                    credentials=credentials)
-    # create (or reuse) a GCS bucket and put the config there
-    bucket_name = f'{config.project_id}-setup'
-    try:
-      bucket = storage_client.get_bucket(bucket_name)
-    except exceptions.NotFound:
-      bucket = storage_client.create_bucket(bucket_name)
-    blob = bucket.blob(config_file_name)
-    blob.upload_from_filename(config_file_name)
+    file_utils.upload_file_to_gcs(config.project_id, credentials,
+                                  config_file_name)
     logging.info(
-        f'config file ({config_file_name}) has been copied to gs://{bucket_name}'
+        f'config file ({config_file_name}) has been copied to gs://{config.project_id}'
     )
 
 
@@ -177,6 +169,7 @@ def create_pubsub_topic(config: config_utils.Config, credentials):
 def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
                                  credentials):
   """Checks data transfer completed via creating an async pull subscription pub/sub completion topic"""
+
   def callback(message):
     message.ack()
     #print(message.data.decode())
@@ -276,7 +269,7 @@ def main():
     config_utils.save_config(config, config_file_name)
 
   # As we could have modified the config (e.g. put a spreadsheet id),
-  # we need to save it to a well-known location - GCS bucket {project_id}-setup:
+  # we need to save it to a well-known location - GCS bucket {project_id}-pdsa:
   backup_config(config_file_name, config, credentials)
 
   create_subscription_to_update_pagefeed(pubsub_topic, config, credentials)

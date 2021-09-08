@@ -125,7 +125,7 @@ def backup_config(config_file_name: str, config: config_utils.Config,
     file_utils.upload_file_to_gcs(config.project_id, credentials,
                                   config_file_name)
     logging.info(
-        f'config file ({config_file_name}) has been copied to gs://{config.project_id}'
+        f'config file ({config_file_name}) has been copied to gs://{config.project_id}-pdsa'
     )
 
 
@@ -190,12 +190,12 @@ def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
     subscriber.delete_subscription(subscription=subscription_name)
 
 
-def create_subscription_to_update_pagefeed(pubsub_topic: str,
+def create_subscription_to_update_feeds(pubsub_topic: str,
                                            config: config_utils.Config,
                                            credentials):
   """Creates a pub/sub push subscription to data transfer completion topic
-     with signaling to GAE application to update page feed"""
-  subscription_name = f'projects/{config.project_id}/subscriptions/update_pagefeed'
+     with signaling to GAE application to update page feed and adcustomizer feed"""
+  subscription_name = f'projects/{config.project_id}/subscriptions/update_feeds'
   with pubsub_v1.SubscriberClient(credentials=credentials) as subscriber:
     try:
       subscriber.get_subscription(subscription=subscription_name)
@@ -211,7 +211,7 @@ def create_subscription_to_update_pagefeed(pubsub_topic: str,
           topic=pubsub_topic,
           push_config=pubsub_v1.types.PushConfig(
               push_endpoint=
-              f'https://{config.project_id}.ew.r.appspot.com/pagefeed/update',
+              f'https://{config.project_id}.ew.r.appspot.com/api/update',
               oidc_token=pubsub_v1.types.PushConfig.OidcToken(
                   service_account_email=get_service_account_email(config))))
 
@@ -248,7 +248,7 @@ def main():
   pubsub_topic = create_pubsub_topic(config, credentials)
   # create or reuse data transfer for GMC
   merchant_center_config = data_transfer.create_merchant_center_transfer(
-      config.merchant_id, config.dataset_id, pubsub_topic, args.skip_dt_run)
+      config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic, args.skip_dt_run)
 
   if not args.skip_dt_run:
     logging.info('Waiting for Data Transfer to complete...')
@@ -272,7 +272,7 @@ def main():
   # we need to save it to a well-known location - GCS bucket {project_id}-pdsa:
   backup_config(config_file_name, config, credentials)
 
-  create_subscription_to_update_pagefeed(pubsub_topic, config, credentials)
+  create_subscription_to_update_feeds(pubsub_topic, config, credentials)
   logging.info(
       'Created pub/sub subscription for data transfer to call GAE app for updating page feed'
   )

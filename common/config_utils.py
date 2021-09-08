@@ -68,6 +68,9 @@ class Config(object):
   ad_description_template: str = ''
   # category descriptions
   category_ad_descriptions: dict = {}
+  # DataTransfer schedule (syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)
+  # if empty default scheduling will be used - run DT daily
+  dt_schedule: str = ''
 
   def update(self, kw):
     for k in kw:

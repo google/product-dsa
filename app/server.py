@@ -45,7 +45,7 @@ def verify_token():
     raise Exception('Access denied')
 
 
-@app.route("/pagefeed/update", methods=["POST", "GET"])
+@app.route("/api/update", methods=["POST", "GET"])
 def pagefeed_update():
   # Verify the Cloud Pub/Sub-generated JWT in the "Authorization" header.
   try:

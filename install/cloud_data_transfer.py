@@ -123,7 +123,8 @@ class CloudDataTransferUtils(object):
     return True
 
   def _update_existing_transfer(self, transfer_config: types.TransferConfig,
-                                params: Dict[str, str]) -> types.TransferConfig:
+                                params: Dict[str, str],
+                                dt_schedule: str) -> types.TransferConfig:
     """Updates existing data transfer.
 
     If the parameters are already present in the config, then the transfer
@@ -136,20 +137,26 @@ class CloudDataTransferUtils(object):
     Returns:
       Updated data transfer config.
     """
-    if self._check_params_match(transfer_config, params):
+    if self._check_params_match(
+        transfer_config, params) and transfer_config.schedule == dt_schedule and transfer_config.schedule_options.disable_auto_scheduling == False:
       logging.info(
-          'The data transfer config "%s" parameters match. Hence '
-          'skipping update.', transfer_config.display_name)
+          'The data transfer config "%s" parameters match. '
+          'Hence skipping update.', transfer_config.display_name)
       # NOTE: if other parameters (e.g. notification_pubsub_topic) mismatch we won't catch this
       return transfer_config
     new_transfer_config = types.TransferConfig()
-    new_transfer_config.CopyFrom(transfer_config)
+    types.TransferConfig.copy_from(new_transfer_config, transfer_config)
     # Clear existing parameter values.
-    new_transfer_config.params.Clear()
+    new_transfer_config.params = struct_pb2.Struct()
     for key, value in params.items():
       new_transfer_config.params[key] = value
+    if transfer_config.schedule == '':
+      new_transfer_config.schedule = dt_schedule
+      schedule_options = types.ScheduleOptions()
+      schedule_options.disable_auto_scheduling = False
+      new_transfer_config.schedule_options = schedule_options
     # Only params field is updated.
-    update_mask = {"paths": ["params"]}
+    update_mask = {"paths": ["params", "schedule", "schedule_options"]}
     new_transfer_config = self.client.update_transfer_config(
         transfer_config=new_transfer_config, update_mask=update_mask)
     logging.info('The data transfer config "%s" parameters updated.',
@@ -157,7 +164,7 @@ class CloudDataTransferUtils(object):
     return new_transfer_config
 
   def create_merchant_center_transfer(
-      self, merchant_id: int, destination_dataset: str,
+      self, merchant_id: int, destination_dataset: str, dt_schedule: str,
       pubsub_topic: str, skip_dt_run: bool) -> types.TransferConfig:
     """Creates a new merchant center transfer.
 
@@ -192,7 +199,7 @@ class CloudDataTransferUtils(object):
           f"Found an existing data transfer for merchant id {merchant_id} and dataset '{destination_dataset}' ({data_transfer_config.name})"
       )
       data_transfer_config = self._update_existing_transfer(
-          data_transfer_config, parameters)
+          data_transfer_config, parameters, dt_schedule)
       # trigger execution start_manual_transfer_runs
       if not skip_dt_run:
         logging.info(f'Triggering data transfer to run...')
@@ -200,11 +207,13 @@ class CloudDataTransferUtils(object):
         run_time_pb = timestamp_pb2.Timestamp()
         run_time_pb.FromDatetime(run_time)
         transfer_run = self.client.start_manual_transfer_runs(
-            types.StartManualTransferRunsRequest(parent=data_transfer_config.name,
-                                                requested_run_time=run_time_pb)).runs
+            types.StartManualTransferRunsRequest(
+                parent=data_transfer_config.name,
+                requested_run_time=run_time_pb)).runs
         logging.info(f'Data transfer has been run')
       else:
-        logging.info('Skipping data transfer running because of skip-dt-run flag')
+        logging.info(
+            'Skipping data transfer running because of skip-dt-run flag')
       return data_transfer_config
 
     logging.info(
@@ -215,6 +224,7 @@ class CloudDataTransferUtils(object):
         'display_name': f'Merchant Center Transfer - {merchant_id}',
         'data_source_id': _MERCHANT_CENTER_ID,
         'destination_dataset_id': destination_dataset,
+        'schedule': dt_schedule,
         'params': parameters,
         'data_refresh_window_days': 0,
         'notification_pubsub_topic': pubsub_topic

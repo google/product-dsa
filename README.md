@@ -30,6 +30,8 @@ There are bunch of settings that can be specified in your configuration. Some of
 * `pubsub_topic_dt_finish` - pub/sub topic id for publishing message on GMC Data Transfer completions (default: 'gmc-dt-finish')
 * `ad_description_template` - template for ad descriptions using fields from GMC product table, e.g. "{title} (price: {price_value} {price_currency})"
 * `category_ad_descriptions` - dictionary with mapping labels to category descriptions (for adgroups)
+* `dt_schedule` - DataTransfer custom schedule (by default, if empty, 'every 24 hours'), syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)
+
 
 ## 3. Installation
 

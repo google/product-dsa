@@ -120,7 +120,7 @@ def create_spreadsheet(title: str, userEmail: str,
 
 def backup_config(config_file_name: str, config: config_utils.Config,
                   credentials):
-  """Backs up config file onto GCS (bucket "{project_id}", will be created if doesn't exist)"""
+  """Backs up config file onto GCS (bucket "{project_id}-pdsa", will be created if doesn't exist)"""
   if not config_file_name.startswith('gs://'):
     file_utils.upload_file_to_gcs(config.project_id, credentials,
                                   config_file_name)

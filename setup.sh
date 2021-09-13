@@ -47,4 +47,7 @@ GAE_LOCATION=europe-west
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 
 gcloud app create --region $GAE_LOCATION
+cd frontend
+ng build
+cd ..
 gcloud app deploy -q

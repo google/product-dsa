@@ -1,9 +1,12 @@
 .git
 .venv
 .vscode
+__pycache__
 DS_Store
 .gcloudignore
 .gitignore
 client_secrets.json 
 *.csv
 *.sh
+output/
+frontend/

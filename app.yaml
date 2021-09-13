@@ -7,4 +7,4 @@ env_variables:
   CONFIG: gs://$PROJECT_ID-pdsa/config.yaml
 #  PYTHONPATH: .
 
-entrypoint: gunicorn -b :$PORT app.server:app
+entrypoint: gunicorn -b :$PORT server.server:app

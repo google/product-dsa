@@ -1,0 +1,60 @@
+<app-progress-spinner [backdropEnabled]="true" [positionGloballyCenter]="true" [displayProgressSpinner]="loading">
+</app-progress-spinner>
+
+<div *ngIf="errorMessage">
+  <div class="alert alert-danger alert-dismissible" #errorMessageAlert>
+    <div [innerHTML]="errorMessage"></div>
+    <button type="button" class="btn-close" aria-label="Close" (click)="closeErrorMessage()"></button>
+  </div>
+</div>
+
+<mat-card>
+  <mat-card-title>
+    <div class="row">
+      <div class="col">
+        Products and Labels
+      </div>
+    </div>
+  </mat-card-title>
+  <mat-card-subtitle>Analyse data from BigQuery ingested from GMC</mat-card-subtitle>
+</mat-card>
+<p></p>
+
+<mat-tab-group animationDuration="0ms" dynamicHeight color="accent" #tabGroup>
+  <mat-tab label="Labels">
+    <form [formGroup]="formLabels" novalidate>
+      <mat-card>
+        <div class="row">
+          <div class="col">
+            <mat-table [dataSource]="dataSourceLabels" class="mat-elevation-z8">
+              <ng-container *ngFor="let disCol of columnsLabels; let colIndex = index" matColumnDef="{{disCol}}">
+                <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
+                <mat-cell *matCellDef="let element">{{element[disCol]}}</mat-cell>
+              </ng-container>
+              <mat-header-row *matHeaderRowDef="(columnsLabels )"></mat-header-row>
+              <mat-row *matRowDef="let row; let e = index; columns: (columnsLabels )" class="remove-background">
+              </mat-row>
+              <ng-template matNoDataRow>
+                <div class="alert">Please load labels</div>
+              </ng-template>
+            </mat-table>
+            <mat-paginator #paginatorLabels pageSize=20 [pageSizeOptions]="[5, 10, 20, 50, 100]" showFirstLastButtons>
+            </mat-paginator>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col text-left">
+            <button mat-raised-button (click)="loadLabels()" color="accent" class="mat-elevation-z2">
+              <mat-icon>bolt</mat-icon> Load
+            </button>
+          </div>
+        </div>
+      </mat-card>
+    </form>
+  </mat-tab>
+  <mat-tab label="Products">
+    <form [formGroup]="formProducts" novalidate>
+      <mat-card></mat-card>
+    </form>
+  </mat-tab>
+</mat-tab-group>

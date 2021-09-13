@@ -13,7 +13,9 @@
 # limitations under the License.
 from io import TextIOWrapper
 import os
+from typing import List
 import requests
+import zipfile
 from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
@@ -42,6 +44,7 @@ def download_image(uri, folder):
 
 
 def download_file(uri, folder):
+  """Download a remote file into a local folder."""
   if not os.path.exists(folder):
     os.mkdir(folder)
   # Change the user agent because some websites don't like traffic from "non-browsers"
@@ -55,13 +58,6 @@ def download_file(uri, folder):
       f.write(response.content)
     return local_path
   raise Exception(f"Couldn't download file {uri}: {response.reason}")
-
-  """
-  response = requests.get('http://www.example.com/image.jpg', stream=True)
-  with open('output.jpg', 'wb') as handle:
-    for block in response.iter_content(1024):
-        handle.write(block)
-  """
 
 
 def get_file_from_gcs(uri):
@@ -125,3 +121,18 @@ def open_relative_file(file_name: str) -> TextIOWrapper:
   """Opens a file for reading relatively to the current module."""
   working_directory = os.path.dirname(__file__)
   return open(os.path.join(working_directory, file_name), "rb")
+
+
+def zip(file_name: str, items: List[str]):
+  """Create a zip archive from specified list of items (files/dirs)"""
+  basedir = os.path.dirname(file_name)
+  with zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    for item in items:
+      if os.path.isdir(item):
+        for root, dirs, files in os.walk(item):
+          for file in files:
+            zipf.write(os.path.join(root, file),
+                       os.path.relpath(os.path.join(root, file), basedir))
+      else:
+        zipf.write(item, os.path.relpath(item, basedir))
+

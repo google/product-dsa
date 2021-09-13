@@ -53,13 +53,13 @@ class Config(object):
   # spreadsheet id for adcustomizers feed
   adcustomizer_spreadsheetid: str = ''
   # file name for output csv file with page feed
-  page_feed_output_file: str = ''
+  page_feed_output_file: str = 'page-feed.csv'
   # file name for output csv file with campaign data for Ads Editor
-  campaign_output_file: str = ''
+  campaign_output_file: str = 'gae-campaigns.csv'
   # file name for output csv file with ad-customizer data
-  adcustomizer_output_file: str = ''
+  adcustomizer_output_file: str = 'ad-customizer.csv'
   # folder for downloading images from GMC, if relative and output_folder specified then they will be joined
-  image_folder: str = ''
+  image_folder: str = 'images'
   # output folder path, will be common base path for all outputs
   output_folder: str = ''
   # pub/sub topic id for publishing message on GMC Data Transfer completions

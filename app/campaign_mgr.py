@@ -183,8 +183,8 @@ class GoogleAdsEditorMgr:
 
     # Add the image extension row
     if product.image_link:
-      folder = os.path.join(self._config.output_folder or '',
-                            self._config.image_folder or 'images')
+      folder = os.path.join(self._config.output_folder,
+                            self._config.image_folder)
       local_image_path = file_utils.download_image(product.image_link, folder)
       rel_image_path = os.path.relpath(local_image_path,
                                        self._config.output_folder or '')
@@ -342,9 +342,8 @@ class CampaignMgr:
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
     if generate_csv:
-      output_csv_path = os.path.join(
-          self._config.output_folder or '',
-          self._config.adcustomizer_output_file or 'ad-customizer.csv')
+      output_csv_path = os.path.join(self._config.output_folder,
+                                     self._config.adcustomizer_output_file)
       with open(output_csv_path, 'w') as csv_file:
         writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(values)
@@ -362,9 +361,8 @@ class CampaignMgr:
     if not self._products_by_label:
       return
 
-    output_csv_path = os.path.join(
-        self._config.output_folder or '', self._config.campaign_output_file or
-        'gae-campaigns.csv')
+    output_csv_path = os.path.join(self._config.output_folder,
+                                   self._config.campaign_output_file)
     gae = GoogleAdsEditorMgr(self._config)
 
     # Before generating the new file, get ad descriptions from the old csv if

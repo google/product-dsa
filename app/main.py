@@ -19,7 +19,7 @@ import os
 import csv
 from google.auth import credentials
 from pprint import pprint
-from common import auth, config_utils, sheets_utils
+from common import auth, config_utils, sheets_utils, file_utils
 from app import wf_execute_sql
 from app import campaign_mgr
 
@@ -92,9 +92,8 @@ def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
     values.append([row[0], row[1]])
 
   if generate_csv:
-    csv_file_name = os.path.join(
-        config.output_folder or '', config.page_feed_output_file or
-        'page-feed.csv')
+    csv_file_name = os.path.join(config.output_folder,
+                                 config.page_feed_output_file)
     with open(csv_file_name, 'w') as csv_file:
       writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
       writer.writerow(['Page URL', 'Custom label'])
@@ -112,19 +111,32 @@ def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
 
 
-def generate_campaign(config: config_utils.Config, context):
+def create_or_update_adcustomizers(generate_csv: bool,
+                                   config: config_utils.Config, context):
+  products = execute_sql_query('get-products.sql', config, context)
+  if products.total_rows == 0:
+    logging.info('Skipping ad-customizer updating as there\'s no products')
+    return
+
+  mgr = campaign_mgr.CampaignMgr(config, products, context['gcp_credentials'])
+  mgr.generate_adcustomizers(generate_csv)
+
+
+def generate_campaign(config: config_utils.Config, context) -> str:
   step_name = 'campaign creation'
   t0 = time.time()
   ts = time.strftime('%H:%M:%S')
   logging.info(f'[{ts}] Starting "{step_name}" step')
   products = execute_sql_query('get-products.sql', config, context)
   logging.info(f'Fetched {products.total_rows} products')
+  output_path = ''
   if products.total_rows:
     output_path = campaign_mgr.generate_csv(config, products,
                                             context['gcp_credentials'])
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
+  return output_path
 
 
 def main():
@@ -143,9 +155,16 @@ def main():
   create_or_update_page_feed(True, config, context)
 
   # #2 generate ad campaigns (with adcustomizers)
-  generate_campaign(config, context)
+  output_file = generate_campaign(config, context)
+  image_folder = os.path.join(config.output_folder, config.image_folder)
+
+  # archive output csv and images folder
+  arcfilename = os.path.join(
+      config.output_folder,
+      os.path.splitext(os.path.basename(output_file))[0] + '.zip')
+  file_utils.zip(arcfilename, [output_file, image_folder])
+  logging.info(f'Generated archive zip campaign data and images in {arcfilename}')
 
 
 if __name__ == '__main__':
-  # TODO: support commands: create | update | install
   main()

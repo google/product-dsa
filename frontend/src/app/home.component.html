@@ -1,0 +1,53 @@
+<app-progress-spinner [backdropEnabled]="true" [positionGloballyCenter]="true" [displayProgressSpinner]="loading">
+</app-progress-spinner>
+
+<div *ngIf="errorMessage">
+  <div class="alert alert-danger alert-dismissible" #errorMessageAlert>
+    <div [innerHTML]="errorMessage"></div>
+    <button type="button" class="btn-close" aria-label="Close" (click)="closeErrorMessage()"></button>
+  </div>
+</div>
+
+<mat-card>
+  <mat-card-title>
+    <div class="row">
+      <div class="col">
+        Generation
+      </div>
+    </div>
+  </mat-card-title>
+  <mat-card-subtitle>Generate Google Ads campaigns and feed data</mat-card-subtitle>
+</mat-card>
+<p></p>
+
+<mat-card>
+  <div class="row text-center">
+    <div class="col-5 px-3 py-3">
+      <h1 class="display-5 fw-bold text-center">Guided wizard</h1>
+      <p></p>
+      <button mat-raised-button (click)="openGuidedWizard()" color="accent" class="mat-elevation-z2">
+        <mat-icon>bolt</mat-icon> Run
+      </button>
+    </div>
+    <div class="col-1">
+      <mat-divider [vertical]="true" inset="true" style="height: 100%;"></mat-divider>
+    </div>
+    <div class="col-5 px-3 py-3">
+      <h1 class="display-5 fw-bold text-center">Direct execution</h1>
+      <p></p>
+      <button mat-raised-button (click)="genPageFeed()" color="accent" class="mat-elevation-z2">
+        Generate page feed
+      </button>
+      <p></p>
+      <button mat-raised-button (click)="genAdCustomizers()" color="accent" class="mat-elevation-z2">
+        Generate ad customizers
+      </button>
+      <p></p>
+      <button mat-raised-button (click)="genCampaign()" color="accent" class="mat-elevation-z2">
+        Generate campaign data
+      </button>
+
+    </div>
+  </div>
+
+</mat-card>

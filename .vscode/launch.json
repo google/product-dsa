@@ -38,7 +38,7 @@
       "name": "Debug WebApp (Python)",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/app/server.py",
+      "program": "${workspaceFolder}/server/server.py",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": false,

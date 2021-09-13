@@ -1,0 +1,11 @@
+<app-navbar></app-navbar>
+<main class="container">
+  <router-outlet></router-outlet>
+  <app-progress-spinner [backdropEnabled]="true" [positionGloballyCenter]="true" [displayProgressSpinner]="loading">
+  </app-progress-spinner>
+</main>
+<footer class="footer mt-auto">
+  <div class="container">
+    <span class="text-muted">Product DSA, &copy;&nbsp;Google Professional Services, 2021.</span>
+  </div>
+</footer>

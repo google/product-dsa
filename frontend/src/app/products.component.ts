@@ -20,7 +20,8 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableDataSource } from '@angular/material/table';
 import { ComponentBase } from './components/component-base';
-import { ApiService } from './shared/api.service';
+import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
+import { ProductService } from './shared/product.service';
 
 @Component({
   selector: 'app-products',
@@ -33,10 +34,13 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   formProducts: FormGroup;
   dataSourceLabels: MatTableDataSource<any>;
   columnsLabels: string[] | undefined;
+  dataSourceProducts: MatTableDataSource<any>;
+  columnsProducts = ['offer_id', 'title', 'brand', 'in_stock', 'pdsa_custom_labels'];
   @ViewChild('paginatorLabels') paginatorLabels: MatPaginator | undefined;
+  @ViewChild('paginatorProducts') paginatorProducts: MatPaginator | undefined;
 
   constructor(private fb: FormBuilder,
-    private apiService: ApiService,
+    private productService: ProductService,
     dialog: MatDialog,
     snackBar: MatSnackBar) {
     super(dialog, snackBar);
@@ -46,20 +50,30 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     this.formProducts = this.fb.group({
     }, { updateOn: 'blur' });
     this.dataSourceLabels = new MatTableDataSource<any>();
+    this.dataSourceProducts = new MatTableDataSource<any>();
   }
 
   ngOnInit(): void {
+    let labels = this.productService.getLabels();
+    if (labels) {
+      this.showLabels(labels);
+    }
+    let products = this.productService.getProducts();
+    if (products) {
+      this.showProducts(products)
+    }
   }
 
   ngAfterViewInit() {
     this.dataSourceLabels.paginator = this.paginatorLabels!;
+    this.dataSourceProducts.paginator = this.paginatorProducts!;
   }
 
   async loadLabels() {
     try {
       this.errorMessage = null;
       this.loading = true;
-      const data = await this.apiService.getLabels();
+      const data = await this.productService.loadLabels();
       this.showLabels(data);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);
@@ -69,13 +83,39 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   }
 
   showLabels(serverData: Record<string, any>[]) {
-    // let serverData: Record<string, any>[] = [
-    //   { label: "product-1", count: 1 },
-    //   { label: "product-2", count: 1 },
-    //   { label: "product-3", count: 1 },
-    // ];
     if (!serverData || !serverData.length) { return; }
     this.dataSourceLabels.data = serverData;
     this.columnsLabels = Object.keys(serverData[0]);
+  }
+
+  async loadProducts() {
+    try {
+      this.errorMessage = null;
+      this.loading = true;
+      const data = await this.productService.loadProducts();
+      this.showProducts(data);
+    } catch (e) {
+      this.handleApiError(`Labels failed to load`, e);
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  showProducts(serverData: Record<string, any>[]) {
+    if (!serverData || !serverData.length) { return; }
+    this.dataSourceProducts.data = serverData;
+    //this.columnsProducts = Object.keys(serverData[0]);
+  }
+
+  mouseOverIndex = -1;
+  onProductDetails($event: MouseEvent, row: any, ds: MatTableDataSource<any>) {
+    if (!this.onTableRowClick($event)) { return; }
+    const dialogRef = this.dialog.open(ObjectDetailsDialogComponent, {
+      width: '600px',
+      data: {
+        row,
+        dataSource: ds
+      }
+    });
   }
 }

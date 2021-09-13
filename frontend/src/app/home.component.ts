@@ -19,6 +19,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
+import { CustomSnackBar } from './components/custom-snackbar.component';
 import { ApiService } from './shared/api.service';
 
 @Component({
@@ -43,13 +44,47 @@ export class HomeComponent extends ComponentBase implements OnInit {
     this.router.navigate(['wizard']);
   }
 
-  genPageFeed() {
-
+  async updatePageFeed() {
+    try {
+      this.errorMessage = null;
+      this.loading = true;
+      let res = await this.apiService.generatePageFeed({ skipDownload: true });
+      this.snackBar.openFromComponent(CustomSnackBar, {
+        duration: 6000, data: {
+          message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with page feed data`} });
+    } catch (e) {
+      this.handleApiError(`A failure occured`, e);
+    } finally {
+      this.loading = false;
+    }
   }
-  genAdCustomizers() {
 
+  async updateAdCustomizers() {
+    try {
+      this.errorMessage = null;
+      this.loading = true;
+      let res = await this.apiService.generateAdcustomizers({ skipDownload: true });
+      this.snackBar.openFromComponent(CustomSnackBar, {
+        duration: 6000, data: {
+          message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with ad customizers feed data`
+        }
+      });
+    } catch (e) {
+      this.handleApiError(`A failure occured`, e);
+    } finally {
+      this.loading = false;
+    }
   }
-  genCampaign() {
 
+  async generateCampaign() {
+    try {
+      this.errorMessage = null;
+      this.loading = true;
+      let res = await this.apiService.generateAdCampaign();
+    } catch (e) {
+      this.handleApiError(`A failure occured`, e);
+    } finally {
+      this.loading = false;
+    }
   }
 }

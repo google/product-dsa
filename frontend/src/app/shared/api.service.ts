@@ -16,6 +16,9 @@
 import { Injectable } from '@angular/core';
 import { BackendService } from './backend.service';
 
+interface GenerateOptions {
+  skipDownload?: boolean
+};
 type GenerateResponse = { filename: string, spreadsheet_id: string };
 
 @Injectable({
@@ -25,29 +28,36 @@ export class ApiService {
 
   constructor(public backendService: BackendService) { }
 
-  async generatePageFeed(): Promise<GenerateResponse> {
+  async generatePageFeed(opts: GenerateOptions = {}): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
       '/pagefeed/generate');
-    await this.downloadFile(res.filename);
+    if (!opts?.skipDownload)
+      await this.downloadFile(res.filename);
     return res;
   }
 
-  async generateAdcustomizers(): Promise<GenerateResponse> {
+  async generateAdcustomizers(opts: GenerateOptions = {}): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
       '/adcustomizers/generate');
-    await this.downloadFile(res.filename);
+    if (!opts?.skipDownload)
+      await this.downloadFile(res.filename);
     return res;
   }
 
-  async generateAdCampaign(): Promise<GenerateResponse> {
+  async generateAdCampaign(opts: GenerateOptions = {}): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
       '/campaign/generate');
-    await this.downloadFile(res.filename);
+    if (!opts?.skipDownload)
+      await this.downloadFile(res.filename);
     return res;
   }
 
   getLabels(): Promise<Record<string, any>[]> {
     return this.backendService.getApi<Record<string, any>[]>('/labels');
+  }
+
+  getProducts(): Promise<Record<string, any>[]> {
+    return this.backendService.getApi<Record<string, any>[]>('/products');
   }
 
   async downloadFile(filename: string): Promise<void> {

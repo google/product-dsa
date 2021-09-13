@@ -22,7 +22,7 @@ export abstract class ComponentBase {
 
   constructor(
     public dialog: MatDialog,
-    private snackBar: MatSnackBar) {
+    public snackBar: MatSnackBar) {
 
   }
 

@@ -1,0 +1,8 @@
+<div class="mat-simple-snackbar">
+  <span [innerHtml]="html">{{ data.message }}</span>
+  <div class="mat-simple-snackbar-action" style="margin-right: 5px">
+    <button mat-icon-button (click)="sbRef.dismiss()">
+      <span class="mat-button-wrapper">Dismiss</span>
+    </button>
+  </div>
+</div>

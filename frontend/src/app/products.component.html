@@ -32,10 +32,11 @@
                 <mat-cell *matCellDef="let element">{{element[disCol]}}</mat-cell>
               </ng-container>
               <mat-header-row *matHeaderRowDef="(columnsLabels )"></mat-header-row>
-              <mat-row *matRowDef="let row; let e = index; columns: (columnsLabels )" class="remove-background">
+              <mat-row *matRowDef="let row; let e = index; columns: (columnsLabels )">
               </mat-row>
               <ng-template matNoDataRow>
-                <div class="alert">Please load labels</div>
+                <div class="alert">Please click <a href="#" (click)="loadLabels();$event.preventDefault()">Load</a> to
+                  load labels their statistics</div>
               </ng-template>
             </mat-table>
             <mat-paginator #paginatorLabels pageSize=20 [pageSizeOptions]="[5, 10, 20, 50, 100]" showFirstLastButtons>
@@ -54,7 +55,36 @@
   </mat-tab>
   <mat-tab label="Products">
     <form [formGroup]="formProducts" novalidate>
-      <mat-card></mat-card>
+      <mat-card>
+        <div class="row">
+          <div class="col">
+            <mat-table [dataSource]="dataSourceProducts" class="mat-elevation-z8 editable-table">
+              <ng-container *ngFor="let disCol of columnsProducts; let colIndex = index" matColumnDef="{{disCol}}">
+                <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
+                <mat-cell *matCellDef="let element">{{element[disCol]}}</mat-cell>
+              </ng-container>
+              <mat-header-row *matHeaderRowDef="columnsProducts"></mat-header-row>
+              <mat-row *matRowDef="let row; let e = index; columns: columnsProducts"
+                (mouseover)="mouseOverIndex = e" (mouseout)="mouseOverIndex=-1"
+                [ngClass]="{'mat-elevation-z8' : e == mouseOverIndex}"
+                (click)="onProductDetails($event, row, dataSourceProducts)"></mat-row>
+              <ng-template matNoDataRow>
+                <div class="alert">Please click <a href="#" (click)="loadProducts();$event.preventDefault()">Load</a> to
+                  load products selected for advertising via DSA</div>
+              </ng-template>
+            </mat-table>
+            <mat-paginator #paginatorProducts pageSize=20 [pageSizeOptions]="[5, 10, 20, 50, 100]" showFirstLastButtons>
+            </mat-paginator>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col text-left">
+            <button mat-raised-button (click)="loadProducts()" color="accent" class="mat-elevation-z2">
+              <mat-icon>bolt</mat-icon> Load
+            </button>
+          </div>
+        </div>
+      </mat-card>
     </form>
   </mat-tab>
 </mat-tab-group>

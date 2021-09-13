@@ -5,6 +5,7 @@ automatic_scaling:
 
 env_variables:
   CONFIG: gs://$PROJECT_ID-pdsa/config.yaml
+  GIT_COMMIT:
 #  PYTHONPATH: .
 
 entrypoint: gunicorn -b :$PORT server.server:app

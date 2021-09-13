@@ -31,7 +31,7 @@ def execute_sql_query(name: str,
                       context: Dict,
                       macros: Dict = None):
   cfg = {
-      'sql_file': './scripts/' + name,
+      'sql_file': './sql/' + name,
       'project_id': config.project_id,
       'macros': {
           'project_id': config.project_id,

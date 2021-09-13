@@ -51,7 +51,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
       this.pagefeed_speadsheet = res.spreadsheet_id;
       //this.form.controls['pagefeed_output_file'].setValue(res.filename);
     } catch (e) {
-      this.handleApiError(`Page feed failed to generate`, e);
+      this.handleApiError(`A failure occured`, e);
     } finally {
       this.loading = false;
     }
@@ -65,7 +65,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
       this.adcustomizer_speadsheet = res.spreadsheet_id;
       //this.form.controls['adcustomizer_output_file'].setValue(res.filename);
     } catch (e) {
-      this.handleApiError(`Page feed failed to generate`, e);
+      this.handleApiError(`A failure occured`, e);
     } finally {
       this.loading = false;
     }
@@ -77,7 +77,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
       this.loading = true;
       let res = await this.apiService.generateAdCampaign();
     } catch (e) {
-      this.handleApiError(`Page feed failed to generate`, e);
+      this.handleApiError(`A failure occured`, e);
     } finally {
       this.loading = false;
     }

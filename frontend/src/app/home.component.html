@@ -22,29 +22,27 @@
 
 <mat-card>
   <div class="row text-center">
-    <div class="col-5 px-3 py-3">
+    <div class="col-6 px-3 py-3">
+      <mat-divider [vertical]="true" inset="true" style="height: 100%;float:right"></mat-divider>
       <h1 class="display-5 fw-bold text-center">Guided wizard</h1>
       <p></p>
       <button mat-raised-button (click)="openGuidedWizard()" color="accent" class="mat-elevation-z2">
         <mat-icon>bolt</mat-icon> Run
       </button>
     </div>
-    <div class="col-1">
-      <mat-divider [vertical]="true" inset="true" style="height: 100%;"></mat-divider>
-    </div>
-    <div class="col-5 px-3 py-3">
+    <div class="col-6 px-3 py-3">
       <h1 class="display-5 fw-bold text-center">Direct execution</h1>
       <p></p>
-      <button mat-raised-button (click)="genPageFeed()" color="accent" class="mat-elevation-z2">
-        Generate page feed
+      <button mat-raised-button (click)="updatePageFeed()" color="accent" class="mat-elevation-z2" style="width:200px">
+        Update page feed
       </button>
       <p></p>
-      <button mat-raised-button (click)="genAdCustomizers()" color="accent" class="mat-elevation-z2">
-        Generate ad customizers
+      <button mat-raised-button (click)="updateAdCustomizers()" color="accent" class="mat-elevation-z2" style="width:200px">
+        Update ad customizers
       </button>
       <p></p>
-      <button mat-raised-button (click)="genCampaign()" color="accent" class="mat-elevation-z2">
-        Generate campaign data
+      <button mat-raised-button (click)="generateCampaign()" color="accent" class="mat-elevation-z2" style="width:200px">
+        Regenerate campaign data
       </button>
 
     </div>

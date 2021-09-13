@@ -43,7 +43,7 @@ logging.getLogger('google.cloud.pubsub_v1.subscriber').setLevel(logging.WARNING)
 
 def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
                     config: config_utils.Config):
-  # Sql files to be executed in a specific order. The prefix "scripts" should be omitted.
+  # Sql files to be executed in a specific order. The prefix "sql" should be omitted.
   sql_files = [
       'filter-products.sql',
   ]
@@ -233,7 +233,8 @@ def main():
   logging.info('Enabling apis')
   enable_apis([
       'bigquery.googleapis.com', 'bigquerydatatransfer.googleapis.com',
-      'sheets.googleapis.com', 'drive.googleapis.com', 'pubsub.googleapis.com'
+      'sheets.googleapis.com', 'drive.googleapis.com', 'pubsub.googleapis.com',
+      'iap.googleapis.com'
   ], config, credentials)
   logging.info('apis have been enabled')
 

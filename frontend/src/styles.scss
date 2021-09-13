@@ -12,3 +12,7 @@ body {
   background-color: rgb(85, 85, 85);
   color: white;
 }
+
+.editable-table .mat-row:hover {
+  cursor: pointer;
+}

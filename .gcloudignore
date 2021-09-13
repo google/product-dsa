@@ -10,3 +10,5 @@ client_secrets.json
 *.sh
 output/
 frontend/
+app.yaml.original
+.oauth

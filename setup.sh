@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The script initialize Google Cloud infrastructure for a project.
+# Can be run many times without any harm.
+
 COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color
 NC='\033[0m' # No Color
@@ -26,10 +29,9 @@ python3_installed() {
   [ "$( (echo "$a" ; echo "$b") | sort -V | head -1)" == "$b" ]
 }
 if python3_installed ; then
-  echo "Detected Python >= 3.8"
+  echo -e "${COLOR}Detected Python >= 3.8...${NC}"
 else
-  echo -e "${RED}"
-  echo "Error: Python version < 3.8 - Product DSAs needs python 3.8+"
+  echo -e "${RED}Error: Python version < 3.8 - Product DSAs needs python 3.8+${NC}"
   exit
 fi
 # install and activate Python virtual environment
@@ -38,16 +40,5 @@ python3 -m venv .venv
 # install dependencies
 python3 -m pip install -r requirements.txt
 
-
 # run installation
 python3 ./install/cloud_env_setup.py "$@"
-
-# NOTE: despite other GCP services GAE supports only two regions: europe-west and us-central
-GAE_LOCATION=europe-west
-PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
-
-gcloud app create --region $GAE_LOCATION
-cd frontend
-ng build
-cd ..
-gcloud app deploy -q

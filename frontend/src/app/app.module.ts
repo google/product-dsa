@@ -29,6 +29,8 @@ import { NavbarComponent } from './components/navbar.component';
 import { OverlayService } from './components/overlay.service';
 import { ProductsComponent } from './products.component';
 import { WizardComponent } from './wizard.component';
+import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
+import { CustomSnackBar } from './components/custom-snackbar.component';
 
 @NgModule({
   declarations: [
@@ -38,6 +40,8 @@ import { WizardComponent } from './wizard.component';
     NavbarComponent,
     ProductsComponent,
     WizardComponent,
+    ObjectDetailsDialogComponent,
+    CustomSnackBar
   ],
   imports: [
     BrowserModule,

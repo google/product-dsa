@@ -107,7 +107,7 @@ class CloudBigQueryUtils(object):
                       dataset_location: str, merchant_id: str) -> None:
     """Executes list of queries."""
 
-    prefix = 'scripts'
+    prefix = 'sql'
     query_params = {
         'project_id': self.project_id,
         'dataset': dataset_id,

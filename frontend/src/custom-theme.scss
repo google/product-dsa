@@ -20,7 +20,7 @@ $app-warn: mat-palette($mat-red);
 
 // Create the theme object. A theme consists of configurations for individual
 // theming systems such as "color" or "typography".
-$triggerator-app-theme: mat-dark-theme((
+$pdsa-app-theme: mat-dark-theme((
   color: (
     primary: $app-primary,
     accent: $app-accent,
@@ -35,10 +35,25 @@ $triggerator-app-theme: mat-dark-theme((
 // Include theme styles for core and each component used in your app.
 // Alternatively, you can import and @include the theme mixins for each component
 // that you are using.
-@include angular-material-theme($triggerator-app-theme);
+@include angular-material-theme($pdsa-app-theme);
 
 // Override Bootstrap variables
 $primary:       mat-color($app-primary);
 $secondary:     mat-color($app-accent);
 $link-color:    mat-color($app-accent);
 @import "~bootstrap/scss/bootstrap.scss";
+
+.accent-color {
+  color: mat-color($app-accent) !important;
+}
+.primary-color {
+  color: mat-color($app-primary) !important;
+}
+a.accent-color {
+  color: mat-color($app-accent) !important;
+  text-decoration-color: mat-color($app-accent) !important;
+}
+a.primary-color {
+  color: mat-color($app-primary) !important;
+  text-decoration-color: mat-color($app-primary) !important;
+}

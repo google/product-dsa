@@ -15,8 +15,10 @@
 import os
 import argparse
 import logging
+import decimal
 from pprint import pprint
 from flask import Flask, request, jsonify, send_from_directory
+from flask.json import JSONEncoder
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
@@ -29,6 +31,16 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = Flask(__name__)
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+
+
+class JsonEncoder(JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, decimal.Decimal):
+      return float(obj)
+    return JSONEncoder.default(self, obj)
+
+
+app.json_encoder = JsonEncoder
 
 args = config_utils.parse_arguments(only_known=True)
 # configuration values either go from config file on GCS or from env vars
@@ -121,6 +133,22 @@ def get_labels():
   labels = execute_sql_query('get-labels.sql', config, context)
   result = []
   for row in labels:
+    obj = {}
+    for col, val in row.items():
+      obj[col] = val
+    result.append(obj)
+  return jsonify(result)
+
+
+@app.route("/api/products", methods=["GET"])
+def get_products():
+  # for API (in contrast to main) we support only ADC auth
+  credentials, project = google.auth.default(scopes=_SCOPES)
+
+  context = {'xcom': {}, 'gcp_credentials': credentials}
+  products = execute_sql_query('get-products.sql', config, context)
+  result = []
+  for row in products:
     obj = {}
     for col, val in row.items():
       obj[col] = val

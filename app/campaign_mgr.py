@@ -235,10 +235,17 @@ class AdCustomizerGenerator:
     self._adcustomizer_columns = []
     self._attr_types_by_name = {}
     self._schema = products.schema
+    self._adcustomizer_ignore_columns = [
+        'data_date', 'latest_date', 'product_id', 'merchant_id', 'offer_id',
+        'link', 'image_link', 'additional_image_links', 'content_language',
+        'target_country', 'item_group_id', 'google_product_category_path',
+        'product_type', 'destinations', 'issues', 'unique_product_id',
+        'channel', 'adult', 'age_group', 'custom_labels', 'pdsa_custom_labels'
+    ]
     # initialize columns:
     # ignoring repeated fields(array) and expanding records, also ignoring unsupported types
     for field in products.schema:
-      if field.mode == 'REPEATED':
+      if field.mode == 'REPEATED' or field.name in self._adcustomizer_ignore_columns:
         continue
       elif field.field_type == 'RECORD':
         for subfield in field.fields:
@@ -272,7 +279,7 @@ class AdCustomizerGenerator:
     row_values = []
     for i in range(len(prod)):
       field_schema = self._schema[i]
-      if field_schema.mode == 'REPEATED':
+      if field_schema.mode == 'REPEATED' or field_schema.name in self._adcustomizer_ignore_columns:
         continue
       field_value = prod[i]
       if field_schema.field_type == 'RECORD':
@@ -398,10 +405,10 @@ class CampaignMgr:
                       label)
 
     gae.generate_csv(output_csv_path)
-    file_utils.upload_file_to_gcs(self._config.project_id, self._credentials, output_csv_path)
+    file_utils.upload_file_to_gcs(self._config.project_id, self._credentials,
+                                  output_csv_path)
 
     return output_csv_path
-
 
   def _get_previous_data(self, output_csv_path: str):
     file_name = os.path.basename(output_csv_path)

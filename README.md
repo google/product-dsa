@@ -48,15 +48,21 @@ Make sure the user running the installation has following permissions.
 * [Standard Access For GMC](https://support.google.com/merchants/answer/1637190?hl=en)
 * [Editor(or Owner) Role in Google Cloud Project](https://cloud.google.com/iam/docs/understanding-roles)
 
+### 2.3 Clone repository
+> Temporarly using GoB
 
-### 2.3 Prepare parameters
+* Go to https://professional-services.googlesource.com/new-password and copy code
+* Execute the code in Cloud Shell
+* git clone https://professional-services.googlesource.com/solutions/product-dsa
+
+### 2.4 Prepare parameters
 
 * [GCP Project Id](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
 * [Google Merchant Center Id](https://support.google.com/merchants/answer/188924?hl=en)
 
-### 2.4 Run install script
+### 2.5 Run install script
 
-#### 2.4.1 Setup parameters
+#### 2.5.1 Setup parameters
 You can either put all parameters into `config.yaml` or pass them as command line arguments.
 
 To get initial structure of config.yaml use a template: `cp ./config.yaml.template ./config.yaml`.
@@ -86,7 +92,7 @@ You can use not only local path but also file on GCS:
 but in this case you have to use Application Default Credentials (that means you can't use either `--service-account-key-file` or `--client-secrets-file`)
 
 
-#### 2.4.2 Running from local machine
+#### 2.5.2 Running from local machine
 
 To run the setup script we'll need to setup authentication
 * As a end user - see https://cloud.google.com/docs/authentication/end-user

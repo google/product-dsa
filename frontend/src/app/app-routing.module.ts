@@ -18,12 +18,14 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { HomeComponent } from './home.component';
 import { ProductsComponent } from './products.component';
+import { ConfigComponent } from './config.component';
 import { WizardComponent } from './wizard.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent },
   { path: 'products', component: ProductsComponent },
-  { path: 'wizard', component: WizardComponent}
+  { path: 'wizard', component: WizardComponent },
+  { path: 'config', component: ConfigComponent }
 ];
 
 @NgModule({

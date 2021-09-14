@@ -1,0 +1,128 @@
+<app-progress-spinner [backdropEnabled]="true" [positionGloballyCenter]="true" [displayProgressSpinner]="loading">
+</app-progress-spinner>
+
+<div *ngIf="errorMessage">
+  <div class="alert alert-danger alert-dismissible" #errorMessageAlert>
+    <div [innerHTML]="errorMessage"></div>
+    <button type="button" class="btn-close" aria-label="Close" (click)="closeErrorMessage()"></button>
+  </div>
+</div>
+
+<mat-card>
+  <mat-card-title>
+    <div class="row">
+      <div class="col">
+        Settings
+      </div>
+    </div>
+  </mat-card-title>
+  <mat-card-subtitle>Set and update configuration settings</mat-card-subtitle>
+</mat-card>
+<p></p>
+<form [formGroup]="form" novalidate>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Configuration file name</mat-label>
+        <input matInput formControlName="configfile" readonly>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>GCP project id</mat-label>
+        <input matInput formControlName="project_id" readonly>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>GMC account id</mat-label>
+        <input matInput formControlName="merchant_id" readonly>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>BigQuery dataset id</mat-label>
+        <input matInput formControlName="dataset_id" readonly>
+        <mat-hint>Dataset id in BigQuery for GMC-BQ data transfer</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>BigQuery dataset location</mat-label>
+        <input matInput formControlName="dataset_location" readonly>
+        <mat-hint>location for dataset in BigQuery</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Page feed name</mat-label>
+        <input matInput formControlName="page_feed_name" readonly>
+        <mat-hint>Name of page feed in Google Ads</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Page feed spreadsheet id</mat-label>
+        <input matInput formControlName="page_feed_spreadsheetid" readonly>
+        <mat-hint>Google Spreadsheet docid for DSA page feed</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Ad customizers feed name</mat-label>
+        <input matInput formControlName="adcustomizer_feed_name" readonly>
+        <mat-hint>Name of ad customizers feed in Google Ads</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Ad customizers feed spreadsheet id</mat-label>
+        <input matInput formControlName="adcustomizer_spreadsheetid" readonly>
+        <mat-hint>Google Spreadsheet docid for Ad customizers feed</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>DSA language</mat-label>
+        <input matInput formControlName="dsa_lang" readonly>
+        <mat-hint></mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>DSA website</mat-label>
+        <input matInput formControlName="dsa_website" readonly>
+        <mat-hint>Website address without protocol prefix</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>Ad description template</mat-label>
+        <input matInput formControlName="ad_description_template" readonly>
+        <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+</form>

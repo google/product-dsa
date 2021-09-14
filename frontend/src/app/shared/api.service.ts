@@ -65,4 +65,8 @@ export class ApiService {
       filename: filename
     });
   }
+
+  getConfig(): Promise<any> {
+    return this.backendService.getApi<any>('/config')
+  }
 }

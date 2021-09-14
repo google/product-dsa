@@ -36,7 +36,7 @@
               </mat-row>
               <ng-template matNoDataRow>
                 <div class="alert">Please click <a href="#" (click)="loadLabels();$event.preventDefault()">Load</a> to
-                  load labels their statistics</div>
+                  load labels with statistics</div>
               </ng-template>
             </mat-table>
             <mat-paginator #paginatorLabels pageSize=20 [pageSizeOptions]="[5, 10, 20, 50, 100]" showFirstLastButtons>

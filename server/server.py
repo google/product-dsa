@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
+import yaml
 import os
 import argparse
 import logging
@@ -25,7 +27,6 @@ from google.oauth2 import id_token
 from common import config_utils, file_utils
 from common.auth import _SCOPES
 from app.main import create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query
-from app.campaign_mgr import CampaignMgr
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -164,6 +165,12 @@ def download_file():
   return send_from_directory(config.output_folder, filename, as_attachment=True)
 
 
+@app.route("/api/config", methods=["GET"])
+def get_config():
+  config_file_name = args.config or os.environ.get('CONFIG')
+  return jsonify(config=config.__dict__, configfile=config_file_name)
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
@@ -174,5 +181,5 @@ if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE
   parser = argparse.ArgumentParser()
   parser.add_argument('--debug', action='store_true')
-  args = parser.parse_args()
-  app.run(debug=args.debug)  # run our Flask app
+  srv_args = parser.parse_known_args()[0]
+  app.run(debug=srv_args.debug)  # run our Flask app

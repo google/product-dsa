@@ -31,6 +31,7 @@ import { ProductsComponent } from './products.component';
 import { WizardComponent } from './wizard.component';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
 import { CustomSnackBar } from './components/custom-snackbar.component';
+import { ConfigComponent } from './config.component';
 
 @NgModule({
   declarations: [
@@ -41,7 +42,8 @@ import { CustomSnackBar } from './components/custom-snackbar.component';
     ProductsComponent,
     WizardComponent,
     ObjectDetailsDialogComponent,
-    CustomSnackBar
+    CustomSnackBar,
+    ConfigComponent
   ],
   imports: [
     BrowserModule,

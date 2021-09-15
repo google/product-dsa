@@ -13,3 +13,4 @@ gunicorn
 pytz
 requests
 Pillow
+forex_python

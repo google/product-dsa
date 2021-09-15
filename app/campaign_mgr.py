@@ -28,6 +28,7 @@ from google.auth import credentials
 from google.cloud import storage
 from google.api_core import exceptions
 from common import config_utils, file_utils, sheets_utils
+from forex_python.converter import CurrencyCodes
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -85,7 +86,7 @@ class GoogleAdsEditorMgr:
 
   def __split_to_sentances(self, descrption):
     ''' break a paragraph into sentences and return a list '''
-    sentenceEnders = re.compile('[.!?-]')
+    sentenceEnders = re.compile('[.!?-|]')
     sentenceList = sentenceEnders.split(descrption)
     return sentenceList
 
@@ -207,12 +208,15 @@ class GoogleAdsEditorMgr:
       writer.writerows(self._rows)
 
 
-def _get_ads_attribute_type(field_type: str) -> str:
+def _get_ads_attribute_type(field, parent_field = None) -> str:
   # https://support.google.com/google-ads/answer/6093368
   # supported attrubute types: text, number, price, date
+  field_type = field.field_type
   if field_type == 'STRING':
     return 'text'
   if field_type == 'INTEGER' or field_type == 'NUMERIC':
+    if parent_field and 'price' in parent_field.name :
+      return 'price'
     return 'number'
   if field_type == 'DATE' or field_type == 'TIMESTAMP':
     return 'date'
@@ -237,10 +241,9 @@ class AdCustomizerGenerator:
     self._schema = products.schema
     self._adcustomizer_ignore_columns = [
         'data_date', 'latest_date', 'product_id', 'merchant_id', 'offer_id',
-        'link', 'image_link', 'additional_image_links', 'content_language',
-        'target_country', 'item_group_id', 'google_product_category_path',
-        'product_type', 'destinations', 'issues', 'unique_product_id',
-        'channel', 'adult', 'age_group', 'custom_labels', 'pdsa_custom_labels'
+        'link', 'image_link', 'additional_image_links',
+        'google_product_category_path', 'product_type', 'unique_product_id',
+        'custom_labels', 'pdsa_custom_labels'
     ]
     # initialize columns:
     # ignoring repeated fields(array) and expanding records, also ignoring unsupported types
@@ -250,14 +253,14 @@ class AdCustomizerGenerator:
       elif field.field_type == 'RECORD':
         for subfield in field.fields:
           # prefix subfield with field (e.g. custom_labels.label_0)
-          attr_type = _get_ads_attribute_type(subfield.field_type)
+          attr_type = _get_ads_attribute_type(subfield, field)
           if not attr_type:
             continue
           field_name = _get_subfield_name(field, subfield)
           self._attr_types_by_name[field_name] = attr_type
           self._adcustomizer_columns.append(field_name + ' (' + attr_type + ')')
       else:
-        attr_type = _get_ads_attribute_type(field.field_type)
+        attr_type = _get_ads_attribute_type(field)
         if not attr_type:
           continue
         self._attr_types_by_name[field.name] = attr_type
@@ -270,10 +273,26 @@ class AdCustomizerGenerator:
       return ''
     if field_schema.field_type in ['INTEGER', 'NUMERIC']:
       if type(bg_value) is decimal.Decimal:
-        return str(bg_value)
-      return bg_value
+        # There's a bug in Ad Customizers that doesn't allow float values
+        # TODO: remove the casting to int
+        return str(int(bg_value))
+    bg_value = re.sub('[-|]', '', str(bg_value))
     # NOTE: Google Ads requires fields to be 80 symbols or less (otherwise there will be an error: AD_PLACEHOLDER_STRING_TOO_LONG)
-    return str(bg_value)[:80]
+    return re.sub(' +', ' ', bg_value)[:80]
+
+  def _get_price_with_currency(self, price_field, use_symbol = False):
+    value = price_field.get('value')
+    currency = price_field.get('currency')
+    if value is None or currency is None:
+      return ''
+    if use_symbol:
+      currency_codes = CurrencyCodes()
+      symbol = currency_codes.get_symbol(currency)
+      symbol = (re.sub('[A-Za-z0-9]', '', symbol))
+      return symbol + str(value)
+    # There's a bug in Ad Customizers that doesn't allow float values
+    # TODO: remove the casting to int
+    return str(int(value)) +' '+ currency
 
   def add_product(self, prod, target_campaign: str, target_adgroup: str):
     row_values = []
@@ -289,6 +308,9 @@ class AdCustomizerGenerator:
             # NOTE: we expect field_value to be a value of collections.Mapping
             if field_value is None:
               row_values.append('')
+            elif 'price' in field_name and subfield.field_type == 'NUMERIC':
+              price_str = self._get_price_with_currency(field_value)
+              row_values.append(self._serialize_value(price_str, subfield))
             else:
               row_values.append(
                   self._serialize_value(field_value.get(subfield.name, ''),

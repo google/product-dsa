@@ -1,5 +1,5 @@
 #!/bin/bash
-# 
+#
 # Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,15 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Simplified version of setup that only runs Python scripts,
-# assuming we have a client secrets file (client_secrets.json) exported from 
-# https://console.cloud.google.com/apis/credentials
 
-# It's required for local module resolutions
 export PYTHONPATH="."
-
-python3 ./install/cloud_env_setup.py --client-secrets-file client_secrets.json
-
-# for Cloud Shell
-# ./setup.sh --client-secrets-file client_secret.json --non-interactive
+. .venv/bin/activate
+python3 ./server/server.py --debug

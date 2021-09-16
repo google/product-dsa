@@ -44,7 +44,8 @@ def add_auth_arguments(
   parser.add_argument(
       '--non-interactive',
       dest='non_interactive',
-      help='Specify if using client-secrets-file option and running via ssh.')
+      action='store_true',
+      help='Specify if using client-secrets-file option and running via ssh or remotely.')
   return parser
 
 

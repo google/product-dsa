@@ -21,22 +21,26 @@ COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color
 NC='\033[0m' # No Color
 
+echo -e "${COLOR}Initialize Google Cloud infrastructure...${NC}"
+
 export PYTHONPATH="."
 # Checking version/Installing Python
 python3_installed() {
   local a b
-  a=$(python3 --version 2>&1 | perl -pe 's/python *//i') ; b="3.8"
+  a=$(python3 --version 2>&1 | perl -pe 's/python *//i') ; b="3.7"
   [ "$( (echo "$a" ; echo "$b") | sort -V | head -1)" == "$b" ]
 }
 if python3_installed ; then
-  echo -e "${COLOR}Detected Python >= 3.8...${NC}"
+  echo -e "${COLOR}Detected Python >= 3.7...${NC}"
 else
-  echo -e "${RED}Error: Python version < 3.8 - Product DSAs needs python 3.8+${NC}"
+  echo -e "${RED}Error: Python version < 3.7 - Product DSAs needs python 3.7+${NC}"
   exit
 fi
 # install and activate Python virtual environment
 python3 -m venv .venv
 . .venv/bin/activate
+# workaround possible issues with grpcio installation
+pip install --upgrade pip wheel setuptools
 # install dependencies
 python3 -m pip install -r requirements.txt
 

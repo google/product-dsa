@@ -1,4 +1,5 @@
 runtime: python39
+default_expiration: 0
 automatic_scaling:
   min_instances: 0
   max_instances: 1

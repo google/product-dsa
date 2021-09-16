@@ -18,8 +18,6 @@ COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color
 NC='\033[0m' # No Color
 
-./setup.sh
-
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 PROJECT_TITLE='Product DSA'
 USER_EMAIL=$(gcloud config get-value account 2> /dev/null)
@@ -33,9 +31,7 @@ gcloud app create --region $GAE_LOCATION
 
 # build and deploy app to GAE:
 echo -e "${COLOR}Building app...${NC}"
-cd frontend
-ng build
-cd ..
+./build.sh
 GIT_COMMIT=$(git rev-parse HEAD)
 sed -i'.original' -e "s/GIT_COMMIT\s*:\s*.*$/GIT_COMMIT: '$GIT_COMMIT'/" app.yaml
 

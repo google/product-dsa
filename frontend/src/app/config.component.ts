@@ -19,7 +19,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ComponentBase } from './components/component-base';
 import { ApiService } from './shared/api.service';
-import { ConfigService } from './shared/config.service';
+import { ConfigService, Configuration } from './shared/config.service';
 
 @Component({
   templateUrl: './config.component.html',
@@ -28,6 +28,9 @@ import { ConfigService } from './shared/config.service';
 export class ConfigComponent extends ComponentBase implements OnInit {
   loading: boolean = false;
   form: FormGroup;
+  config_file: string | undefined;
+  commit_link: string | undefined;
+  editable = false;
 
   constructor(private fb: FormBuilder,
     private configService: ConfigService,
@@ -48,8 +51,6 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       dsa_lang: '',
       dsa_website: '',
       // "dt_schedule":
-
-      config: {}
     });
   }
 
@@ -59,13 +60,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       let cfg = this.configService.getConfig();
       if (!cfg)
         cfg = await this.configService.loadConfig();
-      this.form.controls['configfile'].setValue(cfg.configfile);
-      for (let field of Object.keys(cfg.config)) {
-        let control = this.form.controls[field];
-        if (control) {
-          control.setValue(cfg.config[field]);
-        }
-      }
+      this.updateConfig(cfg);
     } catch (e) {
       this.handleApiError(`An error occured during fetching configuration`, e);
     } finally {
@@ -73,4 +68,30 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     }
   }
 
+  private updateConfig(cfg: Configuration) {
+    this.commit_link = cfg.commit_link;
+    this.config_file = cfg.config_file;
+    //this.form.controls['configfile'].setValue(cfg.configfile);
+    for (let field of Object.keys(cfg.config)) {
+      let control = this.form.controls[field];
+      if (control) {
+        control.setValue(cfg.config[field]);
+      }
+    }
+  }
+  async reload() {
+    this.executeOp(async () => {
+      let cfg = await this.configService.loadConfig();
+      this.updateConfig(cfg);
+    }, 'An error occured during fetching configuration');
+  }
+
+  async save() {
+    let config = this.form.value;
+    this.executeOp(async () => {
+      await this.configService.updateConfig(config);
+      this.editable = false;
+      this.showSnackbar('Config updated');
+    }, 'An error occured during updating configuration:', /*showAlert*/true);
+  }
 }

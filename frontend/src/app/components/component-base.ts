@@ -19,6 +19,7 @@ import { ConfirmationDialogComponent, ConfirmationDialogModes } from './confirma
 
 export abstract class ComponentBase {
   errorMessage: string | null = null;
+  loading = false;
 
   constructor(
     public dialog: MatDialog,
@@ -30,7 +31,7 @@ export abstract class ComponentBase {
     this.errorMessage = '';
   }
 
-  handleApiError(message: string, e: any) {
+  handleApiError(message: string, e: any, showAlert: boolean = false) {
     let details = e.message;
     let error = e;
     if (e.error) {
@@ -38,7 +39,16 @@ export abstract class ComponentBase {
       details = e.error.error;
     }
     this.errorMessage = message + (details ? ": " + details : "");
-    this.showSnackbarWithError(message, error);
+    if (showAlert) {
+      if (typeof error !== 'string') {
+        message = message + " " + JSON.stringify(error);
+      } else {
+        message = message + " " + error;
+      }
+      this.showAlert(message);
+    } else {
+      this.showSnackbarWithError(message, error);
+    }
   }
 
   showSnackbarWithError(message: string, e: any) {
@@ -104,5 +114,17 @@ export abstract class ComponentBase {
     } while (el && el !== $event.currentTarget);
 
     return true;
+  }
+
+  async executeOp<T>(action: () => T, errorMsg: string, showAlert: boolean = false): Promise<T|void> {
+    try {
+      this.loading = true;
+      this.errorMessage = null;
+      return await action();
+    } catch (e) {
+      this.handleApiError(errorMsg, e, showAlert);
+    } finally {
+      this.loading = false;
+    }
   }
 }

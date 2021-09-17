@@ -150,11 +150,7 @@ you can also setup service account's key via environment variable:
 export GOOGLE_APPLICATION_CREDENTIALS="/home/user/product-dsas/service_account.json"
 ./setup.sh
 ```
-or via gcloud:
-```shell
-gcloud auth activate-service-account --key-file=/home/user/product-dsas/service_account.json
-./setup.sh
-```
+
 
 As soon as `setup.sh` completed you should have:
 * a data transfer in BigQuery scheduled to run daily, you can change schedule via `schedule` parameter in config.yaml, see [Configuration](#2.-Configuration)

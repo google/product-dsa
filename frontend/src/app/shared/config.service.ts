@@ -2,7 +2,8 @@ import { Injectable } from '@angular/core';
 import { ApiService } from './api.service';
 
 export interface Configuration {
-  configfile: string;
+  config_file: string;
+  commit_link: string;
   config: any;
 }
 @Injectable({
@@ -22,7 +23,7 @@ export class ConfigService {
     return this.config!;
   }
 
-  updateConfig() {
-    // TODO
+  async updateConfig(config: any) {
+    await this.apiService.updateConfig(config);
   }
 }

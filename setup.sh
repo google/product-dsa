@@ -16,6 +16,7 @@
 
 # The script initialize Google Cloud infrastructure for a project.
 # Can be run many times without any harm.
+# The minimum required Python version is 3.7 because it's the version installed in Cloud Shell
 
 COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color
@@ -33,7 +34,7 @@ python3_installed() {
 if python3_installed ; then
   echo -e "${COLOR}Detected Python >= 3.7...${NC}"
 else
-  echo -e "${RED}Error: Python version < 3.7 - Product DSAs needs python 3.7+${NC}"
+  echo -e "${RED}Error: Python version < 3.7 - Product DSAs setup needs Python 3.7+${NC}"
   exit
 fi
 # install and activate Python virtual environment

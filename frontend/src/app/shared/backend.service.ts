@@ -26,9 +26,9 @@ export class BackendService {
   constructor(private http: HttpClient) { }
   baseUrl = '/api';
 
-  private getBaseHeaders(): HttpHeaders {
+  private getBaseHeaders(opt?: { emptyResponse?: boolean }): HttpHeaders {
     let headers = new HttpHeaders({
-      'Accept': 'application/json',
+      'Accept': opt?.emptyResponse ? '*' : 'application/json',
       'Content-Type': 'application/json',
     });
     return headers; //this.addAuthorization(headers);
@@ -52,11 +52,14 @@ export class BackendService {
       .toPromise();
   }
 
-  postApi(url: string, payload?: any): Promise<any> {
+  postApi(url: string, payload?: any, opt?: { emptyResponse?: boolean }): Promise<any> {
+    let options: any = { headers: this.getBaseHeaders(opt) };
+    if (opt?.emptyResponse)
+      options['responseType'] = 'text';
     return this.http.post(
       this.getUrl(url),
       payload,
-      { headers: this.getBaseHeaders() })
+      options)
       .toPromise();
   }
 

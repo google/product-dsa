@@ -32,18 +32,21 @@ import { WizardComponent } from './wizard.component';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
 import { CustomSnackBar } from './components/custom-snackbar.component';
 import { ConfigComponent } from './config.component';
+import { CommonModule } from '@angular/common';
+import { ConfirmationDialogComponent } from './components/confirmation-dialog.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    HomeComponent,
     ProgressSpinnerComponent,
     NavbarComponent,
-    ProductsComponent,
-    WizardComponent,
+    ConfirmationDialogComponent,
     ObjectDetailsDialogComponent,
     CustomSnackBar,
-    ConfigComponent
+    HomeComponent,
+    ProductsComponent,
+    WizardComponent,
+    ConfigComponent,
   ],
   imports: [
     BrowserModule,
@@ -53,6 +56,7 @@ import { ConfigComponent } from './config.component';
     FormsModule,
     ReactiveFormsModule,
     AppRoutingModule,
+    CommonModule
   ],
   providers: [OverlayService],
   bootstrap: [AppComponent]

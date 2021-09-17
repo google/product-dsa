@@ -69,7 +69,12 @@ def get_file_from_gcs(uri):
   client = storage.Client()
   try:
     bucket = client.get_bucket(bucket_name)
-    content = bucket.get_blob(path).download_as_string().decode('utf-8')
+    blob = bucket.get_blob(path)
+    if blob:
+      content = blob.download_as_string().decode('utf-8')
+    else:
+      raise ValueError(f'File {uri} wasn\'t found on Cloud Storage')
+    #content = bucket.get_blob(path).download_as_string().decode('utf-8')
     return content
   except exceptions.NotFound as e:
     raise ValueError(f'File {uri} wasn\'t found on Cloud Storage') from e

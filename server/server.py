@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 import yaml
 import os
 import argparse
@@ -30,7 +29,6 @@ from app.main import create_or_update_page_feed, create_or_update_adcustomizers,
 
 logging.getLogger().setLevel(logging.INFO)
 
-app = Flask(__name__)
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 
@@ -42,6 +40,7 @@ class JsonEncoder(JSONEncoder):
 
 
 app.json_encoder = JsonEncoder
+
 
 args = config_utils.parse_arguments(only_known=True)
 # configuration values either go from config file on GCS or from env vars
@@ -168,7 +167,32 @@ def download_file():
 @app.route("/api/config", methods=["GET"])
 def get_config():
   config_file_name = args.config or os.environ.get('CONFIG')
-  return jsonify(config=config.__dict__, configfile=config_file_name)
+  commit = os.environ.get('GIT_COMMIT') or ''
+  # TODO commit_link = 'https://github.com/google/product-dsa/commit/' + os.environ.get('GIT_COMMIT')
+  if commit:
+    commit = 'https://professional-services.googlesource.com/solutions/product-dsa/+/' + commit
+  return jsonify(config=config.__dict__,
+                 config_file=config_file_name,
+                 commit_link=commit)
+
+
+@app.route("/api/config", methods=["POST"])
+def post_config():
+  new_config = request.get_json(cache=False)
+  # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
+  config_file_name = args.config or os.environ.get('CONFIG')
+  if (config_file_name and config_file_name.startswith("gs://")):
+    content = yaml.dump(new_config, allow_unicode=True)
+    #cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
+    #config = config_utils.Config()
+    #config.update(new_config)
+    file_utils.save_file_to_gcs(config_file_name, content)
+    return 'Config updated', 200
+  else:
+    msg = f'Updating config is not possible because it is not stored on GCS'
+    logging.warning(msg)
+    return msg, 400
+    # so we'll just keep if till the app is alive (GAE will unload it anyway soon)
 
 
 @app.route('/', defaults={'path': ''})

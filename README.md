@@ -111,7 +111,7 @@ By default it's assumed that the configuration file is on GCS, it's specified in
 ```
   CONFIG: gs://$PROJECT_ID-pdsa/config.yaml
 ```
-The file will be deployed there by `setup.sh`
+The file will be deployed there by `setup.sh` (see next).
 
 The script assumes that you're running within a Google Cloud Organization by a member of that org. If you're running the script outside a Cloud Orginization most likely you'll get an error on step "Creating oauth brand (consent screen) for IAP" (see below). This is due to the use of `gcloud alpha iap oauth-brand` commands - which implicity operate on internal brands. For details see https://cloud.google.com/iap/docs/programmatic-oauth-clients. To workaround the error you'll have to create a OAuth consent screen manually and then enable IAP for App Engine app.
 

@@ -36,14 +36,14 @@ def get_file_content(uri: str):
   raise ValueError(f'File {uri} wasn\'t found')
 
 
-def download_image(uri, folder):
+def download_image(uri: str, folder: str):
   local_image_path = download_file(uri, folder)
   # Resize the local image to follow guidelines
   image_utils.resize(local_image_path)
   return local_image_path
 
 
-def download_file(uri, folder):
+def download_file(uri: str, folder: str):
   """Download a remote file into a local folder."""
   if not os.path.exists(folder):
     os.mkdir(folder)
@@ -60,7 +60,27 @@ def download_file(uri, folder):
   raise Exception(f"Couldn't download file {uri}: {response.reason}")
 
 
-def get_file_from_gcs(uri):
+def copy_file_from_gcs(uri: str, destination_file_name: str):
+  result = parse.urlparse(uri)
+  # result.path will be '/path/to/blob', we need to strip the leading '/'.
+  bucket_name, path = result.hostname, result.path[1:]
+  # NOTE: we're using ADC here (no explicit credentials passed)
+  client = storage.Client()
+  try:
+    bucket = client.get_bucket(bucket_name)
+    blob = bucket.get_blob(path)
+    if blob:
+      blob.download_to_filename(destination_file_name)
+    else:
+      raise ValueError(f'File {uri} wasn\'t found on Cloud Storage')
+  except exceptions.NotFound as e:
+    raise ValueError(f'File {uri} wasn\'t found on Cloud Storage') from e
+  except Exception as e:
+    print(f'Error fetching file {uri} from GCS: {str(e)}')
+    raise
+
+
+def get_file_from_gcs(uri: str):
   """Read file content from Cloud Storage url"""
   result = parse.urlparse(uri)
   # result.path will be '/path/to/blob', we need to strip the leading '/'.
@@ -74,23 +94,22 @@ def get_file_from_gcs(uri):
       content = blob.download_as_string().decode('utf-8')
     else:
       raise ValueError(f'File {uri} wasn\'t found on Cloud Storage')
-    #content = bucket.get_blob(path).download_as_string().decode('utf-8')
     return content
   except exceptions.NotFound as e:
     raise ValueError(f'File {uri} wasn\'t found on Cloud Storage') from e
-  except:
-    print(f'Error fetching file {uri} from GCS')
+  except Exception as e:
+    print(f'Error fetching file {uri} from GCS: {str(e)}')
     raise
 
 
-def save_file_content(uri, content):
+def save_file_content(uri: str, content: str):
   if uri.startswith('gs://'):
     return save_file_to_gcs(uri, content)
   with open(uri, 'w') as file:
     file.write(content)
 
 
-def save_file_to_gcs(uri, content):
+def save_file_to_gcs(uri: str, content: str):
   result = parse.urlparse(uri)
   # result.path will be '/path/to/blob', we need to strip the leading '/'.
   bucket_name, path = result.hostname, result.path[1:]
@@ -140,4 +159,3 @@ def zip(file_name: str, items: List[str]):
                        os.path.relpath(os.path.join(root, file), basedir))
       else:
         zipf.write(item, os.path.relpath(item, basedir))
-

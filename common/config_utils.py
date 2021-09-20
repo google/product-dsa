@@ -110,12 +110,20 @@ def parse_arguments(
   return args
 
 
-def get_config(args: argparse.Namespace) -> Config:
-  """ Read config file and merge settings from it, command line args and env vars."""
+def get_config_url(args: argparse.Namespace):
   config_file_name = args.config or os.environ.get('CONFIG') or 'config.yaml'
   if config_file_name.find('$PROJECT_ID') > -1:
+    project_id = args.project_id or _find_project_id()
+    if project_id is None:
+      raise Exception('Config file url contains macro $PROJECT_ID but project id isn\'t specified and can\'t be detected from environment')
     config_file_name = config_file_name.replace(
         '$PROJECT_ID', args.project_id or _find_project_id())
+  return config_file_name
+
+
+def get_config(args: argparse.Namespace) -> Config:
+  """ Read config file and merge settings from it, command line args and env vars."""
+  config_file_name = get_config_url(args)
   content = file_utils.get_file_content(config_file_name)
   cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
   config = Config()

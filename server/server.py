@@ -29,7 +29,9 @@ from app.main import create_or_update_page_feed, create_or_update_adcustomizers,
 
 logging.getLogger().setLevel(logging.INFO)
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+STATIC_DIR = os.getenv('STATIC_DIR') or 'static' # folder for static content relative to the current module
+
+app = Flask(__name__)
 
 
 class JsonEncoder(JSONEncoder):
@@ -43,14 +45,25 @@ app.json_encoder = JsonEncoder
 
 
 args = config_utils.parse_arguments(only_known=True)
-# configuration values either go from config file on GCS or from env vars
-config = config_utils.get_config(args)
-# the only allowed path to write in GAE env
-config.output_folder = '/tmp'
-pprint(vars(config))
+config_file_name = config_utils.get_config_url(args)
+args.config = config_file_name
+# copy config from GCS to local cache
+if (config_file_name and config_file_name.startswith("gs://")):
+  # config is on GCS, copy it from GCS to local cache
+  config_file_name_cache = '/tmp/' + os.path.basename(config_file_name)
+  file_utils.copy_file_from_gcs(config_file_name, config_file_name_cache)
+  logging.info(
+      f'Copied config {config_file_name} to local cache ({config_file_name_cache})')
+  args.config = config_file_name_cache
 
 
-def verify_token():
+def _get_config() -> config_utils.Config:
+  config = config_utils.get_config(args)
+  config.output_folder = '/tmp'
+  return config
+
+
+def _verify_token(config: config_utils.Config):
   bearer_token = request.headers.get('Authorization')
   if not bearer_token:
     return
@@ -66,9 +79,10 @@ def verify_token():
 @app.route("/api/update", methods=["POST", "GET"])
 def update_feeds():
   """Endpoint to be call by Pub/Sub message from DT completion to trigger feeds updating"""
+  config = _get_config()
   # Verify the Cloud Pub/Sub-generated JWT in the "Authorization" header.
   try:
-    verify_token()
+    _verify_token(config)
   except Exception as e:
     return str(e), 401
 
@@ -89,6 +103,7 @@ def update_feeds():
 def pagefeed_generate():
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
+  config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
   create_or_update_page_feed(True, config, context)
   return jsonify({
@@ -101,6 +116,7 @@ def pagefeed_generate():
 def adcustomizers_generate():
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
+  config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
   create_or_update_adcustomizers(True, config, context)
   return jsonify({
@@ -114,6 +130,7 @@ def campaign_generate():
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
   context = {'xcom': {}, 'gcp_credentials': credentials}
+  config = _get_config()
   output_file = generate_campaign(config, context)
   # archive output csv and images folder
   image_folder = os.path.join(config.output_folder, config.image_folder)
@@ -128,7 +145,7 @@ def campaign_generate():
 def get_labels():
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
-
+  config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
   labels = execute_sql_query('get-labels.sql', config, context)
   result = []
@@ -144,7 +161,7 @@ def get_labels():
 def get_products():
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
-
+  config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
   products = execute_sql_query('get-products.sql', config, context)
   result = []
@@ -161,13 +178,16 @@ def download_file():
   filename = request.args.get('filename')
   if not filename:
     return "No file name was provided", 400
-  return send_from_directory(config.output_folder, filename, as_attachment=True)
+  config = _get_config()
+  return send_from_directory(config.output_folder,
+                             filename,
+                             as_attachment=True)
 
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
-  config_file_name = args.config or os.environ.get('CONFIG')
-  commit = os.environ.get('GIT_COMMIT') or ''
+  config = _get_config()
+  commit = os.getenv('GIT_COMMIT') or ''
   # TODO commit_link = 'https://github.com/google/product-dsa/commit/' + os.environ.get('GIT_COMMIT')
   if commit:
     commit = 'https://professional-services.googlesource.com/solutions/product-dsa/+/' + commit
@@ -180,25 +200,28 @@ def get_config():
 def post_config():
   new_config = request.get_json(cache=False)
   # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
-  config_file_name = args.config or os.environ.get('CONFIG')
   if (config_file_name and config_file_name.startswith("gs://")):
     content = yaml.dump(new_config, allow_unicode=True)
-    #cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
-    #config = config_utils.Config()
-    #config.update(new_config)
     file_utils.save_file_to_gcs(config_file_name, content)
+    # and update the local cache in /tmp
+    file_utils.save_file_content(args.config, content)
     return 'Config updated', 200
   else:
     msg = f'Updating config is not possible because it is not stored on GCS'
     logging.warning(msg)
     return msg, 400
-    # so we'll just keep if till the app is alive (GAE will unload it anyway soon)
 
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def catch_all(path):
-  return app.send_static_file(path or "index.html")
+  # NOTE: we don't use Flusk standard support for static files
+  # (static_folder option and send_static_file method)
+  # because they can't distinguish requests for static files (js/css) and client routes (like /products)
+  file_requested = os.path.join(app.root_path, STATIC_DIR, path)
+  if not os.path.isfile(file_requested):
+    path = "index.html"
+  return send_from_directory(STATIC_DIR, path)
 
 
 if __name__ == '__main__':

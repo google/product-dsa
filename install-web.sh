@@ -25,7 +25,12 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID | grep projectNumber | sed
 SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 GAE_LOCATION=europe-west
 
+echo -e "${COLOR}Enabling APIs...${NC}"
+gcloud services enable appengine.googleapis.com
+gcloud services enable iap.googleapis.com
+
 echo -e "${COLOR}Creating App Engine...${NC}"
+
 # NOTE: despite other GCP services GAE supports only two regions: europe-west and us-central
 gcloud app create --region $GAE_LOCATION
 

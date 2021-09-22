@@ -19,7 +19,14 @@ import { BackendService } from './backend.service';
 interface GenerateOptions {
   skipDownload?: boolean
 };
-type GenerateResponse = { filename: string, spreadsheet_id: string };
+/**
+ * Server response type of controllers for generting feeds (page feed and ad customizer feed).
+ */
+type GenerateResponse = {
+  filename: string,
+  spreadsheet_id: string,
+  feed_name: string
+};
 
 @Injectable({
   providedIn: 'root'

@@ -108,7 +108,8 @@ def pagefeed_generate():
   create_or_update_page_feed(True, config, context)
   return jsonify({
       "spreadsheet_id": config.page_feed_spreadsheetid,
-      "filename": config.page_feed_output_file
+      "filename": config.page_feed_output_file,
+      "feed_name": config.page_feed_name
   })
 
 
@@ -121,7 +122,8 @@ def adcustomizers_generate():
   create_or_update_adcustomizers(True, config, context)
   return jsonify({
       "spreadsheet_id": config.adcustomizer_spreadsheetid,
-      "filename": config.adcustomizer_output_file
+      "filename": config.adcustomizer_output_file,
+      "feed_name": config.adcustomizer_feed_name
   })
 
 

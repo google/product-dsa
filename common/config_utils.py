@@ -43,14 +43,14 @@ class Config(object):
   # DSA website
   dsa_website: str = ''
   # DSA language (en)
-  dsa_lang: str = ''
-  # name of page feed (by default 'PDSA Pagefeed')
-  page_feed_name: str = 'PDSA Pagefeed'
-  # spreadsheet id for DSA page feed
+  dsa_lang: str = 'en'
+  # name of page feed (by default 'pdsa-page-feed')
+  page_feed_name: str = 'pdsa-page-feed'
+  # spreadsheet id for DSA page feed (should be generated during setup)
   page_feed_spreadsheetid: str = ''
-  # name of adcustomizer feed ()
-  adcustomizer_feed_name: str = 'PDSA Adcustomizer'
-  # spreadsheet id for adcustomizers feed
+  # name of adcustomizer feed (by default 'pdsa-adcustomizers')
+  adcustomizer_feed_name: str = 'pdsa-adcustomizers'
+  # spreadsheet id for adcustomizers feed (should be generated during setup)
   adcustomizer_spreadsheetid: str = ''
   # file name for output csv file with page feed
   page_feed_output_file: str = 'page-feed.csv'
@@ -64,12 +64,13 @@ class Config(object):
   output_folder: str = ''
   # pub/sub topic id for publishing message on GMC Data Transfer completions
   pubsub_topic_dt_finish: str = 'gmc-dt-finish'
-  # template for ad descriptions
+  # template for ad descriptions, if empty product descriptions from GMC will be used,
+  # otherwise can be a template containing product fields in curly braces, e.g. "{title} ({price_value})"
   ad_description_template: str = ''
-  # category descriptions
+  # category descriptions, should be filled for category-based campaign labels
   category_ad_descriptions: dict = {}
   # DataTransfer schedule (syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)
-  # if empty default scheduling will be used - run DT daily
+  # if empty default scheduling will be used - run DT daily. E.g. 'every 6 hours'
   dt_schedule: str = ''
 
   def update(self, kw):

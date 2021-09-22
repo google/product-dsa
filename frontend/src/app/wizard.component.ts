@@ -27,7 +27,9 @@ import { ApiService } from './shared/api.service';
 export class WizardComponent extends ComponentBase implements OnInit {
   loading: boolean = false;
   pagefeed_speadsheet: string = '';
+  pagefeed_name: string = '';
   adcustomizer_speadsheet: string = ''
+  adcustomizer_feed_name: string = ''
   form: FormGroup;
 
   constructor(private fb: FormBuilder,
@@ -49,7 +51,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
       this.loading = true;
       let res = await this.apiService.generatePageFeed();
       this.pagefeed_speadsheet = res.spreadsheet_id;
-      //this.form.controls['pagefeed_output_file'].setValue(res.filename);
+      this.pagefeed_name = res.feed_name;
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {
@@ -63,7 +65,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
       this.loading = true;
       let res = await this.apiService.generateAdcustomizers();
       this.adcustomizer_speadsheet = res.spreadsheet_id;
-      //this.form.controls['adcustomizer_output_file'].setValue(res.filename);
+      this.adcustomizer_feed_name = res.feed_name;
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

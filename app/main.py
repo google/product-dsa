@@ -43,17 +43,17 @@ def execute_sql_query(name: str,
 
 
 def validate_config(config: config_utils.Config, context):
-  if (not config.merchant_id):
-    print('No merchant_id found in configuration (merchant_id), exiting')
-    exit()
-  if (not config.page_feed_spreadsheetid):
-    print(
-        'No spreadsheet id for page feed found in configuration (page_feed_spreadsheetid), exiting'
-    )
-    exit()
-  if (not config.dsa_website):
-    print('No DSA website found in configuration (dsa_website), exiting')
-    exit()
+  error_details =[]
+  err_message = ''
+  if not config.merchant_id:
+    err_message = 'No merchant_id found in configuration'
+    error_details.append({'field': 'merchant_id', 'error': err_message})
+  if not config.page_feed_spreadsheetid:
+    err_message = 'No spreadsheet id for page feed found in configuration'
+    error_details.append({'field': 'page_feed_spreadsheetid', 'error': err_message})
+  if not config.dsa_website:
+    err_message = 'No DSA website found in configuration'
+    error_details.append({'field': 'dsa_website', 'error': err_message})
 
   category_labels = execute_sql_query('get-category-labels.sql', config,
                                       context)
@@ -63,12 +63,22 @@ def validate_config(config: config_utils.Config, context):
       desc = config.category_ad_descriptions.get(row[0])
       if not desc or desc == '':
         missing_category_desc = True
-        print(
-            f'Missing category description for \'{row[0]}\' in configuration (category_ad_descriptions)'
-        )
+        err_message = f'Missing category description for \'{row[0]}\' in configuration\n'
+
     if missing_category_desc:
-      print('Update the missing categories in the config.yaml file, exiting')
-      exit()
+      err_message += 'Update the missing categories in the config.yaml file'
+      error_details.append({
+          'field': 'category_ad_descriptions',
+          'error': err_message
+      })
+
+  if error_details:
+    message = ''
+    for err in error_details:
+      message += (err['field'] + ': ' + err['error'] + '\n')
+    print (message + 'Exiting')
+    return {'valid': False, 'msg': error_details}
+  return {'valid': True, 'msg': []}
 
 
 def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,
@@ -146,7 +156,9 @@ def main():
   cred: credentials.Credentials = auth.get_credentials(args)
 
   context = {'xcom': {}, 'gcp_credentials': cred}
-  validate_config(config, context)
+
+  if not validate_config(config, context)['valid']:
+    exit()
 
   if config.output_folder and not os.path.exists(config.output_folder):
     os.mkdir(config.output_folder)

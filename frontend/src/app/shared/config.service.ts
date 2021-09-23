@@ -1,10 +1,11 @@
-import { Injectable } from '@angular/core';
-import { ApiService } from './api.service';
+import {Injectable} from '@angular/core';
+import {ApiService} from './api.service';
 
 export interface Configuration {
   config_file: string;
   commit_link: string;
   config: any;
+  errors: any[];
 }
 @Injectable({
   providedIn: 'root'

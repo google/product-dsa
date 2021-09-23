@@ -15,7 +15,7 @@
 -- Filters the products from the latest snapshot of the GMC Data Transfer
 -- based on product availability and presence of our custom labels:
 -- PDSA_Product
--- The query only runs on in-stock products from the latest data transfer
+-- The query only runs on both in-stock and out-of-stock products from the latest data transfer
 /*
 Parameters:
   - project_id
@@ -110,7 +110,6 @@ AS (
     LatestDate
   WHERE
     _PARTITIONDATE = LatestDate.latest_date
-    AND availability = 'in stock'
     AND (custom_labels.label_0 like 'PDSA_%'
       OR custom_labels.label_1 like 'PDSA_%'
       OR custom_labels.label_2 like 'PDSA_%'

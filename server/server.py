@@ -25,7 +25,7 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 from common import config_utils, file_utils
 from common.auth import _SCOPES
-from app.main import create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query
+from app.main import create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -190,12 +190,17 @@ def download_file():
 def get_config():
   config = _get_config()
   commit = os.getenv('GIT_COMMIT') or ''
+  config_file_name = args.config or os.environ.get('CONFIG')
+  credentials, project = google.auth.default(scopes=_SCOPES)
+  context = {'xcom': {}, 'gcp_credentials': credentials}
+  response = validate_config(config, context)
   # TODO commit_link = 'https://github.com/google/product-dsa/commit/' + os.environ.get('GIT_COMMIT')
   if commit:
     commit = 'https://professional-services.googlesource.com/solutions/product-dsa/+/' + commit
   return jsonify(config=config.__dict__,
                  config_file=config_file_name,
-                 commit_link=commit)
+                 commit_link=commit,
+                 errors=response['msg'])
 
 
 @app.route("/api/config", methods=["POST"])

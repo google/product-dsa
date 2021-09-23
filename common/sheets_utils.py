@@ -27,6 +27,12 @@ class GoogleSpreadsheetUtils(object):
     self.sheetsAPI = build('sheets', 'v4', credentials=credentials)
 
   def update_values(self, docid: str, range, values):
+    # Clear the contents of the spreadsheet
+    self.sheetsAPI.spreadsheets().values().clear(
+        spreadsheetId=docid,
+        range=range,
+        body={}).execute()
+    # Write the new values
     result = self.sheetsAPI.spreadsheets().values().update(
         spreadsheetId=docid,
         range=range,

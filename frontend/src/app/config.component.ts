@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ComponentBase } from './components/component-base';
-import { ApiService } from './shared/api.service';
-import { ConfigService, Configuration } from './shared/config.service';
+import {Component, OnInit} from '@angular/core';
+import {FormBuilder, FormGroup} from '@angular/forms';
+import {MatDialog} from '@angular/material/dialog';
+import {MatSnackBar} from '@angular/material/snack-bar';
+import {ComponentBase} from './components/component-base';
+import {ApiService} from './shared/api.service';
+import {ConfigService, Configuration} from './shared/config.service';
 
 @Component({
   templateUrl: './config.component.html',
@@ -61,8 +61,18 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       if (!cfg)
         cfg = await this.configService.loadConfig();
       this.updateConfig(cfg);
+      if (cfg.errors.length) {
+        // Handle the errors here
+        let errors: any = {error: ''};
+        for (var msg of cfg.errors) {
+          errors.error += (msg['field'] + ': ' + msg['error'] + '\n');
+        }
+
+        this.handleApiError('Errors in the configuration file', errors);
+      }
     } catch (e) {
-      this.handleApiError(`An error occured during fetching configuration`, e);
+      let error_msg = e.error ? e.error : 'An error occured during fetching configuration.'
+      this.handleApiError(error_msg, e);
     } finally {
       this.loading = false;
     }

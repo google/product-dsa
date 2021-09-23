@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ConfirmationDialogComponent, ConfirmationDialogModes } from './confirmation-dialog.component';
+import {MatDialog, MatDialogRef} from '@angular/material/dialog';
+import {MatSnackBar} from '@angular/material/snack-bar';
+import {ConfirmationDialogComponent, ConfirmationDialogModes} from './confirmation-dialog.component';
 
 export abstract class ComponentBase {
   errorMessage: string | null = null;
@@ -38,7 +38,8 @@ export abstract class ComponentBase {
       error = e.error;
       details = e.error.error;
     }
-    this.errorMessage = message + (details ? ": " + details : "");
+    let fullMessage = message + (details ? ": " + details : "")
+    this.errorMessage = fullMessage.replace(/(?:\r\n|\r|\n)/g, '<br>');
     if (showAlert) {
       if (typeof error !== 'string') {
         message = message + " " + JSON.stringify(error);
@@ -53,12 +54,14 @@ export abstract class ComponentBase {
 
   showSnackbarWithError(message: string, e: any) {
     let snackBarRef = this.snackBar.open(message, 'Details', {
-      duration: 4000,
+      duration: 6000,
     });
     snackBarRef.onAction().subscribe(() => {
+      let details = '';
+      typeof e === 'string' ? details = e : details = JSON.stringify(e);
       snackBarRef.dismiss();
-      snackBarRef = this.snackBar.open(JSON.stringify(e), 'Dismiss', {
-        duration: 6000,
+      snackBarRef = this.snackBar.open(details, 'Dismiss', {
+        duration: 15000,
       });
       snackBarRef.onAction().subscribe(() => {
         snackBarRef.dismiss();
@@ -105,18 +108,18 @@ export abstract class ComponentBase {
 
   onTableRowClick($event: MouseEvent): boolean {
     // ignore click on links
-    if ((<any>$event.target).tagName === 'A') { return false; }
+    if ((<any>$event.target).tagName === 'A') {return false;}
     // ignore click on button
     let el = <any>$event.target;
     do {
-      if ((el).tagName === 'BUTTON') { return false; }
+      if ((el).tagName === 'BUTTON') {return false;}
       el = el.parentElement;
     } while (el && el !== $event.currentTarget);
 
     return true;
   }
 
-  async executeOp<T>(action: () => T, errorMsg: string, showAlert: boolean = false): Promise<T|void> {
+  async executeOp<T>(action: () => T, errorMsg: string, showAlert: boolean = false): Promise<T | void> {
     try {
       this.loading = true;
       this.errorMessage = null;

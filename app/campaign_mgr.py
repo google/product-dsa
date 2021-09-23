@@ -86,7 +86,7 @@ class GoogleAdsEditorMgr:
 
   def __split_to_sentances(self, descrption):
     ''' break a paragraph into sentences and return a list '''
-    sentenceEnders = re.compile('[.!?-|]')
+    sentenceEnders = re.compile('[.,!?\|]')
     sentenceList = sentenceEnders.split(descrption)
     return sentenceList
 
@@ -404,14 +404,14 @@ class CampaignMgr:
     product_campaign_name = self._config.product_campaign_name
     if not product_campaign_name:
       product_campaign_name = PDSA_PRODUCT_CAMPAIGN_NAME
-      if self._create_product_campaign:
-        gae.add_campaign(product_campaign_name)
+    if self._create_product_campaign:
+      gae.add_campaign(product_campaign_name)
 
     category_campaign_name = self._config.category_campaign_name
     if not category_campaign_name:
       category_campaign_name = PDSA_CATEGORY_CAMPAIGN_NAME
-      if self._create_category_campaign:
-        gae.add_campaign(category_campaign_name)
+    if self._create_category_campaign:
+      gae.add_campaign(category_campaign_name)
 
     for label in self._products_by_label:
       is_product_level = is_product_label(label)

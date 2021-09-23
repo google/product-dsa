@@ -43,42 +43,50 @@ def execute_sql_query(name: str,
 
 
 def validate_config(config: config_utils.Config, context):
-  error_details =[]
-  err_message = ''
+  errors =[]
   if not config.merchant_id:
-    err_message = 'No merchant_id found in configuration'
-    error_details.append({'field': 'merchant_id', 'error': err_message})
+    errors.append({
+        'field': 'merchant_id',
+        'error': 'No merchant_id found in configuration'
+    })
+  if not config.dataset_id:
+    errors.append({'field': 'dataset_id', 'error': 'No dataset_id found in configuration'})
   if not config.page_feed_spreadsheetid:
-    err_message = 'No spreadsheet id for page feed found in configuration'
-    error_details.append({'field': 'page_feed_spreadsheetid', 'error': err_message})
+    errors.append({
+        'field': 'page_feed_spreadsheetid',
+        'error': 'No spreadsheet id for page feed found in configuration'
+    })
   if not config.dsa_website:
-    err_message = 'No DSA website found in configuration'
-    error_details.append({'field': 'dsa_website', 'error': err_message})
+    errors.append({
+        'field': 'dsa_website',
+        'error': 'No DSA website found in configuration'
+    })
 
   category_labels = execute_sql_query('get-category-labels.sql', config,
                                       context)
-  missing_category_desc = False
   if category_labels.total_rows:
+    missing_category_desc = False
+    err_message = ''
     for row in category_labels:
       desc = config.category_ad_descriptions.get(row[0])
       if not desc or desc == '':
         missing_category_desc = True
-        err_message = f'Missing category description for \'{row[0]}\' in configuration\n'
+        err_message = f'Missing category description for label \'{row[0]}\'\n'
 
     if missing_category_desc:
-      err_message += 'Update the missing categories in the config.yaml file'
-      error_details.append({
+      err_message = 'Update the missing categories in the config.yaml file:\n' + err_message
+      errors.append({
           'field': 'category_ad_descriptions',
           'error': err_message
       })
 
-  if error_details:
+  if errors:
     message = ''
-    for err in error_details:
+    for err in errors:
       message += (err['field'] + ': ' + err['error'] + '\n')
     print (message + 'Exiting')
-    return {'valid': False, 'msg': error_details}
-  return {'valid': True, 'msg': []}
+    return {'valid': False, 'errors': errors}
+  return {'valid': True, 'errors': []}
 
 
 def create_or_update_page_feed(generate_csv: bool, config: config_utils.Config,

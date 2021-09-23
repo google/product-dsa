@@ -190,7 +190,6 @@ def download_file():
 def get_config():
   config = _get_config()
   commit = os.getenv('GIT_COMMIT') or ''
-  config_file_name = args.config or os.environ.get('CONFIG')
   credentials, project = google.auth.default(scopes=_SCOPES)
   context = {'xcom': {}, 'gcp_credentials': credentials}
   response = validate_config(config, context)
@@ -200,7 +199,7 @@ def get_config():
   return jsonify(config=config.__dict__,
                  config_file=config_file_name,
                  commit_link=commit,
-                 errors=response['msg'])
+                 errors=response['errors'])
 
 
 @app.route("/api/config", methods=["POST"])

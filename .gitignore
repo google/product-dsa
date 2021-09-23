@@ -9,3 +9,4 @@ output
 server/static/
 app.yaml.original
 .oauth
+client_secrets.json

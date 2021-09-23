@@ -43,7 +43,8 @@
       "console": "integratedTerminal",
       "justMyCode": false,
       "args": [
-        "--config", "config.yaml"
+        //"--config", "config.yaml"
+        //"--config", "gs://gmc-dsa-segy-pdsa/config.yaml"
         //"--client-secrets-file", "client_secrets.json"
       ],
       "env": {

@@ -18,20 +18,14 @@ import os
 import yaml
 import json
 
-# BigQuery dataset name to use by default
-_DATASET_ID = 'gmcdsa'
-# Location for BigQuery dataset and BQ data transfers to use by default
-_DATASET_LOCATION = 'us'
-
 
 class Config(object):
-  #NOTE: do no put default values for settings that can be initialized from cmdline/envvar (use dataset_location as example)
   # GCP project id
   project_id: str = ''
   # location for dataset in BigQuery
-  dataset_location: str = ''
+  dataset_location: str = 'us'
   # dataset id in BigQuery for GMC-BQ data transfer
-  dataset_id: str = ''
+  dataset_id: str = 'gmcdsa'
   # GMC merchant id
   merchant_id: int = 0
   # Google Ads customer id
@@ -72,6 +66,16 @@ class Config(object):
   # DataTransfer schedule (syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)
   # if empty default scheduling will be used - run DT daily. E.g. 'every 6 hours'
   dt_schedule: str = ''
+
+  def __init__(self):
+    # copy class atrributes (with values) into the instance
+    members = [
+        attr
+        for attr in dir(self)
+        if not attr.startswith("__") and attr != 'update'
+    ]
+    for attr in members:
+      setattr(self, attr, getattr(self, attr))
 
   def update(self, kw):
     for k in kw:
@@ -116,7 +120,9 @@ def get_config_url(args: argparse.Namespace):
   if config_file_name.find('$PROJECT_ID') > -1:
     project_id = args.project_id or _find_project_id()
     if project_id is None:
-      raise Exception('Config file url contains macro $PROJECT_ID but project id isn\'t specified and can\'t be detected from environment')
+      raise Exception(
+          'Config file url contains macro $PROJECT_ID but project id isn\'t specified and can\'t be detected from environment'
+      )
     config_file_name = config_file_name.replace(
         '$PROJECT_ID', args.project_id or _find_project_id())
   return config_file_name
@@ -134,26 +140,17 @@ def get_config(args: argparse.Namespace) -> Config:
     config.project_id = args.project_id
 
   # dataset id
-  if args.dataset_id:
-    config.dataset_id = args.dataset_id
-  elif not config.dataset_id:
-    config.dataset_id = os.environ.get('DATASET_ID') or _DATASET_ID
+  config.dataset_id = args.dataset_id or os.environ.get(
+      'DATASET_ID') or config.dataset_id
   # dataset location
-  if args.dataset_location:
-    config.dataset_location = args.dataset_location
-  elif not config.dataset_location:
-    config.dataset_location = os.environ.get(
-        'DATASET_LOCATION') or _DATASET_LOCATION
+  config.dataset_location = args.dataset_location or os.environ.get(
+      'DATASET_LOCATION') or config.dataset_location
   # merchant id
-  if args.merchant_id:
-    config.merchant_id = args.merchant_id
-  elif not config.merchant_id:
-    config.merchant_id = os.environ.get('MERCHANT_ID')
+  config.merchant_id = args.merchant_id or os.environ.get(
+      'MERCHANT_ID') or config.merchant_id
   # ads customer id
-  if args.ads_customer_id:
-    config.ads_customer_id = args.ads_customer_id
-  elif not config.ads_customer_id:
-    config.ads_customer_id = os.environ.get('ADS_CUSTOMER_ID')
+  config.ads_customer_id = args.ads_customer_id or os.environ.get(
+      'ADS_CUSTOMER_ID') or config.ads_customer_id
   if config.ads_customer_id:
     config.ads_customer_id = config.ads_customer_id.replace('-', '')
 

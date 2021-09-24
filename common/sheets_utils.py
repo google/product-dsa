@@ -21,17 +21,25 @@ logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 
 class GoogleSpreadsheetUtils(object):
-  """This class provides methods to simplify BigQuery API usage."""
+  """This class provides methods to simplify Google Spreadsheet API usage."""
 
   def __init__(self, credentials: credentials.Credentials):
     self.sheetsAPI = build('sheets', 'v4', credentials=credentials)
 
-  def update_values(self, docid: str, range, values):
+  def update_values(self, docid: str, range, values, clear_values=True):
+    """Updates a range with values
+      Args:
+        docid: spreadsheet id
+        range: range to overwrite in A1 notation (e.g. "Sheet!A1:Z")
+        values: two dimentional array, first dimention is rows, second is columns (i.e. it's array of column values)
+        clear_values: flags to clear the whole sheet before writing values
+    """
     # Clear the contents of the spreadsheet
-    self.sheetsAPI.spreadsheets().values().clear(
-        spreadsheetId=docid,
-        range=range,
-        body={}).execute()
+    if clear_values:
+      self.sheetsAPI.spreadsheets().values().clear(
+          spreadsheetId=docid,
+          range=range,
+          body={}).execute()
     # Write the new values
     result = self.sheetsAPI.spreadsheets().values().update(
         spreadsheetId=docid,

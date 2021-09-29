@@ -26,6 +26,7 @@ import logging
 from typing import NamedTuple, Dict, Union, List
 from google.auth import credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from google.cloud import storage, pubsub_v1, exceptions
 from google.api_core import exceptions
 from pprint import pprint
@@ -53,16 +54,25 @@ def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
 
 def set_permission_on_drive(fileId, email, credentials):
   driveAPI = build('drive', 'v3', credentials=credentials)
-  access = driveAPI.permissions().create(
-      fileId=fileId,
-      body={
-          'type': 'user',
-          'role': 'writer',
-          'emailAddress': email
-      },
-      fields='id',
-      #transferOwnership=True  - use it if you want to transfer ownership (change role  to 'owner' then, and comment out sendNotificationEmail=False)
-      sendNotificationEmail=False).execute()
+  logging.info(f'Adding write permissions to {email} on {fileId}')
+  try:
+    access = driveAPI.permissions().create(
+        fileId=fileId,
+        body={
+            'type': 'user',
+            'role': 'writer',
+            'emailAddress': email
+        },
+        fields='id',
+        #transferOwnership=True  - use it if you want to transfer ownership (change role  to 'owner' then, and comment out sendNotificationEmail=False)
+        sendNotificationEmail=False).execute()
+  except HttpError as e:
+    # NOTE: if the user doesn't exist then we'll get 500 "Internal Error"
+    if e.status_code == 500:
+      raise Exception(
+          f'Error occured on adding drive permissions, please make sure that account \'{email}\' really exists ({e.reason})'
+      ) from e
+    raise
 
 
 def get_service_account_email(config: config_utils.Config):
@@ -72,6 +82,7 @@ def get_service_account_email(config: config_utils.Config):
 def create_spreadsheets(config: config_utils.Config,
                         credentials: credentials.Credentials) -> bool:
   created = False
+  saEmail = get_service_account_email(config)
   if config.page_feed_spreadsheetid:
     logging.info(
         'Skipped page feed spreadsheet creation as config contains a docid: ' +
@@ -79,9 +90,10 @@ def create_spreadsheets(config: config_utils.Config,
   else:
     logging.info('Creating a spreadsheet for page feed data')
     title = f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"
-    config.page_feed_spreadsheetid = create_spreadsheet(
-        title, get_service_account_email(config), credentials)
+    config.page_feed_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
+  # set permission on the created spreadsheet for GAE default service account
+  set_permission_on_drive(config.page_feed_spreadsheetid, saEmail, credentials)
 
   if config.adcustomizer_spreadsheetid:
     logging.info(
@@ -90,14 +102,15 @@ def create_spreadsheets(config: config_utils.Config,
   else:
     logging.info('Creating a spreadsheet for ad customizer')
     title = f"Ad customizers feed (GMC {config.merchant_id} / GCP project {config.project_id})"
-    config.adcustomizer_spreadsheetid = create_spreadsheet(
-        title, get_service_account_email(config), credentials)
+    config.adcustomizer_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
+  # set permission on the created spreadsheet for GAE default service account
+  set_permission_on_drive(config.adcustomizer_spreadsheetid, saEmail,
+                          credentials)
   return created
 
 
-def create_spreadsheet(title: str, userEmail: str,
-                       credentials: credentials.Credentials) -> str:
+def create_spreadsheet(title: str, credentials: credentials.Credentials) -> str:
   """Create a Google Spreadsheet (either for page feed or adcustomizers data)"""
   sheetsAPI = build('sheets', 'v4', credentials=credentials)
   result = sheetsAPI.spreadsheets().create(body={
@@ -112,8 +125,6 @@ def create_spreadsheet(title: str, userEmail: str,
   }).execute()
   spreadsheet_id = result['spreadsheetId']
   logging.info('Created spreadsheet: ' + spreadsheet_id)
-  # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(spreadsheet_id, userEmail, credentials)
 
   return spreadsheet_id
 
@@ -191,8 +202,8 @@ def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
 
 
 def create_subscription_to_update_feeds(pubsub_topic: str,
-                                           config: config_utils.Config,
-                                           credentials):
+                                        config: config_utils.Config,
+                                        credentials):
   """Creates a pub/sub push subscription to data transfer completion topic
      with signaling to GAE application to update page feed and adcustomizer feed"""
   subscription_name = f'projects/{config.project_id}/subscriptions/update_feeds'
@@ -249,7 +260,8 @@ def main():
   pubsub_topic = create_pubsub_topic(config, credentials)
   # create or reuse data transfer for GMC
   merchant_center_config = data_transfer.create_merchant_center_transfer(
-      config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic, args.skip_dt_run)
+      config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic,
+      args.skip_dt_run)
 
   if not args.skip_dt_run:
     logging.info('Waiting for Data Transfer to complete...')

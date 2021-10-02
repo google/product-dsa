@@ -11,21 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
--- Gets a list of labels with numbers of products having each label
---
--- The query only runs on the table of filtered products (i.e. in-stock and
--- selected as part of the Products DSA run)
 /*
-Parameters:
+  Gets a list of labels with numbers of products having each label.
+
+  The query only runs on the table of filtered products (i.e. in-stock and
+  selected as part of the Products DSA run).
+
+  Parameters:
   - project_id
   - dataset
-  - merchant_id
+  - target
 */
 
 WITH labels AS (
   SELECT split(pdsa_custom_labels,';') as label
-  FROM `{project_id}.{dataset}.Products_{merchant_id}_Filtered`
+  FROM `{project_id}.{dataset}.Products_Filtered_{target}`
   WHERE
     LENGTH(IFNULL(link,'')) > 0  AND
     LENGTH(IFNULL(pdsa_custom_labels,'')) > 0

@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
--- Gets a list of product details for the filtered products
---
--- The query only runs on the table of filtered products (i.e. in-stock and
--- selected as part of the Products DSA run)
 /*
-Parameters:
+  Gets a list of product details for the filtered products.
+
+  The query only runs on the table of filtered products (i.e. in-stock and
+  selected as part of the Products DSA run).
+
+  Parameters:
   - project_id
   - dataset
-  - merchant_id
+  - target
 */
 
-SELECT * FROM `{project_id}.{dataset}.Products_{merchant_id}_Filtered`;
+SELECT * FROM `{project_id}.{dataset}.Products_Filtered_{target}`

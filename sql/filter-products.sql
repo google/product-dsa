@@ -11,16 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
--- Filters the products from the latest snapshot of the GMC Data Transfer
--- based on product availability and presence of our custom labels:
--- PDSA_Product
--- The query only runs on both in-stock and out-of-stock products from the latest data transfer
 /*
-Parameters:
+  Filters the products from the latest snapshot of the GMC Data Transfer
+  based on product availability and presence of our custom labels:
+  PDSA_Product
+  The query only runs on both in-stock and out-of-stock products from the latest data transfer
+
+  Parameters:
   - project_id
   - dataset
   - merchant_id
+  - target
 */
 
 -- Creates a command sepearated list of Product DSA's custom labels from custom_label GMC field
@@ -50,7 +51,7 @@ AS r"""
   return result;
 """;
 
-CREATE OR REPLACE VIEW `{project_id}.{dataset}.Products_{merchant_id}_Filtered`
+CREATE OR REPLACE VIEW `{project_id}.{dataset}.Products_Filtered_{target}`
 AS (
   WITH
     LatestDate AS (
@@ -123,4 +124,5 @@ AS (
       OR custom_labels.label_3 like 'PDA_%'
       OR custom_labels.label_4 like 'PDA_%'
     )
+    AND {SEARCH_CONDITIONS}
 );

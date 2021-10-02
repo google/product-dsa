@@ -22,6 +22,8 @@ from typing import Any, Dict, Union, Sequence
 from google.auth import credentials
 from google.cloud import bigquery
 from google.cloud import exceptions
+from google.cloud.bigquery.dataset import Dataset
+from common import file_utils
 
 # Set logging level.
 logging.getLogger().setLevel(logging.INFO)
@@ -32,10 +34,11 @@ class CloudBigQueryUtils(object):
   """This class provides methods to simplify BigQuery API usage."""
 
   def __init__(self, project_id: str, credentials: credentials.Credentials):
-    """Initialise new instance of CloudDataTransferUtils.
+    """Initialise new instance of CloudBigQueryUtils.
 
     Args:
       project_id: GCP project id.
+      credentials: google.auth credentials
     """
     self.project_id = project_id
     self.client = bigquery.Client(project=project_id, credentials=credentials)
@@ -60,27 +63,14 @@ class CloudBigQueryUtils(object):
       self.client.create_dataset(dataset)
       logging.info('Dataset %s created.', fully_qualified_dataset_id)
 
-  def read_file(self, file_path: str) -> str:
-    """Reads and returns contents of the file.
-
-    Args:
-      file_path: File path.
-
-    Returns:
-      content: File content.
-
-    Raises:
-        FileNotFoundError: If the provided file is not found.
-    """
+  def get_dataset(self, dataset_id: str) -> Dataset:
+    fully_qualified_dataset_id = f'{self.project_id}.{dataset_id}'
     try:
-      with open(file_path, 'r') as stream:
-        content = stream.read()
-    except FileNotFoundError:
-      raise FileNotFoundError(f'The file "{file_path}" could not be found.')
-    else:
-      return content
+      return self.client.get_dataset(fully_qualified_dataset_id)
+    except exceptions.NotFound:
+      pass
 
-  def configure_sql(self, sql_path: str, query_params: Dict[str, Any]) -> str:
+  def _configure_sql(self, sql_file: str, query_params: Dict[str, Any]) -> str:
     """Configures parameters of SQL script with variables supplied.
 
     Args:
@@ -90,7 +80,8 @@ class CloudBigQueryUtils(object):
     Returns:
       sql_script: String representation of SQL script with parameters assigned.
     """
-    sql_script = self.read_file(sql_path)
+    sql_path = os.path.join('sql', sql_file)
+    sql_script = file_utils.get_file_content(sql_path)
 
     params = {}
     for param_key, param_value in query_params.items():
@@ -98,28 +89,32 @@ class CloudBigQueryUtils(object):
       # strings (ex. ('a', 'b', 'c')) to pass to SQL IN operator.
       if isinstance(param_value, str) and ',' in param_value:
         params[param_key] = tuple(param_value.split(','))
+      if isinstance(param_value, list):
+        params[param_key] = tuple(param_value)
       else:
         params[param_key] = param_value
 
     return sql_script.format(**params)
 
-  def execute_queries(self, sql_files: Sequence[str], dataset_id: str,
-                      dataset_location: str, merchant_id: str) -> None:
-    """Executes list of queries."""
+  def execute_queries(self, sql_files: Union[Sequence[str], str], dataset_id: str,
+                      params: Dict[str, Any]) -> None:
+    """Executes a SQL query or a list of queries."""
 
-    prefix = 'sql'
     query_params = {
         'project_id': self.project_id,
         'dataset': dataset_id,
-        'merchant_id': merchant_id,
-        #'external_customer_id': customer_id
+        'dataset_fqn': f'{self.project_id}.{dataset_id}'
     }
+    query_params = {**query_params, **params}
+
+    if isinstance(sql_files, str):
+      sql_files = [sql_files]
 
     for sql_file in sql_files:
       try:
-        query = self.configure_sql(os.path.join(prefix, sql_file), query_params)
-        query_job = self.client.query(query, location=dataset_location)
-        query_job.result()
+        query = self._configure_sql(sql_file, query_params)
+        query_job = self.client.query(query)
+        return query_job.result()
       except Exception as e:
-        logging.exception(f'Error occurred during {sql_file} execution: {e}',)
+        logging.exception(f'Error occurred during \'{sql_file}\' script execution: {e}')
         raise

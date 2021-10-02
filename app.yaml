@@ -5,7 +5,7 @@ automatic_scaling:
   max_instances: 1
 
 env_variables:
-  CONFIG: gs://$PROJECT_ID-pdsa/config.yaml
+  CONFIG: gs://$PROJECT_ID-pdsa/config.json
   GIT_COMMIT:
 #  PYTHONPATH: .
 

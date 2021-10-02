@@ -20,9 +20,10 @@ This module automates the following steps:
   1. Create GMC BigQuery Data Transfer
   2. Setup tables and views in BigQuery
 """
-
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 import logging
+import argparse
 from typing import NamedTuple, Dict, Union, List
 from google.auth import credentials
 from googleapiclient.discovery import build
@@ -42,14 +43,28 @@ logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 logging.getLogger('google.cloud.pubsub_v1.subscriber').setLevel(logging.WARNING)
 
 
-def execute_queries(bigquery_util: bigquery_utils.CloudBigQueryUtils,
-                    config: config_utils.Config):
-  # Sql files to be executed in a specific order. The prefix "sql" should be omitted.
+def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
+                 config: config_utils.Config,
+                 target: config_utils.ConfigTarget):
+  if not target.name:
+    raise ValueError("Target has no name")
   sql_files = [
       'filter-products.sql',
   ]
-  bigquery_util.execute_queries(sql_files, config.dataset_id,
-                                config.dataset_location, config.merchant_id)
+  SEARCH_CONDITIONS = "SEARCH_CONDITIONS"
+  # AND merchant_id IN ({merchant_id})
+  params = {SEARCH_CONDITIONS: '1=1'}
+  if target.merchant_id:
+    if isinstance(target.merchant_id, list):
+      condition = f'merchant_id IN {tuple(target.merchant_id)}'
+    elif isinstance(target.merchant_id, str) and ',' in target.merchant_id:
+      condition = f'merchant_id IN {tuple(target.merchant_id.split(", "))}'
+    else:
+      condition = f'merchant_id = {target.merchant_id}'
+    params[SEARCH_CONDITIONS] = condition
+  params['merchant_id'] = config.merchant_id
+  params['target'] = target.name
+  bigquery_util.execute_queries(sql_files, config.dataset_id, params)
 
 
 def set_permission_on_drive(fileId, email, credentials):
@@ -75,37 +90,38 @@ def set_permission_on_drive(fileId, email, credentials):
     raise
 
 
-def get_service_account_email(config: config_utils.Config):
-  return f"{config.project_id}@appspot.gserviceaccount.com"
+def get_service_account_email(project_id: str):
+  return f"{project_id}@appspot.gserviceaccount.com"
 
 
-def create_spreadsheets(config: config_utils.Config,
+def create_spreadsheets(config: config_utils.Config, target: config_utils.ConfigTarget,
                         credentials: credentials.Credentials) -> bool:
   created = False
-  saEmail = get_service_account_email(config)
-  if config.page_feed_spreadsheetid:
+  merchant_id = target.merchant_id or config.merchant_id
+  saEmail = get_service_account_email(config.project_id)
+  if target.page_feed_spreadsheetid:
     logging.info(
         'Skipped page feed spreadsheet creation as config contains a docid: ' +
-        config.page_feed_spreadsheetid)
+        target.page_feed_spreadsheetid)
   else:
     logging.info('Creating a spreadsheet for page feed data')
-    title = f"Product page feed (GMC {config.merchant_id} / GCP project {config.project_id})"
-    config.page_feed_spreadsheetid = create_spreadsheet(title, credentials)
+    title = f"Product page feed (GMC {merchant_id} / GCP project {config.project_id})"
+    target.page_feed_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(config.page_feed_spreadsheetid, saEmail, credentials)
+  set_permission_on_drive(target.page_feed_spreadsheetid, saEmail, credentials)
 
-  if config.adcustomizer_spreadsheetid:
+  if target.adcustomizer_spreadsheetid:
     logging.info(
         'Skipped adcustomizer spreadsheet creation as config contains a docid: '
-        + config.adcustomizer_spreadsheetid)
+        + target.adcustomizer_spreadsheetid)
   else:
     logging.info('Creating a spreadsheet for ad customizer')
-    title = f"Ad customizers feed (GMC {config.merchant_id} / GCP project {config.project_id})"
-    config.adcustomizer_spreadsheetid = create_spreadsheet(title, credentials)
+    title = f"Ad customizers feed (GMC {merchant_id} / GCP project {config.project_id})"
+    target.adcustomizer_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(config.adcustomizer_spreadsheetid, saEmail,
+  set_permission_on_drive(target.adcustomizer_spreadsheetid, saEmail,
                           credentials)
   return created
 
@@ -216,7 +232,10 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
     if not_found:
       # TODO: by default pubsub creates a subscription with expriration of 31 days of inactivity,
       # in UI it can be set as 'never exprire' but how to do it via API?
-      # NOTE: now it's not only about updating pagefeed (updates adcustomizer feed as well)
+      # TODO: do not hard-code GAE url, use AppEngine Admin API to get app url
+      # let gae = (await google.appengine("v1").apps.get({ appsId: `${projectId}` })).data;
+      # there could be several application instances in a GCP project, each one in its own GAE service
+      # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE
       subscriber.create_subscription(
           name=subscription_name,
           topic=pubsub_topic,
@@ -224,22 +243,21 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
               push_endpoint=
               f'https://{config.project_id}.ew.r.appspot.com/api/update',
               oidc_token=pubsub_v1.types.PushConfig.OidcToken(
-                  service_account_email=get_service_account_email(config))))
+                  service_account_email=get_service_account_email(config.project_id))))
+
+@dataclass
+class DeployOptions:
+  skip_dt_run: bool
 
 
-def main():
-  args = config_utils.parse_arguments(
-      only_known=False,
-      func=lambda p: p.add_argument(
-          '--skip-dt-run',
-          dest='skip_dt_run',
-          action="store_true",
-          help='Suppress running data transfer if it exists'))
-
-  config = config_utils.get_config(args)
-  pprint(vars(config))
-
-  credentials = auth.get_credentials(args)
+def deploy(config: config_utils.Config, credentials: credentials.Credentials,
+           options: DeployOptions) -> bool:
+  """Deploys cloud components.
+    Return: bool - whether config was updated (true)
+  """
+  errors = config.validate()
+  if len(errors):
+    raise ValueError(f'Configuration is invalid: {errors}')
 
   logging.info('Enabling apis')
   enable_apis([
@@ -261,22 +279,53 @@ def main():
   # create or reuse data transfer for GMC
   merchant_center_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic,
-      args.skip_dt_run)
+      options.skip_dt_run)
 
-  if not args.skip_dt_run:
+  if not options.skip_dt_run:
     logging.info('Waiting for Data Transfer to complete...')
     wait_for_transfer_completion(pubsub_topic, config, credentials)
     logging.info('Data Transfer has completed')
 
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
 
-  logging.info('Creating solution specific views.')
-  execute_queries(bigquery_client, config)
+  if not config.targets:
+    logging.warn('No targets found in configuration, exiting')
+    exit()
 
-  # creating spreadsheets for page feed data and adcustomizers
-  created = create_spreadsheets(config, credentials)
+  created = False
+  for target in config.targets:
+    logging.info(
+        f'Creating solution specific views for \'{target.name}\' target.')
+    create_views(bigquery_client, config, target)
 
-  config_file_name = args.config or 'config.yaml'
+    # creating spreadsheets for page feed data and adcustomizers
+    created = created or create_spreadsheets(config, target, credentials)
+
+  create_subscription_to_update_feeds(pubsub_topic, config, credentials)
+  logging.info(
+      'Created pub/sub subscription for data transfer to call GAE app for updating feeds'
+  )
+
+  logging.info('Installation is complete!')
+  return created
+
+
+def main():
+  args = config_utils.parse_arguments(
+      only_known=False,
+      func=lambda p: p.add_argument(
+          '--skip-dt-run',
+          dest='skip_dt_run',
+          action="store_true",
+          help='Suppress running data transfer if it exists'))
+
+  config = config_utils.get_config(args)
+  pprint(vars(config))
+  credentials = auth.get_credentials(args)
+
+  created = deploy(config, credentials, DeployOptions(args.skip_dt_run))
+
+  config_file_name = args.config or 'config.json'
   if created:
     # overwrite config file with new data
     config_utils.save_config(config, config_file_name)
@@ -284,12 +333,6 @@ def main():
   # As we could have modified the config (e.g. put a spreadsheet id),
   # we need to save it to a well-known location - GCS bucket {project_id}-pdsa:
   backup_config(config_file_name, config, credentials)
-
-  create_subscription_to_update_feeds(pubsub_topic, config, credentials)
-  logging.info(
-      'Created pub/sub subscription for data transfer to call GAE app for updating page feed'
-  )
-  logging.info('Installation is complete!')
 
 
 if __name__ == '__main__':

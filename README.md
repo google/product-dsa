@@ -5,6 +5,8 @@
 
 ## 2. Configuration
 
+>TODO: OUTDATED!
+
 There are a bunch of settings that can be specified in your configuration. Some of them can be passed via command line and environment variable.
 
 ### The BigQuery dataset location.
@@ -30,12 +32,10 @@ There are a bunch of settings that can be specified in your configuration. Some 
 * `pubsub_topic_dt_finish` - pub/sub topic id for publishing message on GMC Data Transfer completions (default: 'gmc-dt-finish')
 * `ad_description_template` - template for ad descriptions using fields from GMC product table, e.g. "{title} (price: {price_value} {price_currency})". If ommited than product descriptions from GMC will be used (but be aware that they can easily exceed the limit of 90 symbols, in such a case they will be truncated)
 * `category_ad_descriptions` - dictionary with mapping labels to category descriptions (for adgroups)
-* `dt_schedule` - DataTransfer custom schedule (by default, if empty, 'every 24 hours'), syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)
+* `dt_schedule` - DataTransfer custom schedule (by default, if empty, 'every 24 hours'), syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-json#cron_json_The_schedule_format)
 
 
 ## 3. Installation
-
->WIP: please ignore the content
 
 ### 2.1 Create/use a Google Cloud Project(GCP) with a billing account
 
@@ -48,8 +48,12 @@ Make sure the user running the installation has following permissions.
 
 * [Standard Access For GMC](https://support.google.com/merchants/answer/1637190?hl=en)
 * [Editor (or Owner) Role in Google Cloud Project](https://cloud.google.com/iam/docs/understanding-roles)
-  * if it's Editor then you need two additional AppEngine specific roles:
-  `appengine.appAdmin` и `appengine.appCreator` - see https://cloud.google.com/appengine/docs/standard/python/roles
+  if it's Editor then you need additional roles:
+  * AppEngine specific [roles](https://cloud.google.com/appengine/docs/standard/python/roles): `appengine.appAdmin` и `appengine.appCreator`
+  * IAP Policy Admin (`iap.admin`)
+
+> NOTE: currently only Owner role is enough to run the setup,
+the above described roles additionally to Editor are not enought (DT will fail to create)
 
 
 ### 2.3 Clone repository
@@ -69,11 +73,11 @@ Make sure the user running the installation has following permissions.
 ### 2.5 Set up
 
 #### 2.5.1 Setup parameters
-You can either put all parameters into `config.yaml` or pass them as command line arguments.
+You can either put all parameters into `config.json` or pass them as command line arguments.
 
-To get initial structure of config.yaml use a template: `cp ./config.yaml.template ./config.yaml`.
+To get initial structure of config.json use a template: `cp ./config.json.template ./config.json`.
 
-Example of config.yaml
+Example of config.json
 ```
 dataset_location: us
 project_id: YOUR_GCP_PROJECT_ID
@@ -87,17 +91,17 @@ Alternately you can supply all parameters via command line arguments:
 
 You can specify config file explicitly:
 ```
-./setup.sh --config config.MY_PROJECT1.yaml
+./setup.sh --config config.MY_PROJECT1.json
 ```
-If `--config` is omitted then `config.yaml` (i.e. a local file in the current directory) assumed.
+If `--config` is omitted then `config.json` (i.e. a local file in the current directory) assumed.
 
 You can use not only local path but also file on GCS:
 ```
-./setup.sh --config gs://MY_BUCKET/config.MY_PROJECT1.yaml
+./setup.sh --config gs://MY_BUCKET/config.MY_PROJECT1.json
 ```
 but in this case you have to use Application Default Credentials (that means you can't use either `--service-account-key-file` or `--client-secrets-file`)
 Inside config file path a macro `$PROJECT_ID` is supported, it's replaced with current GCP project id.
-For example, `gs://$PROJECT_ID-pdsa/config.yaml`. It's used to specify a link to a config file for apps deployed in App Engine (in `app.yaml`).
+For example, `gs://$PROJECT_ID-pdsa/config.json`. It's used to specify a link to a config file for apps deployed in App Engine (in `app.json`).
 
 #### 2.5.2 Installing components
 There are two kind of components that should be installed and initialized:
@@ -107,9 +111,9 @@ There are two kind of components that should be installed and initialized:
 #### 2.5.3 Installing App Engine application
 Run `install-web.sh`.
 
-By default it's assumed that the configuration file is on GCS, it's specified in `app.yaml`:
+By default it's assumed that the configuration file is on GCS, it's specified in `app.json`:
 ```
-  CONFIG: gs://$PROJECT_ID-pdsa/config.yaml
+  CONFIG: gs://$PROJECT_ID-pdsa/config.json
 ```
 The file will be deployed there by `setup.sh` (see next).
 
@@ -153,7 +157,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/home/user/product-dsas/service_account.j
 
 
 As soon as `setup.sh` completed you should have:
-* a data transfer in BigQuery scheduled to run daily, you can change schedule via `schedule` parameter in config.yaml, see [Configuration](#2.-Configuration)
+* a data transfer in BigQuery scheduled to run daily, you can change schedule via `schedule` parameter in config.json, see [Configuration](#2.-Configuration)
 * pub/sub topic (it's name also can be customized via config's `pubsub_topic_dt_finish` parameter). Data Transfer will be publishing message to the topic on each transfer completion
 * subscription for the topic to call web app in App Engine (assuming `https://{PROJECT_ID}.ew.r.appspot.com/api/update`)
 * two Google Spreadsheets created for page feed and for ad customizer feed, their ids put into the configuration in `page_feed_spreadsheetid` and `adcustomizer_spreadsheetid` parameters respectively. That's because `setup.sh` updates the configuration file (if it was a local file).

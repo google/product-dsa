@@ -13,8 +13,9 @@
 # limitations under the License.
 from io import TextIOWrapper
 import os
-from typing import List
+from typing import Any, List
 import requests
+import logging
 import zipfile
 from urllib import parse
 from google.cloud import storage
@@ -23,6 +24,8 @@ from common import image_utils
 
 CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
 
+# class FileNotFoundException(Exception):
+#   pass
 
 def get_file_content(uri: str):
   """Read file content supporting file paths on Cloud Storage (gs://)"""
@@ -31,9 +34,9 @@ def get_file_content(uri: str):
   elif os.path.exists(uri):
     with open(uri, 'r') as f:
       return f.read()
-  elif uri.startswith(['http://', 'https://', 'ftp://', 'ftps://']):
+  elif uri.startswith(('http://', 'https://', 'ftp://', 'ftps://')):
     return requests.get(uri).text
-  raise ValueError(f'File {uri} wasn\'t found')
+  raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
 def download_image(uri: str, folder: str):
@@ -57,7 +60,7 @@ def download_file(uri: str, folder: str):
     with open(local_path, 'wb') as f:
       f.write(response.content)
     return local_path
-  raise Exception(f"Couldn't download file {uri}: {response.reason}")
+  raise FileNotFoundError(f"Couldn't download file {uri}: {response.reason}")
 
 
 def copy_file_from_gcs(uri: str, destination_file_name: str):
@@ -72,9 +75,9 @@ def copy_file_from_gcs(uri: str, destination_file_name: str):
     if blob:
       blob.download_to_filename(destination_file_name)
     else:
-      raise ValueError(f'File {uri} wasn\'t found on Cloud Storage')
+      raise FileNotFoundError(f'File {uri} wasn\'t found on Cloud Storage')
   except exceptions.NotFound as e:
-    raise ValueError(f'File {uri} wasn\'t found on Cloud Storage') from e
+    raise FileNotFoundError(f'File {uri} wasn\'t found on Cloud Storage') from e
   except Exception as e:
     print(f'Error fetching file {uri} from GCS: {str(e)}')
     raise
@@ -93,10 +96,10 @@ def get_file_from_gcs(uri: str):
     if blob:
       content = blob.download_as_string().decode('utf-8')
     else:
-      raise ValueError(f'File {uri} wasn\'t found on Cloud Storage')
+      raise FileNotFoundError(f'File {uri} wasn\'t found on Cloud Storage')
     return content
   except exceptions.NotFound as e:
-    raise ValueError(f'File {uri} wasn\'t found on Cloud Storage') from e
+    raise FileNotFoundError(f'File {uri} wasn\'t found on Cloud Storage') from e
   except Exception as e:
     print(f'Error fetching file {uri} from GCS: {str(e)}')
     raise
@@ -158,4 +161,8 @@ def zip(file_name: str, items: List[str]):
             zipf.write(os.path.join(root, file),
                        os.path.relpath(os.path.join(root, file), basedir))
       else:
-        zipf.write(item, os.path.relpath(item, basedir))
+        try:
+          zipf.write(item, os.path.relpath(item, basedir))
+        except BaseException as e:
+          print(f'Zip failed to process {item} in {basedir}: {e}')
+          raise

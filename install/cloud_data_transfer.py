@@ -16,6 +16,7 @@
 # python3
 """Module for managing BigQuery data transfers."""
 
+from common.config_utils import ConfigError, ConfigErrorReason
 import datetime
 import logging
 from pprint import pprint
@@ -43,11 +44,7 @@ _FAILED_STATE = 5
 _CANCELLED_STATE = 6
 
 
-class Error(Exception):
-  """Base error for this module."""
-
-
-class DataTransferError(Error):
+class ConfigurationError(BaseException):
   """An exception to be raised when data transfer was not successful."""
 
 
@@ -87,7 +84,7 @@ class CloudDataTransferUtils(object):
       Data Transfer if the transfer already exists.
       None otherwise.
     """
-    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
+    parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
     logging.info(f'Checking for existing BQ Data Transfer in {parent}')
     for transfer_config in self.client.list_transfer_configs(parent=parent):
       if transfer_config.data_source_id != data_source_id:
@@ -123,8 +120,8 @@ class CloudDataTransferUtils(object):
     return True
 
   def _update_existing_transfer(self, transfer_config: types.TransferConfig,
-                                params: Dict[str, str],
-                                dt_schedule: str) -> types.TransferConfig:
+                                params: Dict[str, str], dt_schedule: str,
+                                pubsub_topic: str) -> types.TransferConfig:
     """Updates existing data transfer.
 
     If the parameters are already present in the config, then the transfer
@@ -138,11 +135,12 @@ class CloudDataTransferUtils(object):
       Updated data transfer config.
     """
     if self._check_params_match(
-        transfer_config, params) and transfer_config.schedule == dt_schedule and transfer_config.schedule_options.disable_auto_scheduling == False:
+        transfer_config, params
+    ) and transfer_config.schedule == dt_schedule and transfer_config.schedule_options.disable_auto_scheduling == False and transfer_config.notification_pubsub_topic == pubsub_topic:
       logging.info(
           'The data transfer config "%s" parameters match. '
           'Hence skipping update.', transfer_config.display_name)
-      # NOTE: if other parameters (e.g. notification_pubsub_topic) mismatch we won't catch this
+      # NOTE: if other parameters mismatch we won't catch this
       return transfer_config
     new_transfer_config = types.TransferConfig()
     types.TransferConfig.copy_from(new_transfer_config, transfer_config)
@@ -155,13 +153,54 @@ class CloudDataTransferUtils(object):
       schedule_options = types.ScheduleOptions()
       schedule_options.disable_auto_scheduling = False
       new_transfer_config.schedule_options = schedule_options
+    new_transfer_config.notification_pubsub_topic = pubsub_topic
     # Only params field is updated.
-    update_mask = {"paths": ["params", "schedule", "schedule_options"]}
+    update_mask = {
+        "paths": [
+            "params", "schedule", "schedule_options",
+            "notification_pubsub_topic"
+        ]
+    }
     new_transfer_config = self.client.update_transfer_config(
         transfer_config=new_transfer_config, update_mask=update_mask)
     logging.info('The data transfer config "%s" parameters updated.',
                  new_transfer_config.display_name)
     return new_transfer_config
+
+  def check_merchant_center_transfer(self, merchant_id: int,
+                                     destination_dataset: str) -> ConfigError:
+    parameters = self._create_transfer_params(merchant_id)
+    parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
+    transfer_config_: types.TransferConfig
+    transfer_config: types.TransferConfig
+    for transfer_config_ in self.client.list_transfer_configs(parent=parent):
+      if transfer_config_.data_source_id != _MERCHANT_CENTER_ID:
+        continue
+      if destination_dataset and transfer_config_.destination_dataset_id != destination_dataset:
+        continue
+      params_match = self._check_params_match(transfer_config_, parameters)
+      if not params_match:
+        continue
+      # this is a DT for GMC, targets our dataset, and our merchant_id
+      if transfer_config_.state == _FAILED_STATE:
+        raise ConfigurationError(f'Data Transfer ({transfer_config.display_name}) for GMC account {merchant_id} is in FAILED state')
+      transfer_config = transfer_config_
+      break
+    if not transfer_config:
+      raise ConfigurationError(f'Data Transfer for GMC account {merchant_id} not found')
+    return transfer_config
+
+  def _create_transfer_params(self, merchant_id: str):
+    parameters = struct_pb2.Struct()
+    parameters['merchant_id'] = str(
+        merchant_id
+    )  # w/o str the value will be converted to float and cause an API error
+    parameters['export_products'] = True
+    # "export_regional_inventories":"true",
+    # "export_local_inventories":"true",
+    # "export_price_benchmarks":"true",
+    # "export_best_sellers":"true"
+    return parameters
 
   def create_merchant_center_transfer(
       self, merchant_id: int, destination_dataset: str, dt_schedule: str,
@@ -180,16 +219,7 @@ class CloudDataTransferUtils(object):
       Transfer config.
     """
     logging.info('Creating Merchant Center Transfer.')
-    parameters = struct_pb2.Struct()
-    parameters['merchant_id'] = str(
-        merchant_id
-    )  # w/o str the value will be converted to float and cause an API error
-    parameters['export_products'] = True
-    # "export_regional_inventories":"true",
-    # "export_local_inventories":"true",
-    # "export_price_benchmarks":"true",
-    # "export_best_sellers":"true"
-    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
+    parameters = self._create_transfer_params(merchant_id)
 
     data_transfer_config = self._get_existing_transfer(_MERCHANT_CENTER_ID,
                                                        destination_dataset,
@@ -199,7 +229,7 @@ class CloudDataTransferUtils(object):
           f"Found an existing data transfer for merchant id {merchant_id} and dataset '{destination_dataset}' ({data_transfer_config.name})"
       )
       data_transfer_config = self._update_existing_transfer(
-          data_transfer_config, parameters, dt_schedule)
+          data_transfer_config, parameters, dt_schedule, pubsub_topic)
       # trigger execution start_manual_transfer_runs
       if not skip_dt_run:
         logging.info(f'Triggering data transfer to run...')
@@ -216,10 +246,6 @@ class CloudDataTransferUtils(object):
             'Skipping data transfer running because of skip-dt-run flag')
       return data_transfer_config
 
-    logging.info(
-        f'Creating a new data transfer for merchant id {merchant_id} to destination dataset {destination_dataset}'
-    )
-
     transfer_config_input = {
         'display_name': f'Merchant Center Transfer - {merchant_id}',
         'data_source_id': _MERCHANT_CENTER_ID,
@@ -229,6 +255,7 @@ class CloudDataTransferUtils(object):
         'data_refresh_window_days': 0,
         'notification_pubsub_topic': pubsub_topic
     }
+    parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
     logging.info(
         f'Creating BQ Data Transfer in {parent} for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )

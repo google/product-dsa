@@ -29,6 +29,7 @@ from google.cloud import storage
 from google.api_core import exceptions
 from common import config_utils, file_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
+from app.context import Context, ContextOptions
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -66,8 +67,8 @@ AD_DESCRIPTION_MIN_LENGTH = 35
 
 class GoogleAdsEditorMgr:
 
-  def __init__(self, config: config_utils.Config):
-    self._config = config
+  def __init__(self, context: Context):
+    self._context = context
     self._headers = [
         CAMP_NAME, CAMP_BUDGET, DSA_WEBSITE, DSA_LANG, DSA_TARGETING_SOURCE,
         DSA_PAGE_FEEDS, ADGROUP_NAME, ADGROUP_MAX_CPM, ADGROUP_TARGET_CPM,
@@ -98,16 +99,16 @@ class GoogleAdsEditorMgr:
     Google Ads Editor
     '''
     # Try to use adcustomizers
-    if self._config.ad_description_template:
+    if self._context.target.ad_description_template:
       # NOTE: inside template we have macros like {field},
       # they should be translated to adcustomizer syntax  {=AD_CUSTOMIZER_FEED.field}
       def replacer(match: re.Match):
-        return '{=' + self._config.adcustomizer_feed_name + '.' + match.group(
+        return '{=' + self._context.target.adcustomizer_feed_name + '.' + match.group(
             1) + '}'
 
       description = re.sub('\{([^}]+)\}', replacer,
-                           self._config.ad_description_template)
-      if description != self._config.ad_description_template:
+                           self._context.target.ad_description_template)
+      if description != self._context.target.ad_description_template:
         return description
 
     if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
@@ -126,7 +127,7 @@ class GoogleAdsEditorMgr:
     return ''
 
   def __get_category_description(self, label):
-    desc = self._config.category_ad_descriptions[label]
+    desc = self._context.target.category_ad_descriptions[label]
     return desc
 
   def get_headers(self):
@@ -139,10 +140,10 @@ class GoogleAdsEditorMgr:
     campaign = self.__create_row()
     campaign_details = {
         CAMP_NAME: name,
-        DSA_WEBSITE: self._config.dsa_website,
-        DSA_LANG: self._config.dsa_lang or '',
+        DSA_WEBSITE: self._context.target.dsa_website,
+        DSA_LANG: self._context.target.dsa_lang or '',
         DSA_TARGETING_SOURCE: 'Page feed',
-        DSA_PAGE_FEEDS: self._config.page_feed_name
+        DSA_PAGE_FEEDS: self._context.target.page_feed_name
     }
     campaign.update(campaign_details)
     self._rows.append(campaign)
@@ -184,11 +185,10 @@ class GoogleAdsEditorMgr:
 
     # Add the image extension row
     if product.image_link:
-      folder = os.path.join(self._config.output_folder,
-                            self._config.image_folder)
+      folder = os.path.join(self._context.output_folder, self._context.image_folder)
       local_image_path = file_utils.download_image(product.image_link, folder)
       rel_image_path = os.path.relpath(local_image_path,
-                                       self._config.output_folder or '')
+                                       self._context.output_folder or '')
       self.add_image_ext(campaign_name, adgroup_name, rel_image_path)
 
   def add_image_ext(self, campaign_name: str, adgroup_name: str, img_path: str):
@@ -331,9 +331,10 @@ class CampaignMgr:
   the pagefeed generated from the GMC feed
   """
 
-  def __init__(self, config: config_utils.Config, products, credentials):
-    self._config = config
-    self._credentials = credentials
+  def __init__(self, context: Context, products):
+    #self._config = config
+    self._context = context
+    self._credentials = context.credentials
     self._products_by_label = {}
     self._create_product_campaign = self._create_category_campaign = False
     self._adcustomizer_gen = AdCustomizerGenerator(products)
@@ -353,19 +354,20 @@ class CampaignMgr:
         if label not in self._products_by_label:
           self._products_by_label[label] = prod
 
-      # TODO: it's OK for MVP, but in the future we should avoid read all data into the memory
+      # TODO: it's OK for MVP, but in the future we should avoid read all data into the memory.
       # read out all columns for adcustomizer feed
       if product_level_adgroup:
         self._adcustomizer_gen.add_product(
-            prod, self._config.product_campaign_name or
+            prod, context.target.product_campaign_name or
             PDSA_PRODUCT_CAMPAIGN_NAME, _get_product_adgroup_name(prod))
 
-  def generate_adcustomizers(self, generate_csv: bool):
+  def generate_adcustomizers(self, generate_csv: bool) -> str:
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
     if generate_csv:
-      output_csv_path = os.path.join(self._config.output_folder,
-                                     self._config.adcustomizer_output_file)
+      output_csv_path = os.path.join(
+          self._context.output_folder,
+          self._context.target.adcustomizer_output_file)
       with open(output_csv_path, 'w') as csv_file:
         writer = csv.writer(csv_file, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(values)
@@ -373,19 +375,20 @@ class CampaignMgr:
 
     # generate spreadsheet (for updating)
     sheets_client = sheets_utils.GoogleSpreadsheetUtils(self._credentials)
-    sheets_client.update_values(self._config.adcustomizer_spreadsheetid,
+    sheets_client.update_values(self._context.target.adcustomizer_spreadsheetid,
                                 "Main!A1:AZ", values)
-    url = f'https://docs.google.com/spreadsheets/d/{self._config.adcustomizer_spreadsheetid}'
+    url = f'https://docs.google.com/spreadsheets/d/{self._context.target.adcustomizer_spreadsheetid}'
     logging.info('Generated adcustomizers feed in Google Spreadsheet ' + url)
+    return output_csv_path
 
   def generate_csv(self) -> str:
     """Generate a CSV for Google Ads Editor with DSA campaign data"""
     if not self._products_by_label:
       return
 
-    output_csv_path = os.path.join(self._config.output_folder,
-                                   self._config.campaign_output_file)
-    gae = GoogleAdsEditorMgr(self._config)
+    output_csv_path = os.path.join(self._context.output_folder,
+                                   self._context.target.campaign_output_file)
+    gae = GoogleAdsEditorMgr(self._context)
 
     # Before generating the new file, get ad descriptions from the old csv if
     # it exists (If the ad description changes, the old one will be needed)
@@ -401,13 +404,13 @@ class CampaignMgr:
         gae.set_original_description(orig_desc)
 
     # If the campaign doesn't exist, create an empty one with default settings
-    product_campaign_name = self._config.product_campaign_name
+    product_campaign_name = self._context.target.product_campaign_name
     if not product_campaign_name:
       product_campaign_name = PDSA_PRODUCT_CAMPAIGN_NAME
     if self._create_product_campaign:
       gae.add_campaign(product_campaign_name)
 
-    category_campaign_name = self._config.category_campaign_name
+    category_campaign_name = self._context.target.category_campaign_name
     if not category_campaign_name:
       category_campaign_name = PDSA_CATEGORY_CAMPAIGN_NAME
     if self._create_category_campaign:
@@ -425,7 +428,7 @@ class CampaignMgr:
                       label)
 
     gae.generate_csv(output_csv_path)
-    file_utils.upload_file_to_gcs(self._config.project_id, self._credentials,
+    file_utils.upload_file_to_gcs(self._context.config.project_id, self._credentials,
                                   output_csv_path)
 
     return output_csv_path
@@ -433,7 +436,7 @@ class CampaignMgr:
   def _get_previous_data(self, output_csv_path: str):
     file_name = os.path.basename(output_csv_path)
     bucket = file_utils.get_or_create_project_gcs_bucket(
-        self._config.project_id, self._credentials)
+        self._context.config.project_id, self._credentials)
     csv_file = None
     blob = bucket.get_blob(file_name)
     if blob:
@@ -447,8 +450,8 @@ class CampaignMgr:
     return csv_file
 
 
-def generate_csv(config: config_utils.Config, products, credentials):
-  campaign_mgr = CampaignMgr(config, products, credentials)
+def generate_csv(context: Context, products):
+  campaign_mgr = CampaignMgr(context, products)
 
   campaign_mgr.generate_adcustomizers(generate_csv=True)
 

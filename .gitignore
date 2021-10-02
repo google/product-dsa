@@ -1,9 +1,11 @@
 *.swp
 *.swo
 .venv
+.pytest_cache
 !/.gitignore
 __pycache__/
 .DS_Store
+config.json
 config.yaml
 output
 server/static/

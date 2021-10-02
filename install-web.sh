@@ -75,5 +75,11 @@ curl -X PATCH -H "Content-Type: application/json" \
 # Grant access to the current user
 echo -e "${COLOR}Granting user $USER_EMAIL access to the app through IAP...${NC}"
 gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$USER_EMAIL" --role='roles/iap.httpsResourceAccessor'
+# try to grant access permissions to the whole user domain (if it's not gmail), 
+# we can't be sure the domain is a Workspace domain so it'll likely fail (that's OK)
+USER_DOMAIN=$(echo $USER_EMAIL | sed 's/^.*@\(.*\)/\1/')
+if [ "$USER_DOMAIN" != "gmail.com" ]; then
+  gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="domain:$USER_DOMAIN" --role='roles/iap.httpsResourceAccessor'
+fi
 
 echo -e "\n${COLOR}Done!${NC}"

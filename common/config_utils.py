@@ -13,10 +13,11 @@
 # limitations under the License.
 import argparse
 from typing import Callable
-from common import auth, file_utils
+from google.oauth2 import service_account
 import os
 import yaml
 import json
+from common import auth, file_utils
 
 
 class Config(object):
@@ -154,15 +155,19 @@ def get_config(args: argparse.Namespace) -> Config:
   if config.ads_customer_id:
     config.ads_customer_id = config.ads_customer_id.replace('-', '')
 
-  validate_project_id(config)
+  validate_project_id(config, args)
   return config
 
 
-def validate_project_id(config: Config):
+def validate_project_id(config: Config, args = None):
   project_id = config.project_id
   if project_id:
     return
   project_id = _find_project_id()
+  if not project_id and args.service_account_file:
+    # detect project id from service account key file
+    credentials = service_account.Credentials.from_service_account_file(args.service_account_file)
+    project_id = credentials.project_id
   if not project_id:
     raise Exception('Failed to determine project_id')
   config.project_id = project_id

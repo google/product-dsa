@@ -47,14 +47,13 @@ There are a bunch of settings that can be specified in your configuration. Some 
 Make sure the user running the installation has following permissions.
 
 * [Standard Access For GMC](https://support.google.com/merchants/answer/1637190?hl=en)
-* [Editor (or Owner) Role in Google Cloud Project](https://cloud.google.com/iam/docs/understanding-roles)
-  if it's Editor then you need additional roles:
-  * AppEngine specific [roles](https://cloud.google.com/appengine/docs/standard/python/roles): `appengine.appAdmin` и `appengine.appCreator`
-  * IAP Policy Admin (`iap.admin`)
-
-> NOTE: currently only Owner role is enough to run the setup,
-the above described roles additionally to Editor are not enought (DT will fail to create)
-
+* one of the following set or [roles](https://cloud.google.com/iam/docs/understanding-roles) in Google Cloud Project
+  * Owner
+  * Editor plus the following roles:
+    * AppEngine specific [roles](https://cloud.google.com/appengine/docs/standard/python/roles): App Engine Admin (`appengine.appAdmin`) and App Engine Creator (`appengine.appCreator`)
+    * IAP Policy Admin (`iap.admin`)
+    * Pub/Sub Admin (actually the `pubsub.topics.setIamPolicy` permission is needed)
+    * Project IAM Admin (`resourcemanager.projectIamAdmin`)
 
 ### 2.3 Clone repository
 > NOTE: currently using GoB, in the future it'll be Github

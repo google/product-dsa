@@ -82,4 +82,7 @@ if [ "$USER_DOMAIN" != "gmail.com" ]; then
   gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="domain:$USER_DOMAIN" --role='roles/iap.httpsResourceAccessor'
 fi
 
+# Grant GAE service account with the Pub/Sub Admin role so it could create a DT with Pub/Sub notifications
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/pubsub.admin
+
 echo -e "\n${COLOR}Done!${NC}"

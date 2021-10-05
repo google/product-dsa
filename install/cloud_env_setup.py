@@ -26,6 +26,7 @@ import logging
 import argparse
 from typing import NamedTuple, Dict, Union, List
 from google.auth import credentials
+from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import storage, pubsub_v1, exceptions
@@ -95,10 +96,11 @@ def get_service_account_email(project_id: str):
 
 
 def create_spreadsheets(config: config_utils.Config, target: config_utils.ConfigTarget,
-                        credentials: credentials.Credentials) -> bool:
+                        credentials: credentials.Credentials, share_with: str) -> bool:
   created = False
   merchant_id = target.merchant_id or config.merchant_id
-  saEmail = get_service_account_email(config.project_id)
+  if not share_with:
+    share_with = get_service_account_email(config.project_id)
   if target.page_feed_spreadsheetid:
     logging.info(
         'Skipped page feed spreadsheet creation as config contains a docid: ' +
@@ -109,7 +111,7 @@ def create_spreadsheets(config: config_utils.Config, target: config_utils.Config
     target.page_feed_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(target.page_feed_spreadsheetid, saEmail, credentials)
+  set_permission_on_drive(target.page_feed_spreadsheetid, share_with, credentials)
 
   if target.adcustomizer_spreadsheetid:
     logging.info(
@@ -121,7 +123,7 @@ def create_spreadsheets(config: config_utils.Config, target: config_utils.Config
     target.adcustomizer_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(target.adcustomizer_spreadsheetid, saEmail,
+  set_permission_on_drive(target.adcustomizer_spreadsheetid, share_with,
                           credentials)
   return created
 
@@ -194,7 +196,8 @@ def create_pubsub_topic(config: config_utils.Config, credentials):
 
 
 def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
-                                 credentials):
+                                 credentials, data_transfer: cloud_data_transfer.CloudDataTransferUtils,
+                                 transfer_config: TransferConfig):
   """Checks data transfer completed via creating an async pull subscription pub/sub completion topic"""
 
   def callback(message):
@@ -210,7 +213,12 @@ def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
       pass  # expected
     subscriber.create_subscription(name=subscription_name, topic=pubsub_topic)
     future = subscriber.subscribe(subscription_name, callback)
+    # if DT fails then waiting for a pub/sub will last forever, so first we'll wait the DT actually started
+    # and only after that wait for a pub/sub
+    data_transfer.wait_for_transfer_started(transfer_config)
     try:
+      # NOTE: the next line blocks current thread in waiting and
+      # only in callback on a message it'll be unblocked (future.cancel)
       future.result()
     except KeyboardInterrupt:
       future.cancel()
@@ -248,7 +256,7 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
 @dataclass
 class DeployOptions:
   skip_dt_run: bool
-
+  user_email: str
 
 def deploy(config: config_utils.Config, credentials: credentials.Credentials,
            options: DeployOptions) -> bool:
@@ -277,19 +285,20 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
       config.project_id, config.dataset_location, credentials)
   pubsub_topic = create_pubsub_topic(config, credentials)
   # create or reuse data transfer for GMC
-  merchant_center_config = data_transfer.create_merchant_center_transfer(
+  transfer_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic,
       options.skip_dt_run)
 
   if not options.skip_dt_run:
     logging.info('Waiting for Data Transfer to complete...')
-    wait_for_transfer_completion(pubsub_topic, config, credentials)
+    wait_for_transfer_completion(pubsub_topic, config, credentials, data_transfer,
+                                 transfer_config)
     logging.info('Data Transfer has completed')
 
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
 
   if not config.targets:
-    logging.warn('No targets found in configuration, exiting')
+    logging.warning('No targets found in configuration, exiting')
     exit()
 
   created = False
@@ -299,7 +308,7 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
     create_views(bigquery_client, config, target)
 
     # creating spreadsheets for page feed data and adcustomizers
-    created = created or create_spreadsheets(config, target, credentials)
+    created = created or create_spreadsheets(config, target, credentials, options.user_email)
 
   create_subscription_to_update_feeds(pubsub_topic, config, credentials)
   logging.info(
@@ -309,21 +318,34 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
   logging.info('Installation is complete!')
   return created
 
+def add_args(parser: argparse.ArgumentParser):
+  parser.add_argument('--skip-dt-run',
+                      dest='skip_dt_run',
+                      action="store_true",
+                      help='Suppress running data transfer if it exists')
+  parser.add_argument('--user-email',
+                      dest='user_email',
+                      help='User email to share created spreadsheets with')
+
 
 def main():
-  args = config_utils.parse_arguments(
-      only_known=False,
-      func=lambda p: p.add_argument(
-          '--skip-dt-run',
-          dest='skip_dt_run',
-          action="store_true",
-          help='Suppress running data transfer if it exists'))
-
+  args = config_utils.parse_arguments(only_known=False, func=add_args)
   config = config_utils.get_config(args)
   pprint(vars(config))
   credentials = auth.get_credentials(args)
 
-  created = deploy(config, credentials, DeployOptions(args.skip_dt_run))
+  if args.service_account_file and getattr(credentials, "project_id",
+                                           None) != config.project_id:
+    logging.error(
+        f'Provided service account belongs to a different project ({getattr(credentials, "project_id", None)}) '
+        f'than your current project in config ({config.project_id})'
+    )
+    exit()
+  if args.service_account_file and not args.user_email:
+    logging.error(f'You supplied a service account but not a user email')
+    exit()
+
+  created = deploy(config, credentials, DeployOptions(args.skip_dt_run, args.user_email))
 
   config_file_name = args.config or 'config.json'
   if created:

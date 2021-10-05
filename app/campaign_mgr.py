@@ -268,17 +268,17 @@ class AdCustomizerGenerator:
     self._adcustomizer_columns.append('Target campaign')
     self._adcustomizer_columns.append('Target ad group')
 
-  def _serialize_value(self, bg_value, field_schema):
-    if bg_value is None:
+  def _serialize_value(self, bq_value, field_schema):
+    if bq_value is None:
       return ''
     if field_schema.field_type in ['INTEGER', 'NUMERIC']:
-      if type(bg_value) is decimal.Decimal:
+      if type(bq_value) is decimal.Decimal:
         # There's a bug in Ad Customizers that doesn't allow float values
         # TODO: remove the casting to int
-        return str(int(bg_value))
-    bg_value = re.sub('[-|]', '', str(bg_value))
+        return str(int(bq_value))
+    bq_value = re.sub('[-|]', '', str(bq_value))
     # NOTE: Google Ads requires fields to be 80 symbols or less (otherwise there will be an error: AD_PLACEHOLDER_STRING_TOO_LONG)
-    return re.sub(' +', ' ', bg_value)[:80]
+    return re.sub(' +', ' ', bq_value)[:80]
 
   def _get_price_with_currency(self, price_field, use_symbol = False):
     value = price_field.get('value')

@@ -29,7 +29,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 def execute_sql_query(script_name: str, context: Context):
   params = {'target': context.target.name}
-  return context.bg_client.execute_queries(script_name,
+  return context.bq_client.execute_queries(script_name,
                                            context.config.dataset_id, params)
 
 
@@ -160,7 +160,7 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
   # #2 generate ad campaigns (with adcustomizers)
   output_file = generate_campaign(context)
   if not output_file:
-    logging.warn(f"Couldn't generate campaign as no products found")
+    logging.warning(f"Couldn't generate campaign as no products found")
   else:
     image_folder = os.path.join(context.output_folder, context.image_folder)
     # archive output csv and images folder, archive's name will be the same as output csv

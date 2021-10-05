@@ -252,7 +252,7 @@ def validate_env():
                     description="Application is not initialized: " + msg))
 
   # ok, config seems correct (at least for DT), check BQ dataset
-  dataset = context.bg_client.get_dataset(config.dataset_id)
+  dataset = context.bq_client.get_dataset(config.dataset_id)
   if not dataset:
     return return_api_config_error(
         ConfigError(
@@ -266,7 +266,7 @@ def validate_env():
   try:
     transfer_config = data_transfer.check_merchant_center_transfer(
         config.merchant_id, config.dataset_id)
-  except cloud_data_transfer.ConfigurationError as e:
+  except cloud_data_transfer.DataTransferError as e:
     return return_api_config_error(
         ConfigError(reason=ConfigErrorReason.NOT_INITIALIZED,
                     description=f"Application is not initialized: {e}"))

@@ -65,7 +65,7 @@ def get_credentials(args: argparse.Namespace,
   elif args.service_account_file:
     try:
       credentials = service_account.Credentials.from_service_account_file(
-          args.service_account_file, scopes)
+          args.service_account_file, scopes=scopes)
     except ValueError as e:
       raise Exception(
           "Invalid json file for service account authenication") from e

@@ -13,6 +13,7 @@
 # limitations under the License.
 import argparse
 from typing import Callable, List
+from google.oauth2 import service_account
 from common import auth, file_utils
 import os
 import itertools
@@ -273,6 +274,11 @@ def get_config(args: argparse.Namespace) -> Config:
 
   if not config.project_id:
     config.project_id = _find_project_id()
+
+  if not config.project_id and args.service_account_file:
+    # detect project id from service account key file
+    credentials = service_account.Credentials.from_service_account_file(args.service_account_file)
+    config.project_id = credentials.project_id
 
   return config
 

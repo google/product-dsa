@@ -39,5 +39,5 @@ class Context:
     self.image_folder = options.image_folder or 'images'
     if (target):
       self.output_folder = os.path.join(self.output_folder, target.name)
-    self.bg_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
+    self.bq_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
                                                        credentials)

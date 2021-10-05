@@ -19,7 +19,6 @@
 from common.config_utils import ConfigError, ConfigErrorReason
 import datetime
 import logging
-from pprint import pprint
 import time
 from typing import Any, Dict
 
@@ -28,23 +27,17 @@ from google.auth import credentials
 import google.protobuf.json_format
 from google.cloud import bigquery_datatransfer_v1
 from google.cloud.bigquery_datatransfer_v1 import types
-from google.protobuf import struct_pb2
-from google.protobuf import timestamp_pb2
+from google.protobuf import struct_pb2, timestamp_pb2
 
 logging.getLogger().setLevel(logging.INFO)
 
 _MERCHANT_CENTER_ID = 'merchant_center'  # Data source id for Merchant Center.
 _GOOGLE_ADS_ID = 'adwords'  # Data source id for Google Ads.
-_SLEEP_SECONDS = 10  # Seconds to sleep before checking resource status.
-_MAX_POLL_COUNTER = 100
-_PENDING_STATE = 2
-_RUNNING_STATE = 3
-_SUCCESS_STATE = 4
-_FAILED_STATE = 5
-_CANCELLED_STATE = 6
+_SLEEP_SECONDS = 5  # Seconds to sleep before checking resource status.
+_MAX_WAIT_SECONDS = 1200 # Maximum seconds to wait for an operation to complete (20 minutes)
 
 
-class ConfigurationError(BaseException):
+class DataTransferError(BaseException):
   """An exception to be raised when data transfer was not successful."""
 
 
@@ -92,8 +85,9 @@ class CloudDataTransferUtils(object):
       if destination_dataset_id and transfer_config.destination_dataset_id != destination_dataset_id:
         continue
       # If the transfer config is in Failed state, we should ignore.
-      is_valid_state = transfer_config.state in (_PENDING_STATE, _RUNNING_STATE,
-                                                 _SUCCESS_STATE)
+      is_valid_state = transfer_config.state in (types.TransferState.PENDING,
+                                                 types.TransferState.RUNNING,
+                                                 types.TransferState.SUCCEEDED)
       params_match = self._check_params_match(transfer_config, params)
       name_matches = name is None or name == transfer_config.display_name
       if params_match and is_valid_state and name_matches:
@@ -182,12 +176,15 @@ class CloudDataTransferUtils(object):
       if not params_match:
         continue
       # this is a DT for GMC, targets our dataset, and our merchant_id
-      if transfer_config_.state == _FAILED_STATE:
-        raise ConfigurationError(f'Data Transfer ({transfer_config.display_name}) for GMC account {merchant_id} is in FAILED state')
+      if transfer_config_.state == types.TransferState.FAILED:
+        raise DataTransferError(
+            f'Data Transfer ({transfer_config.display_name}) for GMC account {merchant_id} is in FAILED state'
+        )
       transfer_config = transfer_config_
       break
     if not transfer_config:
-      raise ConfigurationError(f'Data Transfer for GMC account {merchant_id} not found')
+      raise DataTransferError(
+          f'Data Transfer for GMC account {merchant_id} not found')
     return transfer_config
 
   def _create_transfer_params(self, merchant_id: str):
@@ -370,3 +367,57 @@ class CloudDataTransferUtils(object):
     request.transfer_config = transfer_config_input
     transfer_config = self.client.create_transfer_config(request=request)
     return transfer_config
+
+  def wait_for_transfer_started(self, transfer_config: types.TransferConfig):
+    self._wait_for_transfer_status(transfer_config, types.TransferState.RUNNING)
+
+  def wait_for_transfer_completion(self, transfer_config: types.TransferConfig):
+    self._wait_for_transfer_status(transfer_config,
+                                   types.TransferState.SUCCEEDED)
+
+  def _wait_for_transfer_status(self, transfer_config: types.TransferConfig,
+                                state: types.TransferState):
+    """Waits for the completion of data transfer operation.
+
+    This method retrieves data transfer operation and checks for its status. If
+    the operation is not completed, then the operation is re-checked after
+    `_SLEEP_SECONDS` seconds.
+
+    Args:
+      transfer_config: Resource representing data transfer.
+
+    Raises:
+      DataTransferError: If the data transfer is not successfully completed.
+    """
+    transfer_config_name = transfer_config.name
+    transfer_config_id = transfer_config_name.split('/')[-1]
+    started = time.time()
+    while True:
+      transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
+      response = self.client.list_transfer_runs(parent=transfer_config_path)
+      latest_transfer = None
+      for transfer in response:
+        latest_transfer = transfer
+        break
+      if not latest_transfer:
+        return
+      if (latest_transfer.state == state):
+        return
+      if latest_transfer.state == types.TransferState.SUCCEEDED:
+        logging.info('Transfer %s was successful.', transfer_config_name)
+        return
+      if (latest_transfer.state == types.TransferState.FAILED or
+          latest_transfer.state == types.TransferState.CANCELLED):
+        error_message = (f'Transfer {transfer_config_name} was not successful. '
+                         f'Error - {latest_transfer.error_status}')
+        logging.error(error_message)
+        raise DataTransferError(error_message)
+      logging.info(
+          f'Transfer {transfer_config_name} still in progress. Sleeping for {_SLEEP_SECONDS} seconds before checking again.'
+      )
+      time.sleep(_SLEEP_SECONDS)
+      elapsed = time.time() - started
+      if elapsed > _MAX_WAIT_SECONDS:
+        error_message = f'Transfer {transfer_config_name} is taking too long to finish. Hence failing the request.'
+        logging.error(error_message)
+        raise DataTransferError(error_message)

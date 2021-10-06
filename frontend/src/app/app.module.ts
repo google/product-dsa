@@ -34,6 +34,7 @@ import { CustomSnackBar } from './components/custom-snackbar.component';
 import { ConfigComponent } from './config.component';
 import { CommonModule } from '@angular/common';
 import { ConfirmationDialogComponent } from './components/confirmation-dialog.component';
+import { DefaultRouteGuard } from './shared/default-route.guard';
 
 @NgModule({
   declarations: [
@@ -58,7 +59,7 @@ import { ConfirmationDialogComponent } from './components/confirmation-dialog.co
     AppRoutingModule,
     CommonModule
   ],
-  providers: [OverlayService],
+  providers: [OverlayService, DefaultRouteGuard],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

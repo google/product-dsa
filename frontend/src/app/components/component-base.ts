@@ -32,24 +32,34 @@ export abstract class ComponentBase {
   }
 
   handleApiError(message: string, e: any, showAlert: boolean = false) {
-    let details = e.message;
     let error = e;
+    let details = e.message;
+    let reason = '';
     if (e.error) {
+      // first 'error' is a deserialized http response's body
       error = e.error;
-      details = e.error.error;
+      if (typeof error === 'string') {
+        details = error;
+      }
+      else if (error.error) {
+        // we've got a response with a JSON object containing error field: {"error": ..}
+        error = error.error;
+        // but inside error's value there could be another level of details - object {description: "", reason: ""}
+        details = error.description;
+        reason = error.reason;
+      }
+      if (!details) {
+        details = JSON.stringify(error);
+      }
     }
     let fullMessage = message + (details ? ": " + details : "")
     this.errorMessage = fullMessage.replace(/(?:\r\n|\r|\n)/g, '<br>');
     if (showAlert) {
-      if (typeof error !== 'string') {
-        message = message + " " + JSON.stringify(error);
-      } else {
-        message = message + " " + error;
-      }
-      this.showAlert(message);
+      this.showAlert(fullMessage);
     } else {
       this.showSnackbarWithError(message, error);
     }
+    return error;
   }
 
   showSnackbarWithError(message: string, e: any) {

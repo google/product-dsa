@@ -28,6 +28,8 @@ logging.getLogger().setLevel(logging.INFO)
 
 
 def execute_sql_query(script_name: str, context: Context):
+  if not context.target:
+    raise ValueError(f'Context does not have a target')
   params = {'target': context.target.name}
   return context.bq_client.execute_queries(script_name,
                                            context.config.dataset_id, params)
@@ -36,6 +38,7 @@ def execute_sql_query(script_name: str, context: Context):
 def validate_config(context: Context):
   def _validate_target(target: config_utils.ConfigTarget, errors: List):
     errors.extend(target.validate(generation=True))
+    context.target = target
     category_labels = execute_sql_query('get-category-labels.sql', context)
     if category_labels.total_rows:
       missing_category_desc = False
@@ -114,7 +117,6 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
     logging.info('Skipping ad-customizer updating as there\'s no products')
     return
   mgr = campaign_mgr.CampaignMgr(context, products)
-  # TODO: make path relative to output_folder
   return mgr.generate_adcustomizers(generate_csv)
 
 
@@ -135,7 +137,6 @@ def generate_campaign(context: Context) -> str:
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
   logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
-  # TODO: make path relative to output_folder
   return output_path
 
 

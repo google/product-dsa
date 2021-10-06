@@ -13,11 +13,8 @@
 # limitations under the License.
 import argparse
 from typing import Callable, List
-from google.oauth2 import service_account
 from common import auth, file_utils
 import os
-import itertools
-import yaml
 import json
 from enum import Enum
 
@@ -236,13 +233,12 @@ def parse_arguments(
 def get_config_url(args: argparse.Namespace):
   config_file_name = args.config or os.environ.get('CONFIG') or 'config.json'
   if config_file_name.find('$PROJECT_ID') > -1:
-    project_id = args.project_id or _find_project_id()
+    project_id = _find_project_id(args)
     if project_id is None:
       raise Exception(
           'Config file url contains macro $PROJECT_ID but project id isn\'t specified and can\'t be detected from environment'
       )
-    config_file_name = config_file_name.replace(
-        '$PROJECT_ID', args.project_id or _find_project_id())
+    config_file_name = config_file_name.replace('$PROJECT_ID', project_id)
   return config_file_name
 
 
@@ -251,7 +247,6 @@ def get_config(args: argparse.Namespace) -> Config:
   config_file_name = get_config_url(args)
   content = file_utils.get_file_content(config_file_name)
   cfg_dict: dict = json.loads(content)
-  #cfg_dict = yaml.load(content, Loader=yaml.SafeLoader)
   config = Config()
   config.update(cfg_dict)
   if cfg_dict.get('targets'):
@@ -269,29 +264,30 @@ def get_config(args: argparse.Namespace) -> Config:
   # project id
   if getattr(args, "project_id", ''):
     config.project_id = getattr(args, "project_id")
-  elif cfg_dict.get("project_id"):
-    config.project_id = cfg_dict["project_id"]
-
   if not config.project_id:
-    config.project_id = _find_project_id()
-
-  if not config.project_id and args.service_account_file:
-    # detect project id from service account key file
-    credentials = service_account.Credentials.from_service_account_file(args.service_account_file)
-    config.project_id = credentials.project_id
+    config.project_id = _find_project_id(args)
 
   return config
 
 
-def _find_project_id():
+def _find_project_id(args: argparse.Namespace):
+  if getattr(args, "project_id", ''):
+    project_id = getattr(args, "project_id")
   project_id = os.getenv('GCP_PROJECT') or \
                os.getenv('GOOGLE_CLOUD_PROJECT') or \
                os.getenv('DEVSHELL_PROJECT_ID')
-  # else if this is running locally then GOOGLE_APPLICATION_CREDENTIALS should be defined
+  # if service account key file specified via CLI, extract project_id from it
+  if not project_id and args.service_account_file:
+    # detect project id from service account key file
+    with open(args.service_account_file) as f:
+      credentials = json.load(f)
+    project_id = credentials['project_id']
+  # else if this is running locally then GOOGLE_APPLICATION_CREDENTIALS can be defined
   if not project_id and 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
     with open(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'), 'r') as fp:
       credentials = json.load(fp)
     project_id = credentials['project_id']
+
   return project_id
 
 

@@ -16,7 +16,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { saveAs } from 'file-saver';
-import { Observable, Subject, throwError } from 'rxjs';
+import { lastValueFrom, Observable, Subject, throwError } from 'rxjs';
 import { catchError, tap, map } from 'rxjs/operators';
 
 @Injectable({
@@ -43,36 +43,35 @@ export class BackendService {
 
   async getApi<T>(url: string, params?: Record<string, any>): Promise<T> {
 
-    return this.http.get<T>(
+    return lastValueFrom(this.http.get<T>(
       this.getUrl(url),
       {
         headers: this.getBaseHeaders(),
         params
-      })
-      .toPromise();
+      }));
   }
 
   postApi(url: string, payload?: any, opt?: { emptyResponse?: boolean }): Promise<any> {
     let options: any = { headers: this.getBaseHeaders(opt) };
     if (opt?.emptyResponse)
       options['responseType'] = 'text';
-    return this.http.post(
+    return lastValueFrom(this.http.post(
       this.getUrl(url),
       payload,
       options)
-      .toPromise();
+    );
   }
 
   async getFile(url: string, params?: Record<string, any>): Promise<void> {
     const headers = this.getBaseHeaders()
       .set('Content-Type', 'application/x-www-form-urlencoded');
     try {
-      let res = await this.http.get<Blob>(this.getUrl(url), {
+      let res = await lastValueFrom(this.http.get<Blob>(this.getUrl(url), {
         responseType: 'blob' as 'json',
         observe: 'response',
         headers,
         params
-      }).toPromise();
+      }));
       const fileName = this.getFileNameFromHttpResponse(res);
       saveAs(res.body!, fileName);
     } catch (e: any) {

@@ -50,7 +50,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       ad_description_template: '',
       dsa_lang: '',
       dsa_website: '',
-      // "dt_schedule":
+      dt_schedule: ''
     });
   }
 
@@ -70,9 +70,12 @@ export class ConfigComponent extends ComponentBase implements OnInit {
 
         this.handleApiError('Errors in the configuration file', errors);
       }
-    } catch (e) {
-      let error_msg = e.error ? e.error : 'An error occured during fetching configuration.'
-      this.handleApiError(error_msg, e);
+    } catch (e: any) {
+      let error_msg = 'An error occured during fetching configuration.'; //this.showAlert(fullMessage);
+      let error = this.handleApiError(error_msg, e);
+      if (error.reason === 'not_initialized') {
+        this.showAlert('The application is not initialized. You should fill in mandatory configuration parameters and run setup');
+      }
     } finally {
       this.loading = false;
     }

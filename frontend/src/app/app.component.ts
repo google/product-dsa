@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import {Component, ViewEncapsulation} from '@angular/core';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router, Event } from '@angular/router';
 
 @Component({
   selector: 'app-root',
@@ -24,4 +25,17 @@ import {Component, ViewEncapsulation} from '@angular/core';
 export class AppComponent {
   loading = false;
   title = 'Product DSA';
+
+  constructor(router: Router) {
+    router.events.subscribe((routerEvent: Event) => {
+      if (routerEvent instanceof NavigationStart) {
+        this.loading = true;
+      } else if (routerEvent instanceof NavigationEnd ||
+        routerEvent instanceof NavigationError ||
+        routerEvent instanceof NavigationCancel) {
+        this.loading = false;
+      }
+    });
+  }
+
 }

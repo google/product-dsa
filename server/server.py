@@ -378,10 +378,21 @@ def catch_all(path):
   return send_from_directory(STATIC_DIR, path)
 
 
+@app.errorhandler(Exception)
+def handle_exception(e: Exception):
+  if request.content_type == "application/json" and request.path.startswith('/api/'):
+    # NOTE: not all exceptions can be serialized
+    try:
+      return jsonify({"error": e}), 500
+    except:
+      return jsonify({"error": str(e)}), 500
+  return app.handle_exception(e)
+
+
 # copy config from GCS to local cache
 if config_on_gcs:
   # config is on GCS, copy it from GCS to local cache
-  copy_config_to_cache()
+  copy_config_to_cache(config_file_name)
 
 if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE

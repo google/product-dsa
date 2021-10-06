@@ -43,7 +43,7 @@
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>GCP project id</mat-label>
-        <input matInput formControlName="project_id" [readonly]="editable ? false : true">
+        <input matInput formControlName="project_id" readonly="true">
       </mat-form-field>
     </div>
   </div>
@@ -52,6 +52,7 @@
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>GMC account id</mat-label>
         <input matInput formControlName="merchant_id" [readonly]="editable ? false : true">
+        <mat-hint>The root GMC account (merchant id) to create data transfer for. Can be a child account as well.</mat-hint>
       </mat-form-field>
     </div>
   </div>
@@ -69,10 +70,20 @@
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>BigQuery dataset location</mat-label>
         <input matInput formControlName="dataset_location" [readonly]="editable ? false : true">
-        <mat-hint>location for dataset in BigQuery</mat-hint>
+        <mat-hint>Location region for dataset in BigQuery (e.g. 'us' or 'europe'). Can be empty.</mat-hint>
       </mat-form-field>
     </div>
   </div>
+  <div class="row">
+    <div class="col-10">
+      <mat-form-field appearance="outline" color="accent" class="full-width">
+        <mat-label>DT schedule</mat-label>
+        <input matInput formControlName="dt_schedule" [readonly]="editable ? false : true">
+        <mat-hint>Schedule for executing data transfer. By default - daily. Can be empty. E.g. "every 6 hours"</mat-hint>
+      </mat-form-field>
+    </div>
+  </div>
+  <!-- Targets -->
   <div class="row">
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">

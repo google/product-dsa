@@ -20,12 +20,13 @@ import { HomeComponent } from './home.component';
 import { ProductsComponent } from './products.component';
 import { ConfigComponent } from './config.component';
 import { WizardComponent } from './wizard.component';
+import { DefaultRouteGuard } from './shared/default-route.guard';
 
 const routes: Routes = [
-  { path: '', component: HomeComponent },
-  { path: 'products', component: ProductsComponent },
-  { path: 'wizard', component: WizardComponent },
-  { path: 'config', component: ConfigComponent }
+  { path: '', component: HomeComponent, canActivate: [DefaultRouteGuard] },
+  { path: 'products', component: ProductsComponent, canActivate: [DefaultRouteGuard] },
+  { path: 'wizard', component: WizardComponent, canActivate: [DefaultRouteGuard] },
+  { path: 'config', component: ConfigComponent, canActivate: [DefaultRouteGuard] }
 ];
 
 @NgModule({

@@ -27,10 +27,12 @@ from app import campaign_mgr
 logging.getLogger().setLevel(logging.INFO)
 
 
-def execute_sql_query(script_name: str, context: Context):
+def execute_sql_query(script_name: str, context: Context, params: Dict[str,str] = None):
   if not context.target:
     raise ValueError(f'Context does not have a target')
-  params = {'target': context.target.name}
+  if not params:
+    params = {}
+  params['target'] = context.target.name
   return context.bq_client.execute_queries(script_name,
                                            context.config.dataset_id, params)
 
@@ -39,7 +41,8 @@ def validate_config(context: Context):
   def _validate_target(target: config_utils.ConfigTarget, errors: List):
     errors.extend(target.validate(generation=True))
     context.target = target
-    category_labels = execute_sql_query('get-category-labels.sql', context)
+    params = {"SEARCH_CONDITIONS": "pdsa_custom_labels NOT LIKE 'product_%'"}
+    category_labels = execute_sql_query('get-labels.sql', context, params)
     if category_labels.total_rows:
       missing_category_desc = False
       err_message = ''

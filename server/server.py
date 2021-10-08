@@ -189,7 +189,7 @@ def get_labels():
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
-  labels = execute_sql_query('get-labels.sql', context)
+  labels = execute_sql_query('get-labels.sql', context, {"SEARCH_CONDITIONS": ""})
   result = []
   for row in labels:
     obj = {}
@@ -279,7 +279,8 @@ def validate_env():
   for target in config.targets:
     try:
       context.target = target
-      labels = execute_sql_query('get-labels.sql', context)
+      labels = execute_sql_query('get-labels.sql', context,
+                                 {"SEARCH_CONDITIONS": ""})
     except Exception as e:
       return return_api_config_error(
           ConfigError(ConfigErrorReason.NOT_INITIALIZED,
@@ -349,17 +350,20 @@ def get_config():
 def post_config():
   new_config = request.get_json(cache=False)
   # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
-  if (config_file_name and config_file_name.startswith("gs://")):
-    #content = yaml.dump(new_config, allow_unicode=True)
+  if config_file_name and config_file_name.startswith("gs://"):
     content = json.dumps(new_config)
     file_utils.save_file_to_gcs(config_file_name, content)
     # and update the local cache in /tmp
     if (args.config == config_file_name):
       # this means that the config wasn't copied to /tmp on start (because it didn't exist)
-      copy_config_to_cache()
+      copy_config_to_cache(config_file_name)
     else:
       file_utils.save_file_content(args.config, content)
     return 'Config updated', 200
+  elif not IS_GAE:
+    # local file and local server, just save it
+    content = json.dumps(new_config)
+    file_utils.save_file_content(config_file_name, content)
   else:
     msg = f'Updating config is not possible because it is not stored on GCS'
     logging.warning(msg)

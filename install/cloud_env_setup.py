@@ -54,14 +54,14 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
   ]
   SEARCH_CONDITIONS = "SEARCH_CONDITIONS"
   # AND merchant_id IN ({merchant_id})
-  params = {SEARCH_CONDITIONS: '1=1'}
+  params = {SEARCH_CONDITIONS: ''}
   if target.merchant_id:
     if isinstance(target.merchant_id, list):
-      condition = f'merchant_id IN {tuple(target.merchant_id)}'
+      condition = f'AND merchant_id IN {tuple(target.merchant_id)}'
     elif isinstance(target.merchant_id, str) and ',' in target.merchant_id:
-      condition = f'merchant_id IN {tuple(target.merchant_id.split(", "))}'
+      condition = f'AND merchant_id IN {tuple(target.merchant_id.split(", "))}'
     else:
-      condition = f'merchant_id = {target.merchant_id}'
+      condition = f'AND merchant_id = {target.merchant_id}'
     params[SEARCH_CONDITIONS] = condition
   params['merchant_id'] = config.merchant_id
   params['target'] = target.name

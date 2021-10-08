@@ -390,11 +390,9 @@ class CloudDataTransferUtils(object):
       DataTransferError: If the data transfer is not successfully completed.
     """
     transfer_config_name = transfer_config.name
-    transfer_config_id = transfer_config_name.split('/')[-1]
     started = time.time()
     while True:
-      transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
-      response = self.client.list_transfer_runs(parent=transfer_config_path)
+      response = self.client.list_transfer_runs(parent=transfer_config_name)
       latest_transfer = None
       for transfer in response:
         latest_transfer = transfer

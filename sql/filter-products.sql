@@ -124,5 +124,5 @@ AS (
       OR custom_labels.label_3 like 'PDA_%'
       OR custom_labels.label_4 like 'PDA_%'
     )
-    AND {SEARCH_CONDITIONS}
+    {SEARCH_CONDITIONS}
 );

@@ -52,6 +52,7 @@ Make sure the user running the installation has following permissions.
   * Editor plus the following roles:
     * AppEngine specific [roles](https://cloud.google.com/appengine/docs/standard/python/roles): App Engine Admin (`appengine.appAdmin`) and App Engine Creator (`appengine.appCreator`)
     * IAP Policy Admin (`iap.admin`)
+    * Big Query Admin (`bigquery.admin`)
     * Pub/Sub Admin (actually the `pubsub.topics.setIamPolicy` permission is needed)
     * Project IAM Admin (`resourcemanager.projectIamAdmin`)
 

@@ -89,6 +89,7 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
     values.append([row[0], row[1]])
 
   if generate_csv:
+    context.ensure_folders()
     csv_file_name = os.path.join(context.output_folder,
                                  context.target.page_feed_output_file)
     with open(csv_file_name, 'w') as csv_file:
@@ -136,6 +137,7 @@ def generate_campaign(context: Context) -> str:
   logging.info(f'Fetched {products.total_rows} products')
   output_path = None
   if products.total_rows:
+    context.ensure_folders()
     output_path = campaign_mgr.generate_csv(context, products)
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
   elapsed = time.time() - t0
@@ -155,8 +157,7 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
     print(message + 'Exiting')
     exit()
 
-  if context.output_folder and not os.path.exists(context.output_folder):
-    os.mkdir(context.output_folder)
+  context.ensure_folders()
 
   # #1 crete page feed
   create_or_update_page_feed(True, context)

@@ -36,10 +36,12 @@ STATIC_DIR = os.getenv(
     'STATIC_DIR'
 ) or 'static'  # folder for static content relative to the current module
 
-IS_GAE = os.getenv('GAE_APPLICATION')
-OUTPUT_FOLDER = '/tmp'
-
 app = Flask(__name__)
+
+IS_GAE = os.getenv('GAE_APPLICATION')
+OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
+    os.path.join(app.root_path, './../output'))
+
 
 
 class JsonEncoder(JSONEncoder):
@@ -136,7 +138,7 @@ def pagefeed_generate():
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
   output_file = create_or_update_page_feed(True, context)
-  output_file = os.path.relpath(output_file, context.output_folder),
+  output_file = os.path.relpath(output_file, OUTPUT_FOLDER)
   return jsonify({
       "spreadsheet_id": context.target.page_feed_spreadsheetid,
       "filename": output_file,
@@ -152,7 +154,7 @@ def adcustomizers_generate():
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
   output_file = create_or_update_adcustomizers(True, context)
-  output_file = os.path.relpath(output_file, context.output_folder),
+  output_file = os.path.relpath(output_file, OUTPUT_FOLDER)
   return jsonify({
       "spreadsheet_id": context.target.adcustomizer_spreadsheetid,
       "filename": output_file,
@@ -172,9 +174,7 @@ def campaign_generate():
         "error": "Couldn't generate a ad campaign because no products found"
     }), 500
   # archive output csv and images folder
-  output_folder_rel = os.path.relpath(os.path.dirname(output_file),
-                                      context.output_folder)
-  image_folder = os.path.join(context.output_folder, output_folder_rel,
+  image_folder = os.path.join(context.output_folder,
                               context.image_folder)
   arcfilename = os.path.join(
       OUTPUT_FOLDER,
@@ -390,7 +390,7 @@ def handle_exception(e: Exception):
       return jsonify({"error": e}), 500
     except:
       return jsonify({"error": str(e)}), 500
-  return app.handle_exception(e)
+  return e
 
 
 # copy config from GCS to local cache

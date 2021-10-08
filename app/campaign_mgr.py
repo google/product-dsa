@@ -208,6 +208,7 @@ class GoogleAdsEditorMgr:
     self._rows.append(image)
 
   def generate_csv(self, output_csv_path: str):
+    self._context.ensure_folders()
     with open(output_csv_path, 'w') as csv_file:
       writer = csv.DictWriter(csv_file, fieldnames=self._headers)
       writer.writeheader()
@@ -372,6 +373,7 @@ class CampaignMgr:
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
     if generate_csv:
+      self._context.ensure_folders()
       output_csv_path = os.path.join(
           self._context.output_folder,
           self._context.target.adcustomizer_output_file)

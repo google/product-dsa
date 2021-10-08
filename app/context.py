@@ -41,3 +41,7 @@ class Context:
       self.output_folder = os.path.join(self.output_folder, target.name)
     self.bq_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
                                                        credentials)
+
+  def ensure_folders(self):
+    if self.output_folder and not os.path.exists(self.output_folder):
+      os.mkdir(self.output_folder)

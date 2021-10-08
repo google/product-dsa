@@ -31,9 +31,9 @@ def get_file_content(uri: str):
   elif os.path.exists(uri):
     with open(uri, 'r') as f:
       return f.read()
-  elif uri.startswith(['http://', 'https://', 'ftp://', 'ftps://']):
+  elif uri.startswith(('http://', 'https://', 'ftp://', 'ftps://')):
     return requests.get(uri).text
-  raise ValueError(f'File {uri} wasn\'t found')
+  raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
 def download_image(uri: str, folder: str):

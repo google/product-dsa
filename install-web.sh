@@ -14,6 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The script creates AppEngine application, builds the project and deploy it as AppEngine default service 
+# To run this script you should have either Owner role in the current project or these specific roles:
+# * "App Engine Admin" (appengine.appAdmin) 
+# * "App Engine Creator" (appengine.appCreator)
+# * "IAP Policy Admin" (iap.admin)
+
+# WARNING: if the current project is not in a Cloud Organization (your Google account isn't from Workspace)
+#          then at the stage "Creating oauth brand (consent screen) for IAP" we'll likely get an error:
+# "create-oauth-client": ERROR: (gcloud.alpha.iap.oauth-brands.list) INVALID_ARGUMENT: Request contains an invalid argument.
+# Safely ignore it, but we'll need to do several manual steps afterwards:
+# * create an OAuth consent screen (brand)
+# * reenable IAP for AppEngine on the https://console.cloud.google.com/security/iap page
+
+# Things to consider:
+# if you're going to use the GAE service account for executing deployment then it should be granted additional roles:
+#   * "BigQuery Admin" (roles/bigquery.admin)
+#   * "Pub/Sub Admin" (roles/pubsub.admin)
+
 COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color
 NC='\033[0m' # No Color
@@ -28,6 +46,7 @@ GAE_LOCATION=europe-west
 echo -e "${COLOR}Enabling APIs...${NC}"
 gcloud services enable appengine.googleapis.com
 gcloud services enable iap.googleapis.com
+gcloud services enable cloudresourcemanager.googleapis.com
 
 echo -e "${COLOR}Creating App Engine...${NC}"
 
@@ -81,8 +100,5 @@ USER_DOMAIN=$(echo $USER_EMAIL | sed 's/^.*@\(.*\)/\1/')
 if [ "$USER_DOMAIN" != "gmail.com" ]; then
   gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="domain:$USER_DOMAIN" --role='roles/iap.httpsResourceAccessor'
 fi
-
-# Grant GAE service account with the Pub/Sub Admin role so it could create a DT with Pub/Sub notifications
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/pubsub.admin
 
 echo -e "\n${COLOR}Done!${NC}"

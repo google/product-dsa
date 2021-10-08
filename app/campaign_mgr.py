@@ -126,7 +126,11 @@ class GoogleAdsEditorMgr:
     return ''
 
   def __get_category_description(self, label):
-    desc = self._config.category_ad_descriptions[label]
+    desc = self._config.category_ad_descriptions.get(label, None)
+    if desc is None:
+      raise ValueError(
+          f'Mapping for label {label} is missing in configuration (category_ad_descriptions)'
+      )
     return desc
 
   def get_headers(self):
@@ -154,6 +158,7 @@ class GoogleAdsEditorMgr:
 
     orig_ad_description = self._orig_descriptions.get(
         (campaign_name, adgroup_name)) or ''
+    # TODO: current __get_category_description fails if a mapping (label-category) is missing in config
     ad_description = self.__get_ad_description(
         product) if is_product_level else self.__get_category_description(label)
     adgroup_details = {
@@ -342,7 +347,8 @@ class CampaignMgr:
       custom_labels = prod['pdsa_custom_labels'].split(';')
       product_level_adgroup = False
       for label in custom_labels:
-        if is_product_label(label.strip()):
+        label = label.strip()
+        if is_product_label(label):
           self._create_product_campaign = True
           product_level_adgroup = True
         else:

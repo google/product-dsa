@@ -149,7 +149,8 @@ def get_labels():
   credentials, project = google.auth.default(scopes=_SCOPES)
   config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
-  labels = execute_sql_query('get-labels.sql', config, context)
+  macros = {'SEARCH_CONDITIONS': "AND 1=1"}
+  labels = execute_sql_query('get-labels.sql', config, context, macros)
   result = []
   for row in labels:
     obj = {}
@@ -206,7 +207,7 @@ def get_config():
 def post_config():
   new_config = request.get_json(cache=False)
   # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
-  if (config_file_name and config_file_name.startswith("gs://")):
+  if config_file_name and config_file_name.startswith("gs://"):
     content = yaml.dump(new_config, allow_unicode=True)
     file_utils.save_file_to_gcs(config_file_name, content)
     # and update the local cache in /tmp

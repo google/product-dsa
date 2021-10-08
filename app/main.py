@@ -39,6 +39,8 @@ def execute_sql_query(name: str,
           'merchant_id': config.merchant_id,
       }
   }
+  if macros:
+    cfg['macros'] = {**cfg['macros'], **macros}
   return wf_execute_sql.run(cfg, context)
 
 
@@ -62,8 +64,9 @@ def validate_config(config: config_utils.Config, context):
         'error': 'No DSA website found in configuration'
     })
 
-  category_labels = execute_sql_query('get-category-labels.sql', config,
-                                      context)
+  macros = {'SEARCH_CONDITIONS': "AND pdsa_custom_labels NOT LIKE 'product_%'"}
+  category_labels = execute_sql_query('get-labels.sql', config,
+                                      context, macros)
   if category_labels.total_rows:
     missing_category_desc = False
     err_message = ''

@@ -80,7 +80,7 @@ class CloudDataTransferUtils(object):
       Data Transfer if the transfer already exists.
       None otherwise.
     """
-    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
+    parent = f'projects/{self.project_id}'  #'/locations/{self.dataset_location}'
     logging.info(f'Checking for existing BQ Data Transfer in {parent}')
     for transfer_config in self.client.list_transfer_configs(parent=parent):
       if transfer_config.data_source_id != data_source_id:
@@ -184,7 +184,7 @@ class CloudDataTransferUtils(object):
     # "export_local_inventories":"true",
     # "export_price_benchmarks":"true",
     # "export_best_sellers":"true"
-    parent = f'projects/{self.project_id}/locations/{self.dataset_location}'
+    parent = f'projects/{self.project_id}'  #'/locations/{self.dataset_location}'
 
     data_transfer_config = self._get_existing_transfer(_MERCHANT_CENTER_ID,
                                                        destination_dataset,
@@ -361,11 +361,11 @@ class CloudDataTransferUtils(object):
       DataTransferError: If the data transfer is not successfully completed.
     """
     transfer_config_name = transfer_config.name
-    transfer_config_id = transfer_config_name.split('/')[-1]
+    #transfer_config_id = transfer_config_name.split('/')[-1]
     started = time.time()
     while True:
-      transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
-      response = self.client.list_transfer_runs(parent=transfer_config_path)
+      #transfer_config_path = f'projects/{self.project_id}/locations/{self.dataset_location}/transferConfigs/{transfer_config_id}'
+      response = self.client.list_transfer_runs(parent=transfer_config_name)
       latest_transfer = None
       for transfer in response:
         latest_transfer = transfer

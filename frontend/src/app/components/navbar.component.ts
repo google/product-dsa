@@ -14,12 +14,34 @@
  * limitations under the License.
  */
 import { Component } from '@angular/core';
+import { ConfigService } from '../shared/config.service';
 
+interface Target {
+  name: string;
+}
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent {
-  constructor() { }
+  targets: Target[] = [];
+  selectedTarget: string = '';
+  constructor(private configService: ConfigService) {
+    configService.loaded.subscribe(cfg => {
+      if (cfg) {
+        this.targets = cfg.targets;
+        this.selectedTarget = '';
+        if (this.targets && this.targets.length > 0) {
+          this.selectedTarget = this.targets[0].name;
+        }
+      } else {
+        this.selectedTarget = '';
+      }
+      this.configService.currentTarget = this.selectedTarget;
+    });
+  }
+  onTargetChanged(val: string) {
+    this.configService.currentTarget = val;
+  }
 }

@@ -16,13 +16,10 @@
 import { Injectable } from '@angular/core';
 import { BackendService } from './backend.service';
 
-interface GenerateOptions {
-  skipDownload?: boolean
-};
 /**
  * Server response type of controllers for generting feeds (page feed and ad customizer feed).
  */
-type GenerateResponse = {
+export interface GenerateResponse {
   filename: string,
   spreadsheet_id: string,
   feed_name: string
@@ -35,36 +32,30 @@ export class ApiService {
 
   constructor(public backendService: BackendService) { }
 
-  async generatePageFeed(opts: GenerateOptions = {}): Promise<GenerateResponse> {
+  async generatePageFeed(target: string|undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/pagefeed/generate');
-    if (!opts?.skipDownload)
-      await this.downloadFile(res.filename);
+      '/pagefeed/generate', {target});
     return res;
   }
 
-  async generateAdcustomizers(opts: GenerateOptions = {}): Promise<GenerateResponse> {
+  async generateAdcustomizers(target: string | undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/adcustomizers/generate');
-    if (!opts?.skipDownload)
-      await this.downloadFile(res.filename);
+      '/adcustomizers/generate', {target});
     return res;
   }
 
-  async generateAdCampaign(opts: GenerateOptions = {}): Promise<GenerateResponse> {
+  async generateAdCampaign(target: string | undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/campaign/generate');
-    if (!opts?.skipDownload)
-      await this.downloadFile(res.filename);
+      '/campaign/generate', {target});
     return res;
   }
 
-  getLabels(): Promise<Record<string, any>[]> {
-    return this.backendService.getApi<Record<string, any>[]>('/labels');
+  getLabels(target: string): Promise<Record<string, any>[]> {
+    return this.backendService.getApi<Record<string, any>[]>('/labels', { target });
   }
 
-  getProducts(): Promise<Record<string, any>[]> {
-    return this.backendService.getApi<Record<string, any>[]>('/products');
+  getProducts(target: string): Promise<Record<string, any>[]> {
+    return this.backendService.getApi<Record<string, any>[]>('/products', { target });
   }
 
   async downloadFile(filename: string): Promise<void> {

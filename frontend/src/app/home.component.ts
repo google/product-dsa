@@ -20,7 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
 import { CustomSnackBar } from './components/custom-snackbar.component';
-import { ApiService } from './shared/api.service';
+import { GenerationService } from './shared/generation.service';
 
 @Component({
   templateUrl: './home.component.html',
@@ -31,7 +31,7 @@ export class HomeComponent extends ComponentBase implements OnInit {
 
   constructor(private fb: FormBuilder,
     private router: Router,
-    private apiService: ApiService,
+    private generationService: GenerationService,
     dialog: MatDialog,
     snackBar: MatSnackBar) {
     super(dialog, snackBar);
@@ -48,7 +48,7 @@ export class HomeComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generatePageFeed({ skipDownload: true });
+      let res = await this.generationService.generatePageFeed({ skipDownload: true });
       this.snackBar.openFromComponent(CustomSnackBar, {
         duration: 6000, data: {
           message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with page feed data`} });
@@ -63,7 +63,7 @@ export class HomeComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generateAdcustomizers({ skipDownload: true });
+      let res = await this.generationService.generateAdcustomizers({ skipDownload: true });
       this.snackBar.openFromComponent(CustomSnackBar, {
         duration: 6000, data: {
           message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with ad customizers feed data`
@@ -80,7 +80,7 @@ export class HomeComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generateAdCampaign();
+      let res = await this.generationService.generateAdCampaign();
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

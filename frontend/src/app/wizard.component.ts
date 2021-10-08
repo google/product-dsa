@@ -18,7 +18,7 @@ import { Form, FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ComponentBase } from './components/component-base';
-import { ApiService } from './shared/api.service';
+import { GenerationService } from './shared/generation.service';
 
 @Component({
   templateUrl: './wizard.component.html',
@@ -33,7 +33,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
   form: FormGroup;
 
   constructor(private fb: FormBuilder,
-    private apiService: ApiService,
+    private generationService: GenerationService,
     dialog: MatDialog,
     snackBar: MatSnackBar) {
     super(dialog, snackBar);
@@ -49,7 +49,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generatePageFeed();
+      let res = await this.generationService.generatePageFeed();
       this.pagefeed_speadsheet = res.spreadsheet_id;
       this.pagefeed_name = res.feed_name;
     } catch (e) {
@@ -63,7 +63,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generateAdcustomizers();
+      let res = await this.generationService.generateAdcustomizers();
       this.adcustomizer_speadsheet = res.spreadsheet_id;
       this.adcustomizer_feed_name = res.feed_name;
     } catch (e) {
@@ -77,7 +77,7 @@ export class WizardComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.apiService.generateAdCampaign();
+      let res = await this.generationService.generateAdCampaign();
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

@@ -21,6 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableDataSource } from '@angular/material/table';
 import { ComponentBase } from './components/component-base';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
+import { ConfigService, Configuration } from './shared/config.service';
 import { ProductService } from './shared/product.service';
 
 @Component({
@@ -38,9 +39,12 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   columnsProducts = ['offer_id', 'title', 'brand', 'in_stock', 'pdsa_custom_labels'];
   @ViewChild('paginatorLabels') paginatorLabels: MatPaginator | undefined;
   @ViewChild('paginatorProducts') paginatorProducts: MatPaginator | undefined;
+  config: any;
+  //selectedTarget: string | undefined;
 
   constructor(private fb: FormBuilder,
     private productService: ProductService,
+    private configService: ConfigService,
     dialog: MatDialog,
     snackBar: MatSnackBar) {
     super(dialog, snackBar);
@@ -51,6 +55,15 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     }, { updateOn: 'blur' });
     this.dataSourceLabels = new MatTableDataSource<any>();
     this.dataSourceProducts = new MatTableDataSource<any>();
+    this.config = this.configService.getConfig()!.config;
+    // if (this.config.targets) {
+    //   if (this.config.targets.length >= 1) {
+    //     this.selectedTarget = this.config.targets[0].name;
+    //   }
+    // }
+    // if (!this.selectedTarget) {
+    //   // show some warning
+    // }
   }
 
   ngOnInit(): void {
@@ -73,7 +86,8 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      const data = await this.productService.loadLabels();
+      this.dataSourceLabels.data = [];
+      const data = await this.productService.loadLabels(this.configService.currentTarget!);
       this.showLabels(data);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);
@@ -83,7 +97,10 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   }
 
   showLabels(serverData: Record<string, any>[]) {
-    if (!serverData || !serverData.length) { return; }
+    if (!serverData || !serverData.length) {
+      this.showSnackbar("No data found");
+      return;
+    }
     this.dataSourceLabels.data = serverData;
     this.columnsLabels = Object.keys(serverData[0]);
   }
@@ -92,7 +109,8 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     try {
       this.errorMessage = null;
       this.loading = true;
-      const data = await this.productService.loadProducts();
+      this.dataSourceProducts.data = [];
+      const data = await this.productService.loadProducts(this.configService.currentTarget!);
       this.showProducts(data);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);
@@ -102,7 +120,10 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   }
 
   showProducts(serverData: Record<string, any>[]) {
-    if (!serverData || !serverData.length) { return; }
+    if (!serverData || !serverData.length) {
+      this.showSnackbar("No data found");
+      return;
+    }
     this.dataSourceProducts.data = serverData;
     //this.columnsProducts = Object.keys(serverData[0]);
   }

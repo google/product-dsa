@@ -14,8 +14,8 @@ export class ProductService {
     return this.labels;
   }
 
-  async loadLabels(): Promise<Record<string, any>[]> {
-    this.labels = await this.apiService.getLabels();
+  async loadLabels(target: string): Promise<Record<string, any>[]> {
+    this.labels = await this.apiService.getLabels(target);
     return this.labels;
   }
 
@@ -23,8 +23,8 @@ export class ProductService {
     return this.products;
   }
 
-  async loadProducts(): Promise<Record<string, any>[]> {
-    this.products = await this.apiService.getProducts();
+  async loadProducts(target: string): Promise<Record<string, any>[]> {
+    this.products = await this.apiService.getProducts(target);
     return this.products;
   }
 }

@@ -19,7 +19,9 @@
 import datetime
 import logging
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
+from urllib import parse
+from google.cloud.bigquery_datatransfer_v1.types.datatransfer import CheckValidCredsRequest
 
 import pytz
 from google.auth import credentials
@@ -33,7 +35,7 @@ logging.getLogger().setLevel(logging.INFO)
 _MERCHANT_CENTER_ID = 'merchant_center'  # Data source id for Merchant Center.
 _GOOGLE_ADS_ID = 'adwords'  # Data source id for Google Ads.
 _SLEEP_SECONDS = 5  # Seconds to sleep before checking resource status.
-_MAX_WAIT_SECONDS = 1200 # Maximum seconds to wait for an operation to complete (20 minutes)
+_MAX_WAIT_SECONDS = 1200  # Maximum seconds to wait for an operation to complete (20 minutes)
 
 
 class Error(Exception):
@@ -215,6 +217,13 @@ class CloudDataTransferUtils(object):
         f'Creating a new data transfer for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )
 
+    has_valid_credentials = self._check_valid_credentials(_MERCHANT_CENTER_ID)
+    authorization_code = None
+    if not has_valid_credentials:
+      logging.info(
+          f'Couldn\'t get a authorization for current credentials, acquiring a new one'
+      )
+      authorization_code = self._get_authorization_code(_MERCHANT_CENTER_ID)
     transfer_config_input = {
         'display_name': f'Merchant Center Transfer - {merchant_id}',
         'data_source_id': _MERCHANT_CENTER_ID,
@@ -229,7 +238,10 @@ class CloudDataTransferUtils(object):
     )
     # NOTE: DT will run on creation, we can't suppress running (if skip_dt_run=True)
     transfer_config = self.client.create_transfer_config(
-        parent=parent, transfer_config=transfer_config_input)
+        types.CreateTransferConfigRequest(
+            parent=parent,
+            transfer_config=transfer_config_input,
+            authorization_code=authorization_code))
     logging.info(
         f'Data transfer created for merchant id {merchant_id} to destination dataset {destination_dataset}'
     )
@@ -392,3 +404,54 @@ class CloudDataTransferUtils(object):
         error_message = f'Transfer {transfer_config_name} is taking too long to finish. Hence failing the request.'
         logging.error(error_message)
         raise DataTransferError(error_message)
+
+  def _check_valid_credentials(self, data_source_id: str) -> bool:
+    """Returns true if valid credentials exist for the given data source.
+
+    Args:
+      data_source_id: Data source id.
+    """
+    name = f'projects/{self.project_id}/dataSources/{data_source_id}'
+    response = self.client.check_valid_creds(CheckValidCredsRequest(name=name))
+    return response.has_valid_creds
+
+  def _get_authorization_code(self, data_source_id: str) -> str:
+    """Returns authorization code for a given data source.
+
+    Args:
+      data_source_id: Data source id.
+    """
+    name = f'projects/{self.project_id}/dataSources/{data_source_id}'
+    data_source = self.client.get_data_source(
+        types.GetDataSourceRequest(name=name))
+    client_id = data_source.client_id
+    scopes = data_source.scopes
+
+    if not data_source:
+      raise AssertionError('Invalid data source')
+    return self._retrieve_authorization_code(client_id, scopes, data_source_id)
+
+  def _retrieve_authorization_code(self, client_id: str, scopes: List[str],
+                                   app_name: str):
+    """Returns authorization code.
+
+    Args:
+      client_id: The client id.
+      scopes: The list of scopes.
+      app_name: Name of the app.
+    """
+    BASE_URL = 'https://www.gstatic.com/bigquerydatatransfer/oauthz/auth'
+    authorization_code_request = {
+        'client_id': client_id,
+        'scope': ' '.join(scopes),
+        'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob'
+    }
+    encoded_request = parse.urlencode(authorization_code_request,
+                                      quote_via=parse.quote)
+    url = f'{BASE_URL}?{encoded_request}'
+    logging.info(
+        f'Please click on the URL below to authorize {app_name} and paste the authorization code.'
+    )
+    logging.info('URL: ' + url)
+
+    return input('Authorization Code : ')

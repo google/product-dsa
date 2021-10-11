@@ -28,6 +28,8 @@ import google.protobuf.json_format
 from google.cloud import bigquery_datatransfer_v1
 from google.cloud.bigquery_datatransfer_v1 import types
 from google.protobuf import struct_pb2, timestamp_pb2
+from google.api_core import exceptions
+
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -61,6 +63,19 @@ class CloudDataTransferUtils(object):
     self.client = bigquery_datatransfer_v1.DataTransferServiceClient(
         credentials=credentials)
 
+  def _list_transfer_configs_with_retry(self, parent: str):
+    run = 1
+    MAX_TRY = 10
+    while True:
+      try:
+        return self.client.list_transfer_configs(parent=parent)
+      except exceptions.NotFound as e:
+        if run > MAX_TRY:
+          raise
+        run += 1
+        logging.warning(
+            f'list_transfer_configs failed with {str(e)}, repeating ({run})')
+
   def _get_existing_transfer(self,
                              data_source_id: str,
                              destination_dataset_id: str = None,
@@ -79,7 +94,8 @@ class CloudDataTransferUtils(object):
     """
     parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
     logging.info(f'Checking for existing BQ Data Transfer in {parent}')
-    for transfer_config in self.client.list_transfer_configs(parent=parent):
+    for transfer_config in self._list_transfer_configs_with_retry(
+        parent=parent):
       if transfer_config.data_source_id != data_source_id:
         continue
       if destination_dataset_id and transfer_config.destination_dataset_id != destination_dataset_id:

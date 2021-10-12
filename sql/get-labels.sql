@@ -29,9 +29,9 @@ WITH labels AS (
   WHERE
     LENGTH(IFNULL(link,'')) > 0  AND
     LENGTH(IFNULL(pdsa_custom_labels,'')) > 0
-    {SEARCH_CONDITIONS}
 )
-SELECT lab as label, count(1) as count
+SELECT trim(lab) as label, count(1) as count
 FROM labels
 CROSS JOIN UNNEST(labels.label) AS lab
+{WHERE_CLAUSE}
 GROUP BY 1

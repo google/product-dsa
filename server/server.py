@@ -149,7 +149,7 @@ def get_labels():
   credentials, project = google.auth.default(scopes=_SCOPES)
   config = _get_config()
   context = {'xcom': {}, 'gcp_credentials': credentials}
-  macros = {'SEARCH_CONDITIONS': "AND 1=1"}
+  macros = {'WHERE_CLAUSE': ""}
   labels = execute_sql_query('get-labels.sql', config, context, macros)
   result = []
   for row in labels:

@@ -64,7 +64,7 @@ def validate_config(config: config_utils.Config, context):
         'error': 'No DSA website found in configuration'
     })
 
-  macros = {'SEARCH_CONDITIONS': "AND pdsa_custom_labels NOT LIKE 'product_%'"}
+  macros = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
   category_labels = execute_sql_query('get-labels.sql', config,
                                       context, macros)
   if category_labels.total_rows:

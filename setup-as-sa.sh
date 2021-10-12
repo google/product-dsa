@@ -38,4 +38,4 @@ curl -X GET -H "Content-Type: application/json" \
 # and after that we can grant DTS SA the needed permissions
 gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT --member="serviceAccount:service-$PROJECT_NUMBER@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com" --role='roles/iam.serviceAccountTokenCreator'
 
-./setup.sh --service-account-key-file service_account.json --user-email $USER_EMAIL
+./setup.sh --service-account-key-file service_account.json --user-email $USER_EMAIL "$@"

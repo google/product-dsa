@@ -23,11 +23,6 @@ SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 
 gcloud iam service-accounts keys create service_account.json --iam-account=$SERVICE_ACCOUNT
 
-# Grant GAE service account with the BigQuery Admin role so it could create data transfers
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
-# Grant GAE service account with the Pub/Sub Admin role so it could create a DT with Pub/Sub notifications
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/pubsub.admin
-
 # Grant BigQuery DTS service permissions (iam.serviceAccountTokenCreator) on the GAE service account
 # But DTS SA doesn't exit right after the API enabled, so we have to call any DT method to trigger its creation
 TOKEN=$(gcloud auth print-access-token)
@@ -38,4 +33,9 @@ curl -X GET -H "Content-Type: application/json" \
 # and after that we can grant DTS SA the needed permissions
 gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT --member="serviceAccount:service-$PROJECT_NUMBER@gcp-sa-bigquerydatatransfer.iam.gserviceaccount.com" --role='roles/iam.serviceAccountTokenCreator'
 
-./setup.sh --service-account-key-file service_account.json --user-email $USER_EMAIL
+# Grant GAE service account with the BigQuery Admin role so it could create data transfers
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin
+# Grant GAE service account with the Pub/Sub Admin role so it could create a DT with Pub/Sub notifications
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/pubsub.admin
+
+./setup.sh --service-account-key-file service_account.json --user-email $USER_EMAIL "$@"

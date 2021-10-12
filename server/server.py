@@ -189,7 +189,7 @@ def get_labels():
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
-  labels = execute_sql_query('get-labels.sql', context, {"SEARCH_CONDITIONS": ""})
+  labels = execute_sql_query('get-labels.sql', context, {"WHERE_CLAUSE": ""})
   result = []
   for row in labels:
     obj = {}
@@ -280,7 +280,7 @@ def validate_env():
     try:
       context.target = target
       labels = execute_sql_query('get-labels.sql', context,
-                                 {"SEARCH_CONDITIONS": ""})
+                                 {"WHERE_CLAUSE": ""})
     except Exception as e:
       return return_api_config_error(
           ConfigError(ConfigErrorReason.NOT_INITIALIZED,

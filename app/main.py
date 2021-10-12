@@ -41,7 +41,7 @@ def validate_config(context: Context):
   def _validate_target(target: config_utils.ConfigTarget, errors: List):
     errors.extend(target.validate(generation=True))
     context.target = target
-    params = {"SEARCH_CONDITIONS": "pdsa_custom_labels NOT LIKE 'product_%'"}
+    params = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
     category_labels = execute_sql_query('get-labels.sql', context, params)
     if category_labels.total_rows:
       missing_category_desc = False

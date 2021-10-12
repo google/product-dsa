@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The script creates AppEngine application, builds the project and deploy it as AppEngine default service 
+# The script creates AppEngine application, builds the project and deploy it as AppEngine default service
 # To run this script you should have either Owner role in the current project or these specific roles:
-# * "App Engine Admin" (appengine.appAdmin) 
+# * "App Engine Admin" (appengine.appAdmin)
 # * "App Engine Creator" (appengine.appCreator)
 # * "IAP Policy Admin" (iap.admin)
 
@@ -47,6 +47,7 @@ echo -e "${COLOR}Enabling APIs...${NC}"
 gcloud services enable appengine.googleapis.com
 gcloud services enable iap.googleapis.com
 gcloud services enable cloudresourcemanager.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
 
 echo -e "${COLOR}Creating App Engine...${NC}"
 
@@ -94,7 +95,7 @@ curl -X PATCH -H "Content-Type: application/json" \
 # Grant access to the current user
 echo -e "${COLOR}Granting user $USER_EMAIL access to the app through IAP...${NC}"
 gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$USER_EMAIL" --role='roles/iap.httpsResourceAccessor'
-# try to grant access permissions to the whole user domain (if it's not gmail), 
+# try to grant access permissions to the whole user domain (if it's not gmail),
 # we can't be sure the domain is a Workspace domain so it'll likely fail (that's OK)
 USER_DOMAIN=$(echo $USER_EMAIL | sed 's/^.*@\(.*\)/\1/')
 if [ "$USER_DOMAIN" != "gmail.com" ]; then

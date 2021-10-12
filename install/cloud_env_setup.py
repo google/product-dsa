@@ -243,7 +243,7 @@ def add_args(parser: argparse.ArgumentParser):
   parser.add_argument('--user-email',
                       dest='user_email',
                       help='User email to share created spreadsheets with')
-
+  parser.add_argument('--skip-spreadsheets',dest='skip_spreadsheets')
 
 def main():
   args = config_utils.parse_arguments(only_known=False, func=add_args)
@@ -297,7 +297,10 @@ def main():
   execute_queries(bigquery_client, config)
 
   # creating spreadsheets for page feed data and adcustomizers
-  created = create_spreadsheets(config, credentials, args.user_email)
+  if args.skip_spreadsheets:
+    created = False
+  else:
+    created = create_spreadsheets(config, credentials, args.user_email)
 
   config_file_name = args.config or 'config.yaml'
   if created:

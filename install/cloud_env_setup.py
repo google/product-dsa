@@ -243,13 +243,19 @@ def add_args(parser: argparse.ArgumentParser):
   parser.add_argument('--user-email',
                       dest='user_email',
                       help='User email to share created spreadsheets with')
-  parser.add_argument('--skip-spreadsheets',dest='skip_spreadsheets')
+  parser.add_argument('--skip-spreadsheets',
+                      dest='skip_spreadsheets',
+                      action='store_true')
+  parser.add_argument('--create-spreadsheets',
+                      dest='create_spreadsheets',
+                      action='store_true')
+
 
 def main():
   args = config_utils.parse_arguments(only_known=False, func=add_args)
+  pprint(args)
   config = config_utils.get_config(args)
   pprint(vars(config))
-
   credentials = auth.get_credentials(args)
 
   if args.service_account_file and getattr(credentials, "project_id",
@@ -270,6 +276,10 @@ def main():
       'iap.googleapis.com'
   ], config, credentials)
   logging.info('apis have been enabled')
+
+  if args.create_spreadsheets:
+    create_spreadsheets(config, credentials, args.user_email)
+    return
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_client = bigquery_utils.CloudBigQueryUtils(config.project_id,

@@ -68,7 +68,7 @@ export class ApiService {
     return await this.backendService.getApi<any>('/config')
   }
 
-  async updateConfig(config: any): Promise<void> {
-    await this.backendService.postApi('/config', config, { emptyResponse: true});
+  async updateConfig(config: any): Promise<any> {
+    return await this.backendService.postApi('/config', config /*, { emptyResponse: true}*/);
   }
 }

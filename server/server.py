@@ -343,12 +343,14 @@ def get_config():
                     ContextOptions(OUTPUT_FOLDER, 'images'))
 
   # ok, config exists, check its validity
-  try:
-    response = validate_config(context)
-    errors = response['errors']
-  except:
-    # if app wasn't initialized then validate_config will fails (it loads labels from BQ)
-    errors = context.config.validate(generation=True, validate_targets=True)
+  errors = context.config.validate(generation=True, validate_targets=True)
+  # TODO: not sure how deep the validation should be (validate_config vs config.validate)
+  # try:
+  #   response = validate_config(context)
+  #   errors = response['errors']
+  # except:
+  #   # if app wasn't initialized then validate_config will fails (it loads labels from BQ)
+  #   errors = context.config.validate(generation=True, validate_targets=True)
 
   # TODO commit_link = 'https://github.com/google/product-dsa/commit/' + os.environ.get('GIT_COMMIT')
   commit = os.getenv('GIT_COMMIT') or ''
@@ -364,9 +366,9 @@ def get_config():
 @app.route("/api/config", methods=["POST"])
 def post_config():
   new_config = request.get_json(cache=False)
+  content = json.dumps(new_config, indent=2)
   # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
   if config_file_name and config_file_name.startswith("gs://"):
-    content = json.dumps(new_config)
     file_utils.save_file_to_gcs(config_file_name, content)
     # and update the local cache in /tmp
     if (args.config == config_file_name):
@@ -374,15 +376,17 @@ def post_config():
       copy_config_to_cache(config_file_name)
     else:
       file_utils.save_file_content(args.config, content)
-    return 'Config updated', 200
   elif not IS_GAE:
     # local file and local server, just save it
-    content = json.dumps(new_config)
     file_utils.save_file_content(config_file_name, content)
   else:
     msg = f'Updating config is not possible because it is not stored on GCS'
     logging.warning(msg)
     return msg, 400
+
+  config = _get_config()
+  errors = config.validate(generation=True, validate_targets=True)
+  return jsonify(errors=errors)
 
 
 @app.route('/', defaults={'path': ''})

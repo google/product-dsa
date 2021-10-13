@@ -21,7 +21,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableDataSource } from '@angular/material/table';
 import { ComponentBase } from './components/component-base';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
-import { ConfigService, Configuration } from './shared/config.service';
+import { ConfigService, GetConfigResponse } from './shared/config.service';
 import { ProductService } from './shared/product.service';
 
 @Component({

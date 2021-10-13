@@ -13,3 +13,5 @@ output/
 frontend/
 app.yaml.original
 .oauth
+tests/
+coverage/

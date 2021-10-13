@@ -51,8 +51,10 @@
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>GMC account id</mat-label>
-        <input matInput formControlName="merchant_id" [readonly]="editable ? false : true">
-        <mat-hint>The root GMC account (merchant id) to create data transfer for. Can be a child account as well.</mat-hint>
+        <input matInput formControlName="merchant_id" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+        <mat-hint>The root GMC account (merchant id) to create data transfer for. Can be a child account as well.
+        </mat-hint>
+        <mat-error>{{ form.get('merchant_id')?.getError('invalid') }} </mat-error>
       </mat-form-field>
     </div>
   </div>
@@ -60,8 +62,9 @@
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>BigQuery dataset id</mat-label>
-        <input matInput formControlName="dataset_id" [readonly]="editable ? false : true">
+        <input matInput formControlName="dataset_id" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
         <mat-hint>Dataset id in BigQuery for GMC-BQ data transfer</mat-hint>
+        <mat-error> {{ form.get('dataset_id')?.getError('invalid') }} </mat-error>
       </mat-form-field>
     </div>
   </div>
@@ -69,8 +72,9 @@
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>BigQuery dataset location</mat-label>
-        <input matInput formControlName="dataset_location" [readonly]="editable ? false : true">
+        <input matInput formControlName="dataset_location" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
         <mat-hint>Location region for dataset in BigQuery (e.g. 'us' or 'europe'). Can be empty.</mat-hint>
+        <mat-error>{{ form.get('dataset_location')?.getError('invalid') }} </mat-error>
       </mat-form-field>
     </div>
   </div>
@@ -78,78 +82,164 @@
     <div class="col-10">
       <mat-form-field appearance="outline" color="accent" class="full-width">
         <mat-label>DT schedule</mat-label>
-        <input matInput formControlName="dt_schedule" [readonly]="editable ? false : true">
-        <mat-hint>Schedule for executing data transfer. By default - daily. Can be empty. E.g. "every 6 hours"</mat-hint>
+        <input matInput formControlName="dt_schedule" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+        <mat-hint>Schedule for executing data transfer. By default - daily. Can be empty. E.g. "every 6 hours"
+        </mat-hint>
+        <mat-error>{{ form.get('dt_schedule')?.getError('invalid') }} </mat-error>
       </mat-form-field>
     </div>
   </div>
   <!-- Targets -->
+  <span formArrayName="targets" *ngFor="let target of targets.controls; let i=index">
+    <mat-card [formGroupName]="i" class="my-2">
+      <div class="row">
+        <div class="col-10">
+          <h4>Target</h4>
+        </div>
+      </div>
+      <!-- name -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Target name</mat-label>
+            <input matInput formControlName="name" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>A unique target name. Please use only A-Za-z0-9_- symbols</mat-hint>
+              <mat-error *ngIf="target.get('name')?.errors?.required">
+                Target name is required
+              </mat-error>
+              <mat-error>{{ target.get('name')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- merchant_id -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>GMC account id</mat-label>
+            <input matInput formControlName="merchant_id" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>A child GMC account or a list of children accounts to narrow products from the root account.</mat-hint>
+            <mat-error>{{ target.get('merchant_id')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- page_feed_name -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Page feed name</mat-label>
+            <input matInput formControlName="page_feed_name" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Name of page feed in Google Ads</mat-hint>
+            <mat-error>{{ target.get('page_feed_name')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- page_feed_spreadsheetid -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Page feed spreadsheet id</mat-label>
+            <input matInput formControlName="page_feed_spreadsheetid" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Google Spreadsheet docid for DSA page feed</mat-hint>
+            <mat-error>{{ target.get('page_feed_spreadsheetid')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- adcustomizer_feed_name -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Ad customizers feed name</mat-label>
+            <input matInput formControlName="adcustomizer_feed_name" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Name of ad customizers feed in Google Ads</mat-hint>
+            <mat-error>{{ target.get('adcustomizer_feed_name')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- adcustomizer_spreadsheetid -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Ad customizers feed spreadsheet id</mat-label>
+            <input matInput formControlName="adcustomizer_spreadsheetid" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Google Spreadsheet docid for Ad customizers feed</mat-hint>
+            <mat-error>{{ target.get('adcustomizer_spreadsheetid')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- dsa_lang -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>DSA language</mat-label>
+            <input matInput formControlName="dsa_lang" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint></mat-hint>
+            <mat-error>{{ target.get('dsa_lang')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- dsa_website -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>DSA website</mat-label>
+            <input matInput formControlName="dsa_website" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Website address without protocol prefix</mat-hint>
+            <mat-error>{{ target.get('dsa_website')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- category_campaign_name -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Category campaign name</mat-label>
+            <input matInput formControlName="category_campaign_name" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint></mat-hint>
+            <mat-error>{{ target.get('category_campaign_name')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- product_campaign_name -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Product campaign name</mat-label>
+            <input matInput formControlName="product_campaign_name" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint></mat-hint>
+            <mat-error>{{ target.get('product_campaign_name')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!-- ad_description_template -->
+      <div class="row">
+        <div class="col-10">
+          <mat-form-field appearance="outline" color="accent" class="full-width">
+            <mat-label>Ad description template</mat-label>
+            <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true" [errorStateMatcher]="matcher">
+            <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
+            <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+      <!--
+      -->
+      <mat-card-actions>
+        <button mat-button (click)="deleteTarget(i)" color="accent" *ngIf="editable">
+          <mat-icon>delete</mat-icon> Delete Target
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </span>
   <div class="row">
     <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>Page feed name</mat-label>
-        <input matInput formControlName="page_feed_name" [readonly]="editable ? false : true">
-        <mat-hint>Name of page feed in Google Ads</mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>Page feed spreadsheet id</mat-label>
-        <input matInput formControlName="page_feed_spreadsheetid" [readonly]="editable ? false : true">
-        <mat-hint>Google Spreadsheet docid for DSA page feed</mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>Ad customizers feed name</mat-label>
-        <input matInput formControlName="adcustomizer_feed_name" [readonly]="editable ? false : true">
-        <mat-hint>Name of ad customizers feed in Google Ads</mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>Ad customizers feed spreadsheet id</mat-label>
-        <input matInput formControlName="adcustomizer_spreadsheetid" [readonly]="editable ? false : true">
-        <mat-hint>Google Spreadsheet docid for Ad customizers feed</mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>DSA language</mat-label>
-        <input matInput formControlName="dsa_lang" [readonly]="editable ? false : true">
-        <mat-hint></mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>DSA website</mat-label>
-        <input matInput formControlName="dsa_website" [readonly]="editable ? false : true">
-        <mat-hint>Website address without protocol prefix</mat-hint>
-      </mat-form-field>
-    </div>
-  </div>
-  <div class="row">
-    <div class="col-10">
-      <mat-form-field appearance="outline" color="accent" class="full-width">
-        <mat-label>Ad description template</mat-label>
-        <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true">
-        <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
-      </mat-form-field>
+      <button mat-button (click)="addTarget()" color="accent" *ngIf="editable">
+        <mat-icon>add</mat-icon> Add Target
+      </button>
     </div>
   </div>
   <div class="row my-4">
     <div class="col">
-      <button mat-raised-button (click)="reload()" color="accent" class="mx-3 mat-elevation-z2">
+      <button mat-raised-button (click)="reload()" color="accent" class="mx-3 mat-elevation-z2" [disabled]="editable">
         <mat-icon>refresh</mat-icon> Reload
       </button>
       <button mat-raised-button (click)="editable=true" class="mx-3 mat-elevation-z2" *ngIf="!editable">

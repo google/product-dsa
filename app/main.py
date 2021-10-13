@@ -99,7 +99,7 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
     logging.info(f'Generated page feed in {csv_file_name} file')
 
   sheets_client = sheets_utils.GoogleSpreadsheetUtils(context.credentials)
-  sheets_client.update_values(context.target.page_feed_spreadsheetid, "Main!A1:Z",
+  sheets_client.update_values(context.target.page_feed_spreadsheetid, "A1:Z",
                               [['Page URL', 'Custom label']] + values)
   url = f'https://docs.google.com/spreadsheets/d/{context.target.page_feed_spreadsheetid}'
   logging.info('Generated page feed in Google Spreadsheet ' + url)

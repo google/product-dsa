@@ -24,7 +24,7 @@ from flask.json import JSONEncoder
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from common import config_utils, file_utils, bigquery_utils
+from common import config_utils, file_utils, bigquery_utils, sheets_utils
 from common.config_utils import ConfigError, ConfigErrorReason
 from install import cloud_data_transfer
 from common.auth import _SCOPES
@@ -213,6 +213,21 @@ def get_products():
       obj[col] = val
     result.append(obj)
   return jsonify(result)
+
+
+@app.route("/api/feeds/pagefeed", methods=["GET"])
+def load_pagefeed_spreadsheet():
+  target_name = request.args.get('target')
+  if not target_name:
+    return jsonify({"error": "Required 'target' parameter is missing"}), 400
+  context = create_context(target_name)
+  sheets_client = sheets_utils.GoogleSpreadsheetUtils(context.credentials)
+  data = sheets_client.get_values(context.target.page_feed_spreadsheetid, "A1:Z")
+  return jsonify(
+      data=data['values'] if 'values' in data else [],
+      spreadsheet=
+      f'https://docs.google.com/spreadsheets/d/{context.target.page_feed_spreadsheetid}'
+  )
 
 
 @app.route("/api/download", methods=["GET"])

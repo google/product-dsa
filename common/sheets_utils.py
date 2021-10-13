@@ -50,3 +50,11 @@ class GoogleSpreadsheetUtils(object):
             "majorDimension": "ROWS",
             "values": values
         }).execute()
+
+  def get_values(self, docid: str, range):
+    result = self.sheetsAPI.spreadsheets().values().get(
+        spreadsheetId=docid,
+        range=range,
+        majorDimension="ROWS"
+        ).execute()
+    return result

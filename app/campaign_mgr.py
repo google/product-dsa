@@ -380,7 +380,7 @@ class CampaignMgr:
     # generate spreadsheet (for updating)
     sheets_client = sheets_utils.GoogleSpreadsheetUtils(self._credentials)
     sheets_client.update_values(self._config.adcustomizer_spreadsheetid,
-                                "Main!A1:AZ", values)
+                                "A1:AZ", values)
     url = f'https://docs.google.com/spreadsheets/d/{self._config.adcustomizer_spreadsheetid}'
     logging.info('Generated adcustomizers feed in Google Spreadsheet ' + url)
 

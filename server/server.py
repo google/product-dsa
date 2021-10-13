@@ -23,7 +23,7 @@ from flask.json import JSONEncoder
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
-from common import config_utils, file_utils
+from common import config_utils, file_utils, sheets_utils
 from common.auth import _SCOPES
 from app.main import create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
 
@@ -174,6 +174,20 @@ def get_products():
       obj[col] = val
     result.append(obj)
   return jsonify(result)
+
+
+@app.route("/api/feeds/pagefeed", methods=["GET"])
+def load_pagefeed_spreadsheet():
+  # for API (in contrast to main) we support only ADC auth
+  credentials, project = google.auth.default(scopes=_SCOPES)
+  config = _get_config()
+  context = {'xcom': {}, 'gcp_credentials': credentials}
+  sheets_client = sheets_utils.GoogleSpreadsheetUtils(credentials)
+  data = sheets_client.get_values(config.page_feed_spreadsheetid, "A1:Z")
+  return jsonify(
+      data=data['values'] if 'values' in data else [],
+      spreadsheet=
+      f'https://docs.google.com/spreadsheets/d/{config.page_feed_spreadsheetid}')
 
 
 @app.route("/api/download", methods=["GET"])

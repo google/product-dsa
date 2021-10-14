@@ -20,7 +20,7 @@
   </div>
   <div *ngFor="let field of fields" class="row">
     <div class="col-4 pb-3">{{field}}</div>
-    <div class="col-8 pb-3 pl-5">{{data.row[field]}}</div>
+    <div class="col-8 pb-3 pl-5">{{data.row[field] | app_json}}</div>
   </div>
 </div>
 <div mat-dialog-actions class="mt-15" style="text-align: center;">

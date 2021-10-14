@@ -92,3 +92,16 @@ def test_save_config(tmpdir):
   assert config.dataset_location == config_new.dataset_location
   assert config.dt_schedule == config_new.dt_schedule
   assert config.pubsub_topic_dt_finish == config_new.pubsub_topic_dt_finish
+
+
+def test_validate_target_name():
+  target = config_utils.ConfigTarget()
+  assert target.validate()[0]['field'] == 'name'
+  target.name = " "
+  assert target.validate()[0]['field'] == 'name'
+  target.name = " abc "
+  assert target.validate()[0]['field'] == 'name'
+  target.name = "#name"
+  assert target.validate()[0]['field'] == 'name'
+  target.name = "ABC-abc_01234567890"
+  assert len(target.validate()) == 0

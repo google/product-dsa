@@ -17,7 +17,7 @@ from common import auth, file_utils
 import os
 import json
 from enum import Enum
-
+import re
 
 class ConfigItemBase(object):
 
@@ -77,10 +77,10 @@ class ConfigTarget(ConfigItemBase):
 
   def validate(self, generation = False) -> List:
     errors = []
-    if not self.name or self.name.find(" ") > 0:
+    if not self.name or re.match('[^A-Za-z0-9_\-]', self.name):
       errors.append({
         'field': 'name',
-        'error': 'Target name should not contain spaces (only symbols A-Za-z,0-1,_,-)'
+        'error': 'Target name should not contain spaces (only symbols A-Za-z,0-9,_,-)'
       })
     if generation:
       if not self.page_feed_spreadsheetid:
@@ -187,18 +187,18 @@ class Config(ConfigItemBase):
     return values
 
 
-class ConfigErrorReason(Enum):
+class ApplicationErrorReason(Enum):
   INVALID_DEPLOYMENT = "invalid_deployment"
   NOT_INITIALIZED = "not_initialized"
   INVALID_CLOUD_SETUP = "invalid_cloud_setup"
   """Cloud component(s) either was not created or in failed state"""
   INVALID_CONFIG = "invalid_config"
   """Missing or incorrect values in configuraiton file"""
+  INVALID_DATA = "invalid_data"
 
+class ApplicationError:
 
-class ConfigError:
-
-  def __init__(self, reason: ConfigErrorReason, description: str):
+  def __init__(self, reason: ApplicationErrorReason, description: str):
     self.reason = reason
     self.description = description
 

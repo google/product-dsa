@@ -65,7 +65,11 @@ def validate_config(context: Context):
       _validate_target(target, errors)
 
   if errors:
-    return {'valid': False, 'errors': errors}
+    message = ''
+    for err in errors:
+      message += (err['field'] + ': ' + err['error'] + '\n')
+    return {'valid': False, 'errors': errors, 'message': message}
+
   return {'valid': True, 'errors': []}
 
 
@@ -114,12 +118,9 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
     Args:
       generate_csv: generate CSV (True) or only update Spreadsheet (False)
     Returns:
-      generated CSV file path relative to context.output_folder
+      generated CSV file path
   """
   products = execute_sql_query('get-products.sql', context)
-  if products.total_rows == 0:
-    logging.info('Skipping ad-customizer updating as there\'s no products')
-    return
   mgr = campaign_mgr.CampaignMgr(context, products)
   return mgr.generate_adcustomizers(generate_csv)
 
@@ -151,10 +152,7 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
 
   validation = validate_config(context)
   if not validation['valid']:
-    message = ''
-    for err in validation['errors']:
-      message += (err['field'] + ': ' + err['error'] + '\n')
-    print(message + 'Exiting')
+    print(validation['message'] + 'Exiting')
     exit()
 
   context.ensure_folders()

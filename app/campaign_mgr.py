@@ -250,7 +250,7 @@ class AdCustomizerGenerator:
         'data_date', 'latest_date', 'product_id', 'merchant_id', 'offer_id',
         'link', 'image_link', 'additional_image_links',
         'google_product_category_path', 'product_type', 'unique_product_id',
-        'custom_labels', 'pdsa_custom_labels'
+        'pdsa_custom_labels'
     ]
     # initialize columns:
     # ignoring repeated fields(array) and expanding records, also ignoring unsupported types

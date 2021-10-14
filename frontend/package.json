@@ -22,6 +22,7 @@
     "@angular/router": "~12.2.8",
     "bootstrap": "^5.1.2",
     "file-saver": "^2.0.5",
+    "lodash-es": "^4.17.21",
     "rxjs": "~7.3.1",
     "tslib": "^2.3.1",
     "zone.js": "~0.11.4"
@@ -32,6 +33,7 @@
     "@angular/compiler-cli": "~12.2.8",
     "@types/file-saver": "^2.0.3",
     "@types/jasmine": "~3.9.1",
+    "@types/lodash-es": "^4.17.5",
     "@types/node": "^16.10.3",
     "jasmine-core": "~3.9.0",
     "karma": "~6.3.4",

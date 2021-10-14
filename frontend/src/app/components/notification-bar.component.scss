@@ -1,0 +1,11 @@
+.notification-bar {
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  position: relative;
+  //background-color: orange;
+  //color: white;
+}
+.notification-bar > .btn-close {
+  padding: 0.5rem 1rem;
+}

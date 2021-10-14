@@ -192,4 +192,15 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       this.editable = false;
     }, 'An error occured during updating configuration:', /*showAlert*/true);
   }
+
+  async shareSpreadsheets() {
+    let dialogRef = this.confirm("Do you want to share all spreadsheets with the current user?");
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.executeOp(async () => {
+          this.configService.apiService.shareSpreadsheets();
+        }, '', true);
+      }
+    });
+  }
 }

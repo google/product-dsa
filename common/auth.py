@@ -24,7 +24,9 @@ _SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigquery.readonly',
     'https://www.googleapis.com/auth/spreadsheets',
-    'https://www.googleapis.com/auth/drive.file'
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.metadata'
 ]
 
 

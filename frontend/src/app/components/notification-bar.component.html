@@ -1,0 +1,4 @@
+<div *ngIf="message" class="notification-bar alert-danger alert-dismissible">
+  <div [innerHTML]="message"></div>
+  <button type="button" class="btn-close" aria-label="Close" (click)="closeErrorMessage()"></button>
+</div>

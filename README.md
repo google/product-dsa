@@ -133,11 +133,11 @@ After that you either pass the client secrets directly via `--client-secrets-fil
 
 to run from a local machine:
 ```shell
-./setup.sh --client-secrets-file client_secret.json
+./setup.sh --client-secrets-file client_secrets.json
 ```
 to run from Cloud Shell (or via ssh):
 ```shell
-./setup.sh --client-secrets-file client_secret.json --non-interactive
+./setup.sh --client-secrets-file client_secrets.json --non-interactive
 ```
 to set up ADC:
 ```shell

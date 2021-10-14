@@ -35,6 +35,8 @@ import { ConfigComponent } from './config.component';
 import { CommonModule } from '@angular/common';
 import { ConfirmationDialogComponent } from './components/confirmation-dialog.component';
 import { DefaultRouteGuard } from './shared/default-route.guard';
+import { NotificationBarComponent } from './components/notification-bar.component';
+import { JsonPipe } from './components/json.pipe';
 
 @NgModule({
   declarations: [
@@ -48,6 +50,8 @@ import { DefaultRouteGuard } from './shared/default-route.guard';
     ProductsComponent,
     WizardComponent,
     ConfigComponent,
+    NotificationBarComponent,
+    JsonPipe
   ],
   imports: [
     BrowserModule,

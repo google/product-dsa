@@ -71,4 +71,8 @@ export class ApiService {
   async updateConfig(config: any): Promise<any> {
     return await this.backendService.postApi('/config', config /*, { emptyResponse: true}*/);
   }
+
+  async shareSpreadsheets(): Promise<any> {
+    await this.backendService.postApi('/feeds/share', null, {emptyResponse: true});
+  }
 }

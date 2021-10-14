@@ -16,7 +16,7 @@
 # python3
 """Module for managing BigQuery data transfers."""
 
-from common.config_utils import ConfigError, ConfigErrorReason
+from common.config_utils import ApplicationError, ApplicationErrorReason
 import datetime
 import logging
 import time
@@ -178,7 +178,7 @@ class CloudDataTransferUtils(object):
     return new_transfer_config
 
   def check_merchant_center_transfer(self, merchant_id: int,
-                                     destination_dataset: str) -> ConfigError:
+                                     destination_dataset: str) -> ApplicationError:
     parameters = self._create_transfer_params(merchant_id)
     parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
     transfer_config_: types.TransferConfig

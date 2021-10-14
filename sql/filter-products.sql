@@ -31,7 +31,7 @@ LANGUAGE js
 AS r"""
   function getLabelValue(label, offer_id) {{
     if (!label) return null;
-    if (label.toUpperCase().indexOf('PDSA_PRODUCT') === 0 || label.toUpperCase().indexOf('PDA_PRODUCT') === 0) {{
+    if (label.toUpperCase().indexOf('PDSA_PRODUCT') === 0) {{
       return 'product_' + offer_id;
     }}
     let prefix = 'PDSA_CATEGORY_';
@@ -116,13 +116,6 @@ AS (
       OR custom_labels.label_2 like 'PDSA_%'
       OR custom_labels.label_3 like 'PDSA_%'
       OR custom_labels.label_4 like 'PDSA_%'
-      OR
-      -- TEMP fix
-         custom_labels.label_0 like 'PDA_%'
-      OR custom_labels.label_1 like 'PDA_%'
-      OR custom_labels.label_2 like 'PDA_%'
-      OR custom_labels.label_3 like 'PDA_%'
-      OR custom_labels.label_4 like 'PDA_%'
     )
     {SEARCH_CONDITIONS}
 );

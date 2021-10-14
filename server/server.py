@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from google import oauth2
 from app.context import ContextOptions
 import json
 import os
@@ -24,9 +25,10 @@ from flask.json import JSONEncoder
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
+from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
 from common import config_utils, file_utils, bigquery_utils, sheets_utils
-from common.config_utils import ConfigError, ConfigErrorReason
-from install import cloud_data_transfer
+from common.config_utils import ApplicationError, ApplicationErrorReason
+from install import cloud_data_transfer, cloud_env_setup
 from common.auth import _SCOPES
 from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
 
@@ -42,8 +44,6 @@ IS_GAE = os.getenv('GAE_APPLICATION')
 OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
     os.path.join(app.root_path, './../output'))
 
-
-
 class JsonEncoder(JSONEncoder):
 
   def default(self, obj):
@@ -58,6 +58,7 @@ args = config_utils.parse_arguments(only_known=True)
 config_file_name = config_utils.get_config_url(args)
 args.config = config_file_name
 config_on_gcs = config_file_name and config_file_name.startswith("gs://")
+expected_audience = ''
 
 
 def copy_config_to_cache(config_file_name: str):
@@ -92,6 +93,36 @@ def _verify_token(config: config_utils.Config):
       'email'] != f'{config.project_id}@appspot.gserviceaccount.com' or not claim[
           'email_verified']:
     raise Exception('Access denied')
+  return claim
+
+
+def _validate_iap_jwt() -> str:
+  """Validate an IAP JWT.
+
+    Args:
+      iap_jwt: The contents of the X-Goog-IAP-JWT-Assertion header.
+      expected_audience: The Signed Header JWT audience. See
+          https://cloud.google.com/iap/docs/signed-headers-howto
+          for details on how to get this value.
+
+    Returns:
+      user_email
+    """
+  iap_jwt = request.headers.get('X-Goog-IAP-JWT-Assertion')
+  if not iap_jwt:
+    raise Exception("No IAP header found. Probably you're running server out of Google Cloud or disable IAP for GAE")
+
+  try:
+    decoded_jwt = id_token.verify_token(
+        iap_jwt,
+        requests.Request(),
+        audience=expected_audience,
+        certs_url='https://www.gstatic.com/iap/verify/public_key')
+    logging.info(f'Validated IAP user {decoded_jwt["email"]}')
+    return decoded_jwt['email']
+    #(decoded_jwt['sub'], decoded_jwt['email'], '')
+  except Exception as e:
+    raise Exception(f'JWT validation error: {e}') from e
 
 
 @app.route("/api/update", methods=["POST", "GET"])
@@ -106,11 +137,21 @@ def update_feeds():
 
   # for API (in contrast to main) we support only ADC auth
   credentials, project = google.auth.default(scopes=_SCOPES)
+  context = Context(config, None, credentials,
+                    ContextOptions(OUTPUT_FOLDER, 'images'))
+  validation = validate_config(context)
+  if not validation['valid']:
+    error = ApplicationError(
+        reason=ApplicationErrorReason.INVALID_CONFIG,
+        description=
+        f"There errors in configuration: {validation['message']}"
+    )
+    return return_api_config_error(error)
 
-  # TODO: validate config/target
   for target in config.targets:
-    context = Context(config, target, credentials,
-                      ContextOptions(OUTPUT_FOLDER, 'images'))
+    # NOTE: context.output_folder will be left not initialized (not joined with target),
+    # but it's OK as we aren't generating any files here
+    context.target = target
     # Update page feed spreadsheet
     create_or_update_page_feed(False, context)
 
@@ -137,6 +178,15 @@ def pagefeed_generate():
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
+  validation = validate_config(context)
+  if not validation['valid']:
+    error = ApplicationError(
+        reason=ApplicationErrorReason.INVALID_CONFIG,
+        description=
+        f"There errors in configuration for the selected target {target_name}: {validation['message']}"
+    )
+    return return_api_config_error(error)
+
   output_file = create_or_update_page_feed(True, context)
   output_file = os.path.relpath(output_file, OUTPUT_FOLDER)
   return jsonify({
@@ -148,11 +198,18 @@ def pagefeed_generate():
 
 @app.route("/api/adcustomizers/generate", methods=["GET"])
 def adcustomizers_generate():
-  # for API (in contrast to main) we support only ADC auth
   target_name = request.args.get('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
+  validation = validate_config(context)
+  if not validation['valid']:
+    error = ApplicationError(
+        reason=ApplicationErrorReason.INVALID_CONFIG,
+        description=
+        f"There errors in configuration for the selected target {target_name}: {validation['message']}"
+    )
+    return return_api_config_error(error)
   output_file = create_or_update_adcustomizers(True, context)
   output_file = os.path.relpath(output_file, OUTPUT_FOLDER)
   return jsonify({
@@ -168,6 +225,15 @@ def campaign_generate():
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
+  validation = validate_config(context)
+  if not validation['valid']:
+    error = ApplicationError(
+        reason=ApplicationErrorReason.INVALID_CONFIG,
+        description=
+        f"There errors in configuration for the selected target {target_name}: {validation['message']}"
+    )
+    return return_api_config_error(error)
+
   output_file = generate_campaign(context)
   if not output_file:
     return jsonify({
@@ -230,6 +296,21 @@ def load_pagefeed_spreadsheet():
   )
 
 
+@app.route("/api/feeds/share", methods=["POST", "GET"])
+def share_spreadsheets():
+  config = _get_config()
+  email = _validate_iap_jwt()
+  credentials, project = google.auth.default(scopes=_SCOPES)
+  for target in config.targets:
+    if target.page_feed_spreadsheetid:
+      cloud_env_setup.set_permission_on_drive(target.page_feed_spreadsheetid, email, credentials)
+    if target.adcustomizer_spreadsheetid:
+      cloud_env_setup.set_permission_on_drive(target.adcustomizer_spreadsheetid,
+                                              email, credentials)
+  logging.info(f'All spreadsheets shared with {email}')
+  return "Ok", 200
+
+
 @app.route("/api/download", methods=["GET"])
 def download_file():
   filename = request.args.get('filename')
@@ -238,7 +319,7 @@ def download_file():
   return send_from_directory(OUTPUT_FOLDER, filename, as_attachment=True)
 
 
-def return_api_config_error(error: ConfigError):
+def return_api_config_error(error: ApplicationError):
   return jsonify(
       error=error.to_dict(),
       config_file=config_file_name,
@@ -250,8 +331,8 @@ def validate_env():
   try:
     config = _get_config()
   except FileNotFoundError:
-    error = ConfigError(
-        reason=ConfigErrorReason.NOT_INITIALIZED,
+    error = ApplicationError(
+        reason=ApplicationErrorReason.NOT_INITIALIZED,
         description="Application is not initialized: config file not found")
     return return_api_config_error(error)
   credentials, project = google.auth.default(scopes=_SCOPES)
@@ -263,15 +344,15 @@ def validate_env():
   if len(errors):
     msg = "\n".join([e.error for e in errors])
     return return_api_config_error(
-        ConfigError(reason=ConfigErrorReason.NOT_INITIALIZED,
+        ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
                     description="Application is not initialized: " + msg))
 
   # ok, config seems correct (at least for DT), check BQ dataset
   dataset = context.bq_client.get_dataset(config.dataset_id)
   if not dataset:
     return return_api_config_error(
-        ConfigError(
-            reason=ConfigErrorReason.NOT_INITIALIZED,
+        ApplicationError(
+            reason=ApplicationErrorReason.NOT_INITIALIZED,
             description=
             f"Application is not initialized: Data Transfer dataset '{config.dataset_id}'' not found)"
         ))
@@ -283,12 +364,12 @@ def validate_env():
         config.merchant_id, config.dataset_id)
   except cloud_data_transfer.DataTransferError as e:
     return return_api_config_error(
-        ConfigError(reason=ConfigErrorReason.NOT_INITIALIZED,
+        ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
                     description=f"Application is not initialized: {e}"))
   # ok, DT is correct, check that config contains at least one target and that target is valid
   if len(config.targets) == 0:
     return return_api_config_error(
-        ConfigError(ConfigErrorReason.INVALID_CONFIG, f'No target found'))
+        ApplicationError(ApplicationErrorReason.INVALID_CONFIG, f'No target found'))
 
   # now we'll check all targets by fetching data from our custom view (Products_Filtered_{target})
   for target in config.targets:
@@ -298,7 +379,7 @@ def validate_env():
                                  {"WHERE_CLAUSE": ""})
     except Exception as e:
       return return_api_config_error(
-          ConfigError(ConfigErrorReason.NOT_INITIALIZED,
+          ApplicationError(ApplicationErrorReason.NOT_INITIALIZED,
                       f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"))
   # finally, GCP configuration seems OK but there could be some violation/warnings in config
   try:
@@ -328,13 +409,13 @@ def get_config():
     config = _get_config()
   except FileNotFoundError:
     if readonly:
-      error = ConfigError(
-          reason=ConfigErrorReason.INVALID_DEPLOYMENT,
+      error = ApplicationError(
+          reason=ApplicationErrorReason.INVALID_DEPLOYMENT,
           description=
           "The application uses a local config file and it does not exist")
     else:
-      error = ConfigError(
-          reason=ConfigErrorReason.NOT_INITIALIZED,
+      error = ApplicationError(
+          reason=ApplicationErrorReason.NOT_INITIALIZED,
           description="Application is not initialized: config file not found")
     return return_api_config_error(error)
 
@@ -403,6 +484,7 @@ def catch_all(path):
 
 @app.errorhandler(Exception)
 def handle_exception(e: Exception):
+  logging.error(e)
   if request.content_type == "application/json" and request.path.startswith('/api/'):
     # NOTE: not all exceptions can be serialized
     try:
@@ -416,6 +498,13 @@ def handle_exception(e: Exception):
 if config_on_gcs:
   # config is on GCS, copy it from GCS to local cache
   copy_config_to_cache(config_file_name)
+
+# fetch project number via Cloud ResourceManager
+credentials, project = google.auth.default(scopes=_SCOPES)
+rmclient = ProjectsClient(credentials=credentials)
+project = rmclient.get_project(name=f'projects/{project}')
+expected_audience = f'/{project.name}/apps/gmc-dsa-segy'
+
 
 if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE

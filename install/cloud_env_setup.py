@@ -271,7 +271,7 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
   enable_apis([
       'bigquery.googleapis.com', 'bigquerydatatransfer.googleapis.com',
       'sheets.googleapis.com', 'drive.googleapis.com', 'pubsub.googleapis.com',
-      'iap.googleapis.com'
+      'iap.googleapis.com', 'cloudresourcemanager.googleapis.com'
   ], config, credentials)
   logging.info('apis have been enabled')
 

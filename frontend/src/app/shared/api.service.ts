@@ -72,7 +72,15 @@ export class ApiService {
     return await this.backendService.postApi('/config', config /*, { emptyResponse: true}*/);
   }
 
-  async shareSpreadsheets(): Promise<any> {
-    await this.backendService.postApi('/feeds/share', null, {emptyResponse: true});
+  shareSpreadsheets(): Promise<any> {
+    return this.backendService.postApi('/feeds/share', null, {emptyResponse: true});
+  }
+
+  async validateSetup(): Promise<{errors: any[], log: string[]}> {
+    return this.backendService.getApi('/setup/validate');
+  }
+
+  async runSetup(options?: {skip_dt_run?: boolean}): Promise<{ log: string[] }> {
+    return this.backendService.getApi('/setup/run', { "skip-dt-run": options?.skip_dt_run});
   }
 }

@@ -31,12 +31,12 @@ export class DefaultRouteGuard implements CanActivate {
   canActivate(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot): Observable<boolean | UrlTree> | Promise<boolean | UrlTree> | boolean | UrlTree {
-    // TODO: why all this not working?!
-    let is_proto = ConfigComponent.prototype.isPrototypeOf(<any>route.component);
-    let is_ins = route.component instanceof ConfigComponent;
-    let is_proto2 = Object.getPrototypeOf(route.component) === ConfigComponent
 
-    if (!((<any>route.component).name === "ConfigComponent") && !this.configService.getConfig()) {
+    let url = route.url.map(s => s.path).join('/');
+    //console.log('guard: navigating to ' + url);
+    // if the user is going to any route except /config AND there's no local config,
+    // we'll fetch config from server, and if it fails redirect the user to the /config page
+    if (!url.startsWith('config') && !this.configService.getConfig()) {
       return new Promise<boolean>((resolve) => {
         this.configService.loadConfig().then(config => {
           if (config.errors && config.errors.length) {
@@ -44,7 +44,7 @@ export class DefaultRouteGuard implements CanActivate {
           }
           resolve(true);
         }).catch(error => {
-          this.router.navigate(['/config']);
+          this.router.navigate(['/config'], { queryParams: { edit: true } });
           resolve(false);
         })
       });

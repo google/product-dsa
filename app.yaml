@@ -9,4 +9,4 @@ env_variables:
   GIT_COMMIT:
 #  PYTHONPATH: .
 
-entrypoint: gunicorn -b :$PORT server.server:app
+entrypoint: gunicorn -b :$PORT server.server:app --timeout 0

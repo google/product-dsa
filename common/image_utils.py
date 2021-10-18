@@ -24,11 +24,10 @@ LANDSCAPE_MIN_THRESHOLD = 1.5     # Min ratio at which to resize to landscape no
 logging.getLogger().setLevel(logging.INFO)
 
 def resize(image_path):
-  '''
-    Resize PIL image keeping ratio and using white background to follow
-    size guidelines of image extensions.
-    https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
-  '''
+  """Resize PIL image keeping ratio and using white background to follow
+     size guidelines of image extensions.
+     https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
+  """
   image = Image.open(image_path)
   ratio = round(image.width/image.height , 2)
   if ratio == 1 or ratio == LANDSCAPE_RATIO:

@@ -101,4 +101,8 @@ if [ "$USER_DOMAIN" != "gmail.com" ]; then
   gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="domain:$USER_DOMAIN" --role='roles/iap.httpsResourceAccessor'
 fi
 
+echo -e "${COLOR}Creating Cloud Storage bucket for storing configuration...${NC}"
+GCS_BUCKET=gs://${PROJECT_ID}-pdsa
+gsutil mb -l ${GAE_LOCATION}1 -b on $GCS_BUCKET
+
 echo -e "\n${COLOR}Done!${NC}"

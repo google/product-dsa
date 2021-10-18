@@ -39,7 +39,7 @@ _SLEEP_SECONDS = 5  # Seconds to sleep before checking resource status.
 _MAX_WAIT_SECONDS = 1200 # Maximum seconds to wait for an operation to complete (20 minutes)
 
 
-class DataTransferError(BaseException):
+class DataTransferError(Exception):
   """An exception to be raised when data transfer was not successful."""
 
 
@@ -177,8 +177,8 @@ class CloudDataTransferUtils(object):
                  new_transfer_config.display_name)
     return new_transfer_config
 
-  def check_merchant_center_transfer(self, merchant_id: int,
-                                     destination_dataset: str) -> ApplicationError:
+  def check_merchant_center_transfer(
+      self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:
     parameters = self._create_transfer_params(merchant_id)
     parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
     transfer_config_: types.TransferConfig

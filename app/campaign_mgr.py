@@ -127,8 +127,10 @@ class GoogleAdsEditorMgr:
     return ''
 
   def __get_category_description(self, label):
-    desc = self._context.target.category_ad_descriptions.get(label, None)
-    if desc is None:
+    desc = None
+    if self._context.target.category_ad_descriptions:
+      desc = self._context.target.category_ad_descriptions.get(label, None)
+    if not desc or desc == '':
       raise ValueError(
           f'Mapping for label {label} is missing in configuration (category_ad_descriptions)'
       )

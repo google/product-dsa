@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, FormGroupDirective, NgForm, Validators } from '@angular/forms';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
 import { ApiService } from './shared/api.service';
 import { ConfigError, ConfigService, Configuration, ConfigurationTarget, GetConfigResponse, TargetNames } from './shared/config.service';
@@ -35,33 +36,32 @@ class CustomErrorStateMatcher implements ErrorStateMatcher {
 export class ConfigComponent extends ComponentBase implements OnInit {
   loading: boolean = false;
   form: FormGroup;
+  formSetup: FormGroup;
   config_file: string | undefined;
   commit_link: string | undefined;
   editable = false;
-  config: Configuration | undefined;
   matcher: ErrorStateMatcher = new CustomErrorStateMatcher();
 
   constructor(private fb: FormBuilder,
     private configService: ConfigService,
+    private router: Router,
+    private activatedRoute: ActivatedRoute,
     dialog: MatDialog,
     snackBar: MatSnackBar) {
     super(dialog, snackBar);
     this.form = fb.group({ // NOTE: add type <Configuration> to validate fields
-      project_id: '',
+      //project_id: '',
       merchant_id: '',
       dataset_id: '',
       dataset_location: '',
-      //page_feed_name: '',
-      //page_feed_spreadsheetid: '',
-      //adcustomizer_feed_name: '',
-      //adcustomizer_spreadsheetid: '',
-      //ad_description_template: '',
-      //dsa_lang: '',
-      //dsa_website: '',
       dt_schedule: '',
-      pubsub_topic_dt_finish: '',
+      //pubsub_topic_dt_finish: '',
       targets: fb.array([])
     });
+    this.formSetup = fb.group({
+      skip_dt_run: ''
+    });
+    this.editable = activatedRoute.snapshot.queryParamMap.get('edit') == "true";
   }
 
   get targets(): FormArray {
@@ -81,8 +81,8 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   private updateConfig(cfg: GetConfigResponse) {
     this.commit_link = cfg.commit_link;
     this.config_file = cfg.config_file;
-    this.config = cfg.config;
-    this.config.targets = this.config.targets || [];
+    let config = cfg.config;
+    config.targets = config.targets || [];
 
     for (let field of Object.keys(cfg.config)) {
       let control = this.form.controls[field];
@@ -92,7 +92,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
 
     }
     this.targets.clear();
-    for (const target of this.config.targets) {
+    for (const target of config.targets) {
       let group_spec: any = {};
       for (const field of Object.keys(target)) {
         group_spec[field] = (<any>target)[field];
@@ -108,7 +108,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   private applyErrors(config: Configuration, errors?: ConfigError[]) {
     if (errors && errors.length) {
       for (let error_obj of errors) {
-        if (error_obj.field.startsWith('targets.')) {
+        if (error_obj.field.startsWith('targets.') && config.targets?.length) {
           let parts = error_obj.field.split('.');
           if (parts.length === 3) {
             let name = parts[1];
@@ -180,17 +180,47 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     // }, 'An error occured during fetching configuration');
   }
 
+  _formValues: any;
+  edit() {
+    this._formValues = this.form.value;
+    this.editable = true;
+  }
+
   async save() {
     let config = this.form.value;
-    this.executeOp(async () => {
+    await this.executeOp(async () => {
       let res = await this.configService.updateConfig(config);
       if (!res.errors || !res.errors.length) {
         this.showSnackbar('Config updated');
       } else {
-        this.applyErrors(this.config!, res.errors);
+        this.applyErrors(config, res.errors);
       }
       this.editable = false;
-    }, 'An error occured during updating configuration:', /*showAlert*/true);
+    }, 'An error occured during updating configuration', /*showAlert*/true);
+    this._clearUrl();
+  }
+
+  cancel() {
+    this.editable = false;
+    this.form.reset(this._formValues);
+    // NOTE: just targets.reset doesn't work (change detection doens't triggered)
+    this.targets.clear();
+    for (const target of this._formValues.targets) {
+      this.targets.push(this.fb.group(target));
+    }
+    // remove possible ?edit=true query param
+    this._clearUrl();
+  }
+
+  private _clearUrl() {
+    // remove all query params without reloading
+    this.router.navigate(
+      [],
+      {
+        relativeTo: this.activatedRoute,
+        queryParams: {},
+        replaceUrl: true,
+      });
   }
 
   async shareSpreadsheets() {
@@ -198,9 +228,53 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.executeOp(async () => {
-          this.configService.apiService.shareSpreadsheets();
-        }, '', true);
+          return this.configService.apiService.shareSpreadsheets();
+        }, 'Sharing feeds spreadsheets failed', true);
       }
     });
+  }
+
+  @ViewChild('eventList') eventList?: ElementRef;
+  private showLog(log: string[], append: boolean = false) {
+    if (!append) {
+      this.eventList!.nativeElement.innerHTML = '';
+    }
+    for (const item of log) {
+      const newElement = document.createElement("li");
+      newElement.innerHTML = item;
+      this.eventList!.nativeElement.appendChild(newElement);
+    }
+  }
+
+  async validateSetup() {
+    this.executeOp(async () => {
+      let response = await this.configService.apiService.validateSetup();
+      let log = response.log;
+      if (log && log.length) {
+        this.showLog(log);
+      }
+      if (response.errors && response.errors.length) {
+        // TODO: basically it same error as from getConfig
+        let details = response.errors.map(e => e.field + ": " + e.error).join("\n")
+        let msg = "Application setup seems good, but there are issues in configration settings:" + details;
+        this.showLog([msg], true);
+        this.showAlert(msg, "Success");
+      } else {
+        this.showAlert("Application setup seems good", "Success");
+      }
+      return response;
+    }, 'Setup validation failed', true);
+  }
+
+  async runSetup() {
+    this.executeOp(async () => {
+      let skip_dt_run = !!this.formSetup.get("skip_dt_run")?.value;
+      let response = await this.configService.apiService.runSetup({skip_dt_run});
+      let log = response.log;
+      if (log && log.length) {
+        this.showLog(log);
+      }
+      this.showAlert("Application setup completed", "Success");
+    }, 'Setup failed', true);
   }
 }

@@ -37,7 +37,11 @@ class ConfigItemBase(object):
     cls = type(self)
     for k in kw:
       if hasattr(cls, k):
-        setattr(self, k, kw[k])
+        new_val = kw[k]
+        def_val = getattr(cls, k)
+        if (new_val == "" and def_val != ""):
+          new_val = def_val
+        setattr(self, k, new_val)
 
 
 class ConfigTarget(ConfigItemBase):
@@ -110,11 +114,6 @@ class Config(ConfigItemBase):
   dt_schedule: str = ''
   # pub/sub topic id for publishing message on GMC Data Transfer completions
   pubsub_topic_dt_finish: str = 'gmc-dt-finish'
-
-  # folder for downloading images from GMC, if relative and output_folder specified then they will be joined
-  #image_folder: str = 'images'
-  # output folder path, will be common base path for all outputs
-  #output_folder: str = ''
 
   def __init__(self):
     super().__init__()
@@ -233,7 +232,7 @@ def parse_arguments(
 def get_config_url(args: argparse.Namespace):
   config_file_name = args.config or os.environ.get('CONFIG') or 'config.json'
   if config_file_name.find('$PROJECT_ID') > -1:
-    project_id = _find_project_id(args)
+    project_id = find_project_id(args)
     if project_id is None:
       raise Exception(
           'Config file url contains macro $PROJECT_ID but project id isn\'t specified and can\'t be detected from environment'
@@ -265,12 +264,12 @@ def get_config(args: argparse.Namespace) -> Config:
   if getattr(args, "project_id", ''):
     config.project_id = getattr(args, "project_id")
   if not config.project_id:
-    config.project_id = _find_project_id(args)
+    config.project_id = find_project_id(args)
 
   return config
 
 
-def _find_project_id(args: argparse.Namespace):
+def find_project_id(args: argparse.Namespace):
   if getattr(args, "project_id", ''):
     project_id = getattr(args, "project_id")
   project_id = os.getenv('GCP_PROJECT') or \

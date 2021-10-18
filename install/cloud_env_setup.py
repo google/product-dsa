@@ -257,6 +257,8 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
 class DeployOptions:
   skip_dt_run: bool
   user_email: str
+  skip_spreadsheets: bool
+
 
 def deploy(config: config_utils.Config, credentials: credentials.Credentials,
            options: DeployOptions) -> bool:
@@ -308,7 +310,9 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
     create_views(bigquery_client, config, target)
 
     # creating spreadsheets for page feed data and adcustomizers
-    created = created or create_spreadsheets(config, target, credentials, options.user_email)
+    if not options.skip_spreadsheets:
+      created = created or create_spreadsheets(config, target, credentials,
+                                               options.user_email)
 
   create_subscription_to_update_feeds(pubsub_topic, config, credentials)
   logging.info(
@@ -326,6 +330,12 @@ def add_args(parser: argparse.ArgumentParser):
   parser.add_argument('--user-email',
                       dest='user_email',
                       help='User email to share created spreadsheets with')
+  parser.add_argument('--skip-spreadsheets',
+                      dest='skip_spreadsheets',
+                      action='store_true')
+  parser.add_argument('--create-spreadsheets',
+                      dest='create_spreadsheets',
+                      action='store_true')
 
 
 def main():
@@ -345,7 +355,14 @@ def main():
     logging.error(f'You supplied a service account but not a user email')
     exit()
 
-  created = deploy(config, credentials, DeployOptions(args.skip_dt_run, args.user_email))
+  if args.create_spreadsheets:
+    for target in config.targets:
+      create_spreadsheets(config, target, credentials, args.user_email)
+    return
+
+  created = deploy(
+      config, credentials,
+      DeployOptions(args.skip_dt_run, args.user_email, args.skip_spreadsheets))
 
   config_file_name = args.config or 'config.json'
   if created:

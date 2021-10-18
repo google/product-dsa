@@ -24,10 +24,7 @@ from common import image_utils
 
 CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
 
-# class FileNotFoundException(Exception):
-#   pass
-
-def get_file_content(uri: str):
+def get_file_content(uri: str) -> str:
   """Read file content supporting file paths on Cloud Storage (gs://)"""
   if uri.startswith('gs://'):
     return get_file_from_gcs(uri)
@@ -39,14 +36,24 @@ def get_file_content(uri: str):
   raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
-def download_image(uri: str, folder: str):
+def download_image(uri: str, folder: str) -> str:
+  """Download a remote file from http and save it in a local folder.
+
+    The downloaded images are resized and normalized to be complient
+    with guidelines for image extensions.
+
+    Args:
+      uri: a remote (http(s)) url
+    Returns:
+      Image local file path
+  """
   local_image_path = download_file(uri, folder)
   # Resize the local image to follow guidelines
   image_utils.resize(local_image_path)
   return local_image_path
 
 
-def download_file(uri: str, folder: str):
+def download_file(uri: str, folder: str) -> str:
   """Download a remote file into a local folder."""
   if not os.path.exists(folder):
     os.mkdir(folder)
@@ -64,6 +71,7 @@ def download_file(uri: str, folder: str):
 
 
 def copy_file_from_gcs(uri: str, destination_file_name: str):
+  """Copy a file on Cloud Storage to a local file"""
   result = parse.urlparse(uri)
   # result.path will be '/path/to/blob', we need to strip the leading '/'.
   bucket_name, path = result.hostname, result.path[1:]
@@ -83,7 +91,7 @@ def copy_file_from_gcs(uri: str, destination_file_name: str):
     raise
 
 
-def get_file_from_gcs(uri: str):
+def get_file_from_gcs(uri: str) -> str:
   """Read file content from Cloud Storage url"""
   result = parse.urlparse(uri)
   # result.path will be '/path/to/blob', we need to strip the leading '/'.
@@ -106,6 +114,7 @@ def get_file_from_gcs(uri: str):
 
 
 def save_file_content(uri: str, content: str):
+  """Write content to a file represented by an url"""
   if uri.startswith('gs://'):
     return save_file_to_gcs(uri, content)
   with open(uri, 'w') as file:
@@ -113,14 +122,21 @@ def save_file_content(uri: str, content: str):
 
 
 def save_file_to_gcs(uri: str, content: str):
+  """Write content to a file on GCS.
+    Args:
+      uri: a GCS path like gs://bucket/path/to/file
+  """
   result = parse.urlparse(uri)
   # result.path will be '/path/to/blob', we need to strip the leading '/'.
   bucket_name, path = result.hostname, result.path[1:]
   # NOTE: we're using ADC here (no explicit credentials passed)
-  client = storage.Client()
+  storage_client = storage.Client()
   try:
-    bucket = client.get_bucket(bucket_name)
-    content = bucket.get_blob(path).upload_from_string(content)
+    bucket = storage_client.get_bucket(bucket_name)
+  except exceptions.NotFound:
+    bucket = storage_client.create_bucket(bucket_name)
+  try:
+    blob = bucket.blob(path).upload_from_string(content)
   except:
     print(f'Error on saving file {uri} to GCS')
     raise

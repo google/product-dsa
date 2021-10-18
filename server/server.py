@@ -29,7 +29,7 @@ from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
 from common import config_utils, file_utils, bigquery_utils, sheets_utils
 from common.config_utils import ApplicationError, ApplicationErrorReason
 from install import cloud_data_transfer, cloud_env_setup
-from common.auth import _SCOPES
+from common.auth import get_credentials
 from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
 
 logging.getLogger().setLevel(logging.INFO)
@@ -56,7 +56,7 @@ app.json_encoder = JsonEncoder
 
 args = config_utils.parse_arguments(only_known=True)
 config_file_name = config_utils.get_config_url(args)
-args.config = config_file_name
+args.config = config_file_name  # NOTE: we'll overwrite args.config in copy_config_to_cache
 config_on_gcs = config_file_name and config_file_name.startswith("gs://")
 expected_audience = ''
 
@@ -80,6 +80,11 @@ def _get_config() -> config_utils.Config:
   # it can throw FileNotFoundError if config is missing
   config = config_utils.get_config(args)
   return config
+
+
+def _get_credentials():
+  credentials = get_credentials(args)
+  return credentials
 
 
 def _verify_token(config: config_utils.Config):
@@ -136,7 +141,7 @@ def update_feeds():
     return str(e), 401
 
   # for API (in contrast to main) we support only ADC auth
-  credentials, project = google.auth.default(scopes=_SCOPES)
+  credentials = _get_credentials()
   context = Context(config, None, credentials,
                     ContextOptions(OUTPUT_FOLDER, 'images'))
   validation = validate_config(context)
@@ -163,7 +168,7 @@ def update_feeds():
 
 def create_context(target_name: str) -> Context:
   # for API (in contrast to main) we support only ADC auth
-  credentials, project = google.auth.default(scopes=_SCOPES)
+  credentials = _get_credentials()
   config = _get_config()
   target_name = request.args.get('target')
   target = next(filter(lambda t: t.name == target_name, config.targets), None)
@@ -300,14 +305,14 @@ def load_pagefeed_spreadsheet():
 def share_spreadsheets():
   config = _get_config()
   email = _validate_iap_jwt()
-  credentials, project = google.auth.default(scopes=_SCOPES)
+  credentials = _get_credentials()
   for target in config.targets:
     if target.page_feed_spreadsheetid:
       cloud_env_setup.set_permission_on_drive(target.page_feed_spreadsheetid, email, credentials)
     if target.adcustomizer_spreadsheetid:
       cloud_env_setup.set_permission_on_drive(target.adcustomizer_spreadsheetid,
                                               email, credentials)
-  logging.info(f'All spreadsheets shared with {email}')
+  logging.info(f'All spreadsheets were shared with {email}')
   return "Ok", 200
 
 
@@ -326,8 +331,15 @@ def return_api_config_error(error: ApplicationError):
   ), 500
 
 
-@app.route("/api/validate", methods=["GET"])
-def validate_env():
+@app.route("/api/setup/validate", methods=["GET"])
+def validate_setup():
+  try:
+    _validate_iap_jwt()
+  except:
+    # It's OK if we can't detect user_email from request in non-GAE environment (no IAP)
+    if IS_GAE:
+      raise
+  log = []
   try:
     config = _get_config()
   except FileNotFoundError:
@@ -335,9 +347,10 @@ def validate_env():
         reason=ApplicationErrorReason.NOT_INITIALIZED,
         description="Application is not initialized: config file not found")
     return return_api_config_error(error)
-  credentials, project = google.auth.default(scopes=_SCOPES)
+  credentials = _get_credentials()
   context = Context(config, None, credentials,
                     ContextOptions(OUTPUT_FOLDER, 'images'))
+  log.append("Configuration file exists and readable")
 
   # ok, config exists, check its content
   errors = config.validate(generation=False, validate_targets=False)
@@ -346,6 +359,7 @@ def validate_env():
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
                     description="Application is not initialized: " + msg))
+  log.append("Configuratoin has no errors")
 
   # ok, config seems correct (at least for DT), check BQ dataset
   dataset = context.bq_client.get_dataset(config.dataset_id)
@@ -354,8 +368,10 @@ def validate_env():
         ApplicationError(
             reason=ApplicationErrorReason.NOT_INITIALIZED,
             description=
-            f"Application is not initialized: Data Transfer dataset '{config.dataset_id}'' not found)"
+            f"Application is not initialized: Data Transfer dataset '{config.dataset_id}' not found)"
         ))
+  log.append(f"BigQuery dataset ('{config.dataset_id}') found")
+
   # ok, dataset exists, check Data Transfer (existence, state, schedule)
   data_transfer = cloud_data_transfer.CloudDataTransferUtils(
       config.project_id, config.dataset_location, credentials)
@@ -366,6 +382,8 @@ def validate_env():
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
                     description=f"Application is not initialized: {e}"))
+  log.append(f"BigQuery Data Transfer for Merchant Center ({transfer_config.name}) is valid")
+
   # ok, DT is correct, check that config contains at least one target and that target is valid
   if len(config.targets) == 0:
     return return_api_config_error(
@@ -381,6 +399,8 @@ def validate_env():
       return return_api_config_error(
           ApplicationError(ApplicationErrorReason.NOT_INITIALIZED,
                       f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"))
+  log.append("Successfully fetched labels from views in BigQuery for all targets")
+
   # finally, GCP configuration seems OK but there could be some violation/warnings in config
   try:
     response = validate_config(context)
@@ -388,8 +408,68 @@ def validate_env():
   except:
     # if app wasn't initialized then validate_config will fails (it loads labels from BQ)
     errors = context.config.validate(generation=True, validate_targets=True)
-  return jsonify(errors=errors)
+  return jsonify(errors=errors, log=log)
 
+
+@app.route("/api/setup/run", methods=["GET"])
+def run_setup():
+  logging.basicConfig()
+  log_file_name = os.path.join(OUTPUT_FOLDER, '.setup.log')
+  log_handler = logging.FileHandler(log_file_name, 'w')
+  logging.root.addHandler(log_handler)
+  try:
+    skip_dt_run = request.args.get('skip-dt-run') == 'true' or False
+    skip_spreadsheets = request.args.get('skip-spreadsheets') == 'true' or False
+    user_email = ''
+    try:
+      user_email = _validate_iap_jwt()
+    except:
+      # It's OK if we can't detect user_email from request in non-GAE environment (no IAP)
+      if IS_GAE:
+        raise
+    try:
+      config = _get_config()
+    except FileNotFoundError:
+      error = ApplicationError(
+          reason=ApplicationErrorReason.NOT_INITIALIZED,
+          description="Application is not initialized: config file not found, please fill in configuration settings and save")
+      return return_api_config_error(error)
+    credentials = _get_credentials()
+    logging.info(
+        f'Ready to run deployment (user_email: {user_email}, skip_dt_run: {skip_dt_run})'
+    )
+    # TODO: check SA's permissions
+    # TODO: before running a new deployment we might check for existing components and remove them
+    created = cloud_env_setup.deploy(
+        config, credentials,
+        cloud_env_setup.DeployOptions(skip_dt_run, user_email, skip_spreadsheets))
+
+    if created:
+      # overwrite config file with new data
+      config_utils.save_config(config, config_file_name)
+      if config_file_name and config_file_name.startswith("gs://"):
+        if (args.config != config_file_name):
+          # update local cache
+          config_utils.save_config(config, args.config)
+
+    log = ''
+    log_handler.close()
+    log_handler = None
+    with open(log_file_name, 'r') as f:
+      log = f.readlines()
+    return jsonify(log=log)
+  except BaseException as e:
+    msg = str(e)
+    if type(e) is cloud_data_transfer.DataTransferError:
+      msg = f"GMC Data Transfer failed: {e}"
+    return return_api_config_error(
+        ApplicationError(
+            reason=ApplicationErrorReason.INVALID_CLOUD_SETUP,
+            description=msg
+        ))
+  finally:
+    if log_handler:
+      logging.root.removeHandler(log_handler)
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
@@ -419,7 +499,7 @@ def get_config():
           description="Application is not initialized: config file not found")
     return return_api_config_error(error)
 
-  credentials, project = google.auth.default(scopes=_SCOPES)
+  credentials = _get_credentials()
   context = Context(config, None, credentials,
                     ContextOptions(OUTPUT_FOLDER, 'images'))
 
@@ -456,6 +536,7 @@ def post_config():
       # this means that the config wasn't copied to /tmp on start (because it didn't exist)
       copy_config_to_cache(config_file_name)
     else:
+      # update local cache
       file_utils.save_file_content(args.config, content)
   elif not IS_GAE:
     # local file and local server, just save it
@@ -479,7 +560,17 @@ def catch_all(path):
   file_requested = os.path.join(app.root_path, STATIC_DIR, path)
   if not os.path.isfile(file_requested):
     path = "index.html"
-  return send_from_directory(STATIC_DIR, path)
+  max_age = 0 if path == "index.html" else None
+  response = send_from_directory(
+      STATIC_DIR,
+      path,
+      max_age=max_age)
+  # There is a "feature" in GAE - all files have zeroed timestamp ("Tue, 01 Jan 1980 00:00:01 GMT")
+  if IS_GAE:
+    response.headers.remove("Last-Modified")
+  response.cache_control.no_store = True
+
+  return response
 
 
 @app.errorhandler(Exception)
@@ -499,11 +590,15 @@ if config_on_gcs:
   # config is on GCS, copy it from GCS to local cache
   copy_config_to_cache(config_file_name)
 
-# fetch project number via Cloud ResourceManager
-credentials, project = google.auth.default(scopes=_SCOPES)
-rmclient = ProjectsClient(credentials=credentials)
-project = rmclient.get_project(name=f'projects/{project}')
-expected_audience = f'/{project.name}/apps/gmc-dsa-segy'
+# construct expected_audience field that we need for validation IAP JWT headers, it not works in GAE
+if IS_GAE:
+  credentials = _get_credentials()
+  project_id = config_utils.find_project_id(args)
+  rmclient = ProjectsClient(credentials=credentials)
+  # fetch project number via Cloud ResourceManager (yes, project.name is project number)
+  project = rmclient.get_project(name=f'projects/{project_id}')
+  expected_audience = f'/{project.name}/apps/{project_id}'
+  logging.info(f'Detected IAP audience: {expected_audience}')
 
 
 if __name__ == '__main__':

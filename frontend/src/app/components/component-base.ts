@@ -107,10 +107,11 @@ export abstract class ComponentBase {
     return dialogRef;
   }
 
-  showAlert(message: string): MatDialogRef<ConfirmationDialogComponent> {
+  showAlert(message: string, header?: string): MatDialogRef<ConfirmationDialogComponent> {
     return this.dialog.open(ConfirmationDialogComponent, {
       data: {
         message: message,
+        header: header,
         mode: ConfirmationDialogModes.Ok
       }
     });

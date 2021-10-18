@@ -47,7 +47,9 @@ def validate_config(context: Context):
       missing_category_desc = False
       err_message = ''
       for row in category_labels:
-        desc = target.category_ad_descriptions.get(row[0])
+        desc = None
+        if target.category_ad_descriptions:
+          desc = target.category_ad_descriptions.get(row[0])
         if not desc or desc == '':
           missing_category_desc = True
           err_message = f'Missing category description for label \'{row[0]}\'\n'

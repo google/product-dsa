@@ -16,4 +16,4 @@
 
 export PYTHONPATH="."
 . .venv/bin/activate
-python3 ./server/server.py --debug "$@"
+python3 ./server/server.py --debug -t 0 "$@"

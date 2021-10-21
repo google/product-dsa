@@ -5,3 +5,7 @@
   margin-bottom: 15px;
   border: 1px solid grey;
 }
+
+:host ::ng-deep mat-form-field.no-underline .mat-form-field-underline {
+  display: none;
+}

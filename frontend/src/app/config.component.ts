@@ -18,6 +18,7 @@ import { FormArray, FormBuilder, FormControl, FormGroup, FormGroupDirective, NgF
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
 import { ApiService } from './shared/api.service';
@@ -41,6 +42,8 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   commit_link: string | undefined;
   editable = false;
   matcher: ErrorStateMatcher = new CustomErrorStateMatcher();
+  columnsLabelDescripions = ["label", "description", "action"];
+  dataSourceLabelDescs: MatTableDataSource<any>[] = [];
 
   constructor(private fb: FormBuilder,
     private configService: ConfigService,
@@ -89,10 +92,16 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       if (control && !(control instanceof FormArray)) {
         control.setValue((<any>cfg.config)[field]);
       }
-
     }
     this.targets.clear();
+    this.dataSourceLabelDescs.splice(0, this.dataSourceLabelDescs.length);
     for (const target of config.targets) {
+      target.category_ad_descriptions = target.category_ad_descriptions || {};
+      let rows = Object.entries(target.category_ad_descriptions).map(
+        pair => {
+          return this.fb.group({ "label": pair[0], "description": pair[1] })
+        });
+      this.dataSourceLabelDescs.push(new MatTableDataSource<any>(rows));
       let group_spec: any = {};
       for (const field of Object.keys(target)) {
         group_spec[field] = (<any>target)[field];
@@ -154,10 +163,12 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       category_ad_descriptions: null
     };
     this.targets.push(this.fb.group(group_spec));
+    this.dataSourceLabelDescs.push(new MatTableDataSource<any>([]));
   }
 
   deleteTarget(i: number) {
     this.targets.removeAt(i);
+    this.dataSourceLabelDescs.splice(i, 1);
   }
 
   async reload() {
@@ -180,6 +191,21 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     // }, 'An error occured during fetching configuration');
   }
 
+  labelDescList_addNew(index: number) {
+    let ds = this.dataSourceLabelDescs[index].data;
+    ds.push(
+      this.fb.group({ "label": "", "description": "" })
+    );
+    this.dataSourceLabelDescs[index].data = ds;
+  }
+
+  labelDescList_deleteRow(index: number, item_index: number) {
+    let ds = this.dataSourceLabelDescs[index].data;
+
+    ds.splice(item_index, 1);
+    this.dataSourceLabelDescs[index].data = ds;
+  }
+
   _formValues: any;
   edit() {
     this._formValues = this.form.value;
@@ -188,6 +214,13 @@ export class ConfigComponent extends ComponentBase implements OnInit {
 
   async save() {
     let config = this.form.value;
+    for (let i = 0; i < config.targets.length; i++) {
+      let map: Record<string, string> = {};
+      this.dataSourceLabelDescs[i].data.forEach(fg => {
+        map[<string>fg.get("label").value] = fg.get("description").value;
+      });
+      config.targets[i].category_ad_descriptions = map;
+    }
     await this.executeOp(async () => {
       let res = await this.configService.updateConfig(config);
       if (!res.errors || !res.errors.length) {
@@ -269,7 +302,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   async runSetup() {
     this.executeOp(async () => {
       let skip_dt_run = !!this.formSetup.get("skip_dt_run")?.value;
-      let response = await this.configService.apiService.runSetup({skip_dt_run});
+      let response = await this.configService.apiService.runSetup({ skip_dt_run });
       let log = response.log;
       if (log && log.length) {
         this.showLog(log);

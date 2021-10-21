@@ -248,13 +248,68 @@
               </mat-form-field>
             </div>
           </div>
-          <!--
-      -->
-          <mat-card-actions>
-            <button mat-button (click)="deleteTarget(i)" color="accent" *ngIf="editable">
-              <mat-icon>delete</mat-icon> Delete Target
-            </button>
-          </mat-card-actions>
+          <!-- category_ad_descriptions -->
+          <div class="row">
+            <div class="col">
+              <mat-expansion-panel #executionLogPanel>
+                <mat-expansion-panel-header>
+                  <mat-panel-title>Label to description mapping</mat-panel-title>
+                  <mat-panel-description>Click to expand</mat-panel-description>
+                </mat-expansion-panel-header>
+                <mat-table [dataSource]="dataSourceLabelDescs[i]" class="full-width">
+                  <!-- <ng-container *ngFor="let disCol of columnsLabelDescripions; let colIndex = index"
+                    matColumnDef="{{disCol}}">
+                    <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
+                    <mat-cell *matCellDef="let element">{{element[disCol]}}</mat-cell>
+                  </ng-container> -->
+                  <mat-header-row *matHeaderRowDef="(columnsLabelDescripions )"></mat-header-row>
+                  <mat-row *matRowDef="let row; let e = index; columns: (columnsLabelDescripions )">
+                  </mat-row>
+                  <ng-container matColumnDef="label">
+                    <mat-header-cell *matHeaderCellDef>Label</mat-header-cell>
+                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element">
+                      <mat-form-field appearance="legacy" color="accent"
+                        [ngClass]="{'no-underline' : !editable}">
+                        <input matInput type="text" formControlName="label"
+                          [readonly]="!editable">
+                      </mat-form-field>
+                    </mat-cell>
+                  </ng-container>
+                  <ng-container matColumnDef="description">
+                    <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
+                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element">
+                      <mat-form-field appearance="legacy" color="accent"
+                        [ngClass]="{'no-underline' : !editable}">
+                        <input matInput type="text" formControlName="description" [readonly]="!editable">
+                      </mat-form-field>
+                    </mat-cell>
+                  </ng-container>
+                  <ng-container matColumnDef="action">
+                    <mat-header-cell *matHeaderCellDef> Action </mat-header-cell>
+                    <mat-cell *matCellDef="let element; let item_index = index" [formGroup]="element">
+                      <span style="white-space:nowrap;">
+                        <button mat-icon-button class="material-icons app-toolbar-menu delete-button"
+                          *ngIf="editable" (click)="labelDescList_deleteRow(i, item_index)" matTooltip="Delete" color="warn">
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </span>
+                    </mat-cell>
+                  </ng-container>
+                  <ng-template matNoDataRow>
+                    <div class="alert">No descriptions found</div>
+                  </ng-template>
+                </mat-table>
+                <button mat-icon-button *ngIf="editable" (click)="labelDescList_addNew(i)">
+                  <mat-icon class="add-button">add_box</mat-icon>
+                </button>
+              </mat-expansion-panel>
+              <mat-card-actions>
+                <button mat-button *ngIf="editable" (click)="deleteTarget(i)" color="accent">
+                  <mat-icon>delete</mat-icon> Delete Target
+                </button>
+              </mat-card-actions>
+            </div>
+          </div>
         </mat-card>
       </span>
       <div class="row">

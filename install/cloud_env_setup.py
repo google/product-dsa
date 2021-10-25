@@ -31,6 +31,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.cloud import storage, pubsub_v1, exceptions
 from google.api_core import exceptions
+from googleapiclient import discovery
 from pprint import pprint
 # if you're getting an error on the next line "ModuleNotFound",
 # make sure you define env var PYTHONPATH="."
@@ -240,18 +241,21 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
     if not_found:
       # TODO: by default pubsub creates a subscription with expriration of 31 days of inactivity,
       # in UI it can be set as 'never exprire' but how to do it via API?
-      # TODO: do not hard-code GAE url, use AppEngine Admin API to get app url
-      # let gae = (await google.appengine("v1").apps.get({ appsId: `${projectId}` })).data;
-      # there could be several application instances in a GCP project, each one in its own GAE service
+
+      # fetch GAE app hostname (it can be different depending on the chosen region)
+      service = discovery.build("appengine", "v1", credentials=credentials)
+      gae_info = service.apps().get(appsId=config.project_id).execute()
+      hostname = gae_info['defaultHostname']
+      # TODO: there could be several application instances in a GCP project, each one in its own GAE service
       # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE
       subscriber.create_subscription(
           name=subscription_name,
           topic=pubsub_topic,
           push_config=pubsub_v1.types.PushConfig(
-              push_endpoint=
-              f'https://{config.project_id}.ew.r.appspot.com/api/update',
+              push_endpoint=f'https://{hostname}/api/update',
               oidc_token=pubsub_v1.types.PushConfig.OidcToken(
-                  service_account_email=get_service_account_email(config.project_id))))
+                  service_account_email=get_service_account_email(
+                      config.project_id))))
 
 @dataclass
 class DeployOptions:

@@ -256,19 +256,14 @@
                   <mat-panel-title>Label to description mapping</mat-panel-title>
                   <mat-panel-description>Click to expand</mat-panel-description>
                 </mat-expansion-panel-header>
-                <mat-table [dataSource]="dataSourceLabelDescs[i]" class="full-width">
-                  <!-- <ng-container *ngFor="let disCol of columnsLabelDescripions; let colIndex = index"
-                    matColumnDef="{{disCol}}">
-                    <mat-header-cell *matHeaderCellDef>{{disCol}}</mat-header-cell>
-                    <mat-cell *matCellDef="let element">{{element[disCol]}}</mat-cell>
-                  </ng-container> -->
+                <mat-table [dataSource]="dataSourceLabelDescs[i]" class="full-width app-label-desc-list">
                   <mat-header-row *matHeaderRowDef="(columnsLabelDescripions )"></mat-header-row>
                   <mat-row *matRowDef="let row; let e = index; columns: (columnsLabelDescripions )">
                   </mat-row>
                   <ng-container matColumnDef="label">
                     <mat-header-cell *matHeaderCellDef>Label</mat-header-cell>
                     <mat-cell *matCellDef="let element; let i = index" [formGroup]="element">
-                      <mat-form-field appearance="legacy" color="accent"
+                      <mat-form-field appearance="legacy" color="accent" class="full-width"
                         [ngClass]="{'no-underline' : !editable}">
                         <input matInput type="text" formControlName="label"
                           [readonly]="!editable">
@@ -277,19 +272,19 @@
                   </ng-container>
                   <ng-container matColumnDef="description">
                     <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
-                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element">
-                      <mat-form-field appearance="legacy" color="accent"
+                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element" [matTooltip]="element.get('description').value">
+                      <mat-form-field appearance="legacy" color="accent" class="full-width"
                         [ngClass]="{'no-underline' : !editable}">
                         <input matInput type="text" formControlName="description" [readonly]="!editable">
                       </mat-form-field>
                     </mat-cell>
                   </ng-container>
-                  <ng-container matColumnDef="action">
+                  <ng-container matColumnDef="action" >
                     <mat-header-cell *matHeaderCellDef> Action </mat-header-cell>
                     <mat-cell *matCellDef="let element; let item_index = index" [formGroup]="element">
-                      <span style="white-space:nowrap;">
-                        <button mat-icon-button class="material-icons app-toolbar-menu delete-button"
-                          *ngIf="editable" (click)="labelDescList_deleteRow(i, item_index)" matTooltip="Delete" color="warn">
+                      <span style="white-space:nowrap;width: 150px">
+                        <button mat-icon-button color="warn" *ngIf="editable"
+                        (click)="labelDescList_deleteRow(i, item_index)" matTooltip="Delete">
                           <mat-icon>delete</mat-icon>
                         </button>
                       </span>
@@ -299,7 +294,7 @@
                     <div class="alert">No descriptions found</div>
                   </ng-template>
                 </mat-table>
-                <button mat-icon-button *ngIf="editable" (click)="labelDescList_addNew(i)">
+                <button mat-icon-button *ngIf="editable" (click)="labelDescList_addNew(i)" class="mx-3">
                   <mat-icon class="add-button">add_box</mat-icon>
                 </button>
               </mat-expansion-panel>

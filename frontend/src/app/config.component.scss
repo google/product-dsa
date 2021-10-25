@@ -9,3 +9,20 @@
 :host ::ng-deep mat-form-field.no-underline .mat-form-field-underline {
   display: none;
 }
+
+:host ::ng-deep .mat-expansion-panel-body {
+  padding: 0 !important;
+}
+
+:host ::ng-deep .app-label-desc-list .mat-column-action {
+    flex: 0 0 10%;
+}
+:host ::ng-deep .app-label-desc-list .mat-column-description {
+    flex: 0 0 70%;
+}
+:host ::ng-deep .app-label-desc-list .mat-cell {
+  padding-left: 24px;
+}
+:host ::ng-deep .app-label-desc-list .mat-header-cell {
+  padding-left: 24px;
+}

@@ -15,12 +15,12 @@
  */
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
 import { CustomSnackBar } from './components/custom-snackbar.component';
 import { GenerationService } from './shared/generation.service';
+import { NotificatinService } from './shared/notification.service';
 
 @Component({
   templateUrl: './home.component.html',
@@ -32,9 +32,9 @@ export class HomeComponent extends ComponentBase implements OnInit {
   constructor(private fb: FormBuilder,
     private router: Router,
     private generationService: GenerationService,
-    dialog: MatDialog,
-    snackBar: MatSnackBar) {
-    super(dialog, snackBar);
+    private snackBar: MatSnackBar,
+    notificationSvc: NotificatinService) {
+    super(notificationSvc);
   }
 
   ngOnInit(): void {
@@ -51,7 +51,9 @@ export class HomeComponent extends ComponentBase implements OnInit {
       let res = await this.generationService.generatePageFeed({ skipDownload: true });
       this.snackBar.openFromComponent(CustomSnackBar, {
         duration: 6000, data: {
-          message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with page feed data`} });
+          message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with page feed data`
+        }
+      });
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

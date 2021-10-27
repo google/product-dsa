@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, FormGroupDirective, NgForm, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ErrorStateMatcher } from '@angular/material/core';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableDataSource } from '@angular/material/table';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ComponentBase } from './components/component-base';
-import { ApiService } from './shared/api.service';
-import { ConfigError, ConfigService, Configuration, ConfigurationTarget, GetConfigResponse, TargetNames } from './shared/config.service';
+import { ConfigError, ConfigService, Configuration, ConfigurationTarget, GetConfigResponse } from './shared/config.service';
+import { CustomErrorStateMatcher } from './shared/ErrorStateMatcher';
+import { NotificatinService } from './shared/notification.service';
 
-class CustomErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
-    return control?.invalid || false;
-  }
-
-}
 @Component({
   templateUrl: './config.component.html',
   styleUrls: ['./config.component.scss']
@@ -49,12 +42,11 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     private configService: ConfigService,
     private router: Router,
     private activatedRoute: ActivatedRoute,
-    dialog: MatDialog,
-    snackBar: MatSnackBar) {
-    super(dialog, snackBar);
+    notificationSvc: NotificatinService) {
+    super(notificationSvc);
     this.form = fb.group({ // NOTE: add type <Configuration> to validate fields
       //project_id: '',
-      merchant_id: '',
+      merchant_id: ['', [Validators.required]],
       dataset_id: '',
       dataset_location: '',
       dt_schedule: '',
@@ -224,7 +216,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
     await this.executeOp(async () => {
       let res = await this.configService.updateConfig(config);
       if (!res.errors || !res.errors.length) {
-        this.showSnackbar('Config updated');
+        this.showSnackbar('Configuration saved');
       } else {
         this.applyErrors(config, res.errors);
       }
@@ -307,7 +299,17 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       if (log && log.length) {
         this.showLog(log);
       }
-      this.showAlert("Application setup completed", "Success");
+      this.showAlert("Application setup has completed", "Success");
+      if (response.labels) {
+        for (let target of Object.keys(response.labels)) {
+          let labels = response.labels[target];
+          log = [`Target ${target} requires a mapping for the following labels, please make sure it exists:`];
+          log.push(...labels);
+          // TODO: theriotically we can check the mapping in config, but which to use (client or server)?
+          this.showLog(log, true);
+        }
+        this.showAlert("Some of your targets require specifying a mapping between labels and adgroup descriptions, please see the log", "Warning");
+      }
     }, 'Setup failed', true);
   }
 }

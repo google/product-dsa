@@ -1,0 +1,261 @@
+<app-progress-spinner [backdropEnabled]="true" [positionGloballyCenter]="true" [displayProgressSpinner]="loading">
+</app-progress-spinner>
+
+<div *ngIf="errorMessage">
+  <div class="alert alert-danger alert-dismissible" #errorMessageAlert>
+    <div [innerHTML]="errorMessage"></div>
+    <button type="button" class="btn-close" aria-label="Close" (click)="closeErrorMessage()"></button>
+  </div>
+</div>
+
+<mat-card>
+  <mat-card-title>
+    <div class="row">
+      <div class="col">
+        Application Setup
+      </div>
+    </div>
+  </mat-card-title>
+  <mat-card-subtitle>Welcome to Product DSA app. Here you can setup the application for first usage</mat-card-subtitle>
+</mat-card>
+<p></p>
+
+<form [formGroup]="form" novalidate>
+  <mat-stepper orientation="horizontal" (selectionChange)="onStep($event)">
+    <mat-step>
+      <ng-template matStepLabel>Configuration: GMC Data Transfer</ng-template>
+      <ng-template matStepContent>
+        <div class="row">
+          <div class="col-10">
+            <div class="alert alert-dark my-3">
+              Here you can set up the source for your data - GMC-BigQuery Data Transfer
+            </div>
+          </div>
+        </div>
+        <!-- merchant_id -->
+        <div class="row my-2">
+          <div class="col-10">
+            <mat-form-field appearance="outline" color="accent" class="full-width">
+              <mat-label>GMC account id</mat-label>
+              <input matInput formControlName="merchant_id">
+              <mat-hint>A GMC account (merchant id) to create data transfer for. Can be either a child account or a MCA
+                account.
+              </mat-hint>
+              <mat-error *ngIf="form.get('merchant_id')?.errors?.required">
+                GMC account id is required
+              </mat-error>
+              <mat-error>{{ form.get('merchant_id')?.getError('invalid') }} </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+        <!-- dataset_id -->
+        <div class="row my-2">
+          <div class="col-10">
+            <mat-form-field appearance="outline" color="accent" class="full-width">
+              <mat-label>BigQuery dataset id</mat-label>
+              <input matInput formControlName="dataset_id">
+              <mat-hint>Dataset id in BigQuery for GMC-BQ data transfer. If empty then 'gmcdsa' will be used</mat-hint>
+              <mat-error> {{ form.get('dataset_id')?.getError('invalid') }} </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+        <!-- dataset_location -->
+        <div class="row my-2">
+          <div class="col-10">
+            <mat-form-field appearance="outline" color="accent" class="full-width">
+              <mat-label>BigQuery dataset location</mat-label>
+              <input matInput formControlName="dataset_location">
+              <mat-hint>Location region for dataset in BigQuery (e.g. 'us' or 'europe'). Can be empty.</mat-hint>
+              <mat-error>{{ form.get('dataset_location')?.getError('invalid') }} </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+        <!-- dt_schedule -->
+        <div class="row my-2">
+          <div class="col-10">
+            <mat-form-field appearance="outline" color="accent" class="full-width">
+              <mat-label>DT schedule</mat-label>
+              <input matInput formControlName="dt_schedule">
+              <mat-hint>Schedule for executing data transfer. By default - daily. Can be empty. E.g. "every 6 hours"
+              </mat-hint>
+              <mat-error>{{ form.get('dt_schedule')?.getError('invalid') }} </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <button mat-button matStepperNext color="accent">Next</button>
+          </div>
+        </div>
+      </ng-template>
+    </mat-step>
+    <mat-step>
+      <ng-template matStepLabel>Configuration: Targets</ng-template>
+      <ng-template matStepContent>
+        <div class="row">
+          <div class="col-10">
+            <div class="alert alert-dark my-3">
+              Target is an abstraction how we call a bunch of settings for output.
+              You can think of it as a Google Ads account where you'll be importing feeds and ad campaigns.
+              You need at least one target. You only need to specify GMC account id in case of multiple targets (that
+              means that one Data Transfer from one GMC account will be used for several campaigns).
+            </div>
+          </div>
+        </div>
+        <!-- Targets -->
+        <span formArrayName="targets" *ngFor="let target of targets.controls; let i=index">
+          <mat-card [formGroupName]="i" class="my-2">
+            <!-- name -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Target name</mat-label>
+                  <input matInput formControlName="name">
+                  <mat-hint>A unique target name. Please use only A-Za-z0-9_- symbols</mat-hint>
+                  <mat-error *ngIf="target.get('name')?.errors?.required">
+                    Target name is required
+                  </mat-error>
+                  <mat-error>{{ target.get('name')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- merchant_id -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>GMC account id</mat-label>
+                  <input matInput formControlName="merchant_id">
+                  <mat-hint>A child GMC account or a list of children accounts to narrow products from the root account.
+                  </mat-hint>
+                  <mat-error>{{ target.get('merchant_id')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- page_feed_name -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Page feed name</mat-label>
+                  <input matInput formControlName="page_feed_name">
+                  <mat-hint>Name of page feed in Google Ads. Leave black for default 'pdsa-page-feed'</mat-hint>
+                  <mat-error>{{ target.get('page_feed_name')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- adcustomizer_feed_name -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Ad customizers feed name</mat-label>
+                  <input matInput formControlName="adcustomizer_feed_name">
+                  <mat-hint>Name of ad customizers feed in Google Ads. Leave blank for default 'pdsa-adcustomizers'
+                  </mat-hint>
+                  <mat-error>{{ target.get('adcustomizer_feed_name')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- dsa_lang -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>DSA language</mat-label>
+                  <input matInput formControlName="dsa_lang">
+                  <mat-hint>A language code for DSA ads, e.g. 'en'</mat-hint>
+                  <mat-error>{{ target.get('dsa_lang')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- dsa_website -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>DSA website</mat-label>
+                  <input matInput formControlName="dsa_website">
+                  <mat-hint>Website address without protocol prefix</mat-hint>
+                  <mat-error>{{ target.get('dsa_website')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- category_campaign_name -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Category campaign name</mat-label>
+                  <input matInput formControlName="category_campaign_name">
+                  <mat-hint></mat-hint>
+                  <mat-error>{{ target.get('category_campaign_name')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- product_campaign_name -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Product campaign name</mat-label>
+                  <input matInput formControlName="product_campaign_name">
+                  <mat-hint></mat-hint>
+                  <mat-error>{{ target.get('product_campaign_name')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <!-- ad_description_template -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Ad description template</mat-label>
+                  <input matInput formControlName="ad_description_template">
+                  <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
+                  <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col">
+                <mat-card-actions>
+                  <button mat-button *ngIf="i !== 0" (click)="deleteTarget(i)" color="accent">
+                    <mat-icon>delete</mat-icon> Delete Target
+                  </button>
+                </mat-card-actions>
+              </div>
+            </div>
+          </mat-card>
+        </span>
+        <!-- Add Target -->
+        <div class="row">
+          <div class="col-10">
+            <button mat-button (click)="addTarget()" color="accent">
+              <mat-icon>add</mat-icon> Add Target
+            </button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col"><button mat-button matStepperPrevious>Back</button></div>
+          <div class="col"><button mat-button matStepperNext color="accent">Next</button></div>
+        </div>
+      </ng-template>
+    </mat-step>
+    <mat-step>
+      <ng-template matStepLabel>Deployement</ng-template>
+      <ng-template matStepContent>
+        <div class="row">
+          <div class="col px-5">
+            <div class="alert alert-dark my-3">
+              Now we are ready to deploy solution components. But before executing deployment please make sure that your
+              service account ({{service_account}}) under which deployement will be running has Standard permissions in
+              your Google Merchant Center account.
+              Once you click 'Setup' button we'll run deployment in your Cloud Project under that account.
+            </div>
+          </div>
+          <div class="row">
+            <div class="col text-center">
+              <button mat-raised-button (click)="runSetup()" color="accent" class="mx-3 mat-elevation-z2">
+                <mat-icon>bolt</mat-icon> Run Setup
+              </button>
+
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </mat-step>
+  </mat-stepper>
+</form>

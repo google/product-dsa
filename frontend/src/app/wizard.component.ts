@@ -15,10 +15,9 @@
  */
 import { Component, OnInit } from '@angular/core';
 import { Form, FormBuilder, FormGroup } from '@angular/forms';
-import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { ComponentBase } from './components/component-base';
 import { GenerationService } from './shared/generation.service';
+import { NotificatinService } from './shared/notification.service';
 
 @Component({
   templateUrl: './wizard.component.html',
@@ -34,9 +33,8 @@ export class WizardComponent extends ComponentBase implements OnInit {
 
   constructor(private fb: FormBuilder,
     private generationService: GenerationService,
-    dialog: MatDialog,
-    snackBar: MatSnackBar) {
-    super(dialog, snackBar);
+    notificationSvc: NotificatinService) {
+    super(notificationSvc);
     this.form = fb.group({
       pagefeed_file: ''
     });

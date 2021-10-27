@@ -37,6 +37,7 @@ import { ConfirmationDialogComponent } from './components/confirmation-dialog.co
 import { DefaultRouteGuard } from './shared/default-route.guard';
 import { NotificationBarComponent } from './components/notification-bar.component';
 import { JsonPipe } from './components/json.pipe';
+import { SetupComponent } from './setup.component';
 
 @NgModule({
   declarations: [
@@ -51,7 +52,8 @@ import { JsonPipe } from './components/json.pipe';
     WizardComponent,
     ConfigComponent,
     NotificationBarComponent,
-    JsonPipe
+    JsonPipe,
+    SetupComponent
   ],
   imports: [
     BrowserModule,

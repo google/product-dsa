@@ -72,6 +72,7 @@ def copy_config_to_cache(config_file_name: str):
     )
     args.config = config_file_name_cache
   except FileNotFoundError:
+    logging.warn('Could not copy config file to a local cache because the file was not found')
     # Application isn't initialized (no config), that's ok - let it to start
     config_file_name_cache = None
 
@@ -138,6 +139,7 @@ def update_feeds():
   try:
     _verify_token(config)
   except Exception as e:
+    app.logger.exception(e)
     return str(e), 401
 
   # for API (in contrast to main) we support only ADC auth
@@ -379,6 +381,7 @@ def validate_setup():
     transfer_config = data_transfer.check_merchant_center_transfer(
         config.merchant_id, config.dataset_id)
   except cloud_data_transfer.DataTransferError as e:
+    app.logger.exception(e)
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
                     description=f"Application is not initialized: {e}"))
@@ -396,6 +399,7 @@ def validate_setup():
       labels = execute_sql_query('get-labels.sql', context,
                                  {"WHERE_CLAUSE": ""})
     except Exception as e:
+      app.logger.exception(e)
       return return_api_config_error(
           ApplicationError(ApplicationErrorReason.NOT_INITIALIZED,
                       f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"))
@@ -411,22 +415,29 @@ def validate_setup():
   return jsonify(errors=errors, log=log)
 
 
-@app.route("/api/setup/run", methods=["GET"])
+@app.route("/api/setup/run", methods=["POST"])
 def run_setup():
   logging.basicConfig()
   log_file_name = os.path.join(OUTPUT_FOLDER, '.setup.log')
   log_handler = logging.FileHandler(log_file_name, 'w')
   logging.root.addHandler(log_handler)
+
+  # there are two use-cases for using this endpoint: with config arg (in body) and without
+  if request.content_length > 0:
+    _save_config(request.json)
+
+  # detect current user email from IAP token in http headers
+  user_email = ''
+  try:
+    user_email = _validate_iap_jwt()
+  except:
+    # It's OK if we can't detect user_email from request in non-GAE environment (no IAP)
+    if IS_GAE:
+      raise
+
   try:
     skip_dt_run = request.args.get('skip-dt-run') == 'true' or False
     skip_spreadsheets = request.args.get('skip-spreadsheets') == 'true' or False
-    user_email = ''
-    try:
-      user_email = _validate_iap_jwt()
-    except:
-      # It's OK if we can't detect user_email from request in non-GAE environment (no IAP)
-      if IS_GAE:
-        raise
     try:
       config = _get_config()
     except FileNotFoundError:
@@ -452,13 +463,35 @@ def run_setup():
           # update local cache
           config_utils.save_config(config, args.config)
 
+    # fetch labels for category mapping (they need a label-description mapping)
+    context = Context(config, None, credentials,
+                      ContextOptions(OUTPUT_FOLDER, 'images'))
+    params = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
+    labels_by_target = {}
+    for target in config.targets:
+      try:
+        context.target = target
+        category_labels = execute_sql_query('get-labels.sql', context, params)
+        if category_labels.total_rows:
+          labels = []
+          for row in category_labels:
+            labels.append(row[0])
+          labels_by_target[target.name] = labels
+      except BaseException as e:
+        app.logger.exception(e)
+        msg = f'Setup was successful but reading of labels failed: {e}'
+        return return_api_config_error(
+            ApplicationError(reason=ApplicationErrorReason.INVALID_DEPLOYMENT,
+                             description=msg))
+
     log = ''
     log_handler.close()
     log_handler = None
     with open(log_file_name, 'r') as f:
       log = f.readlines()
-    return jsonify(log=log)
+    return jsonify(log=log, labels=labels_by_target)
   except BaseException as e:
+    app.logger.exception(e)
     msg = str(e)
     if type(e) is cloud_data_transfer.DataTransferError:
       msg = f"GMC Data Transfer failed: {e}"
@@ -470,6 +503,7 @@ def run_setup():
   finally:
     if log_handler:
       logging.root.removeHandler(log_handler)
+
 
 @app.route("/api/config", methods=["GET"])
 def get_config():
@@ -524,10 +558,8 @@ def get_config():
                  errors=errors)
 
 
-@app.route("/api/config", methods=["POST"])
-def post_config():
-  new_config = request.get_json(cache=False)
-  content = json.dumps(new_config, indent=2)
+def _save_config(config):
+  content = json.dumps(config, indent=2)
   # we can update config if and only if it's stored on GCS (i.e. args.config has a gcs url)
   if config_file_name and config_file_name.startswith("gs://"):
     file_utils.save_file_to_gcs(config_file_name, content)
@@ -542,9 +574,16 @@ def post_config():
     # local file and local server, just save it
     file_utils.save_file_content(config_file_name, content)
   else:
-    msg = f'Updating config is not possible because it is not stored on GCS'
+    # GAE but config isn't on GCS (a local file inside container)
+    msg = f'Updating config is not possible because it is not stored on GCS. Please make sure your app.yaml has CONFIG env var with an external writable path to config file (GCS)'
     logging.warning(msg)
-    return msg, 400
+    raise Exception(msg)
+
+
+@app.route("/api/config", methods=["POST"])
+def post_config():
+  new_config = request.get_json(cache=False)
+  _save_config(new_config)
 
   config = _get_config()
   errors = config.validate(generation=True, validate_targets=True)
@@ -575,7 +614,7 @@ def catch_all(path):
 
 @app.errorhandler(Exception)
 def handle_exception(e: Exception):
-  logging.error(e)
+  app.logger.exception(e)
   if request.content_type == "application/json" and request.path.startswith('/api/'):
     # NOTE: not all exceptions can be serialized
     try:

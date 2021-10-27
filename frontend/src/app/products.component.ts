@@ -17,11 +17,11 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatPaginator } from '@angular/material/paginator';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableDataSource } from '@angular/material/table';
 import { ComponentBase } from './components/component-base';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
 import { ConfigService, GetConfigResponse } from './shared/config.service';
+import { NotificatinService } from './shared/notification.service';
 import { ProductService } from './shared/product.service';
 
 @Component({
@@ -45,9 +45,9 @@ export class ProductsComponent extends ComponentBase implements OnInit {
   constructor(private fb: FormBuilder,
     private productService: ProductService,
     private configService: ConfigService,
-    dialog: MatDialog,
-    snackBar: MatSnackBar) {
-    super(dialog, snackBar);
+    private dialog: MatDialog,
+    notificationSvc: NotificatinService) {
+    super(notificationSvc);
 
     this.formLabels = this.fb.group({
     }, { updateOn: 'blur' });

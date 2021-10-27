@@ -32,21 +32,21 @@ export class ApiService {
 
   constructor(public backendService: BackendService) { }
 
-  async generatePageFeed(target: string|undefined): Promise<GenerateResponse> {
+  async generatePageFeed(target: string | undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/pagefeed/generate', {target});
+      '/pagefeed/generate', { target });
     return res;
   }
 
   async generateAdcustomizers(target: string | undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/adcustomizers/generate', {target});
+      '/adcustomizers/generate', { target });
     return res;
   }
 
   async generateAdCampaign(target: string | undefined): Promise<GenerateResponse> {
     let res = await this.backendService.getApi<GenerateResponse>(
-      '/campaign/generate', {target});
+      '/campaign/generate', { target });
     return res;
   }
 
@@ -58,29 +58,33 @@ export class ApiService {
     return this.backendService.getApi<Record<string, any>[]>('/products', { target });
   }
 
-  async downloadFile(filename: string): Promise<void> {
-    this.backendService.getFile(`/download`, {
+  downloadFile(filename: string): Promise<void> {
+    return this.backendService.getFile(`/download`, {
       filename: filename
     });
   }
 
-  async getConfig(): Promise<any> {
-    return await this.backendService.getApi<any>('/config')
+  getConfig(): Promise<any> {
+    return this.backendService.getApi<any>('/config')
   }
 
-  async updateConfig(config: any): Promise<any> {
-    return await this.backendService.postApi('/config', config /*, { emptyResponse: true}*/);
+  updateConfig(config: any): Promise<any> {
+    return this.backendService.postApi('/config', config /*, { emptyResponse: true}*/);
   }
 
   shareSpreadsheets(): Promise<any> {
-    return this.backendService.postApi('/feeds/share', null, {emptyResponse: true});
+    return this.backendService.postApi('/feeds/share', null, { emptyResponse: true });
   }
 
-  async validateSetup(): Promise<{errors: any[], log: string[]}> {
+  validateSetup(): Promise<{ errors: any[], log: string[] }> {
     return this.backendService.getApi('/setup/validate');
   }
 
-  async runSetup(options?: {skip_dt_run?: boolean}): Promise<{ log: string[] }> {
-    return this.backendService.getApi('/setup/run', { "skip-dt-run": options?.skip_dt_run});
+  runSetup(options: { skip_dt_run?: boolean }, config?: any): Promise<{ log: string[], labels: Record<string,string[]> }> {
+    return this.backendService.postApi('/setup/run', config, {
+      params: {
+        "skip-dt-run": options?.skip_dt_run,
+      }
+    });
   }
 }

@@ -42,7 +42,8 @@
             <a *ngIf="pagefeed_speadsheet" target="_blank"
               href="https://docs.google.com/spreadsheets/d/{{pagefeed_speadsheet}}">https://docs.google.com/spreadsheets/d/{{pagefeed_speadsheet}}</a>
             <div class="alert alert-dark my-4" *ngIf="pagefeed_speadsheet">
-              Please go to Google Ads (Tools&amp;Settings / Setup / Business data) and create a new page feed with the name <span class="font-monospace text-info">{{pagefeed_name}}</span> following <a
+              Please go to Google Ads (Tools&amp;Settings / Setup / Business data) and create a new page feed with the
+              name <span class="font-monospace text-info">{{pagefeed_name}}</span> following <a
                 href="https://support.google.com/google-ads/answer/7364634" target="_blank">the docs</a>.
               Then set up a schedule for auto-updating the feed using the generated Google Spreadsheet following
               <a href="https://support.google.com/google-ads/answer/7364396" target="_blank">the docs</a>
@@ -76,7 +77,9 @@
             <a *ngIf="adcustomizer_speadsheet" target="_blank"
               href="https://docs.google.com/spreadsheets/d/{{adcustomizer_speadsheet}}">https://docs.google.com/spreadsheets/d/{{adcustomizer_speadsheet}}</a>
             <div class="alert alert-dark my-4" *ngIf="adcustomizer_speadsheet">
-              Please go to Google Ads (Tools&amp;Settings / Setup / Business data) and create a new ad customizer feed ("Ad customizer data for text ads") with the name <span class="font-monospace text-info">{{adcustomizer_feed_name}}</span> following <a
+              Please go to Google Ads (Tools&amp;Settings / Setup / Business data) and create a new ad customizer feed
+              ("Ad customizer data for text ads") with the name <span
+                class="font-monospace text-info">{{adcustomizer_feed_name}}</span> following <a
                 href="https://support.google.com/google-ads/answer/6093368" target="_blank">the docs</a>.
             </div>
           </div>
@@ -90,19 +93,22 @@
     <!-- step 3 -->
     <mat-step>
       <ng-template matStepLabel>Generate ad campaign</ng-template>
-      <div class="row">
-        <div class="col">
-          <p>Press Run to generate ad campaign data, and as it completes you'll get a zip file with CSV
-            for <a href="https://ads.google.com/home/tools/ads-editor/" target="_blank">Google Ads Editor</a> and images
-          </p>
-          <button mat-raised-button (click)="generateAdCampaign()" color="accent" class="mat-elevation-z2">
-            Run
-          </button>
+      <ng-template matStepContent>
+        <div class="row">
+          <div class="col">
+            <p>Press Run to generate ad campaign data, and as it completes you'll get a zip file with CSV
+              for <a href="https://ads.google.com/home/tools/ads-editor/" target="_blank">Google Ads Editor</a> and
+              images
+            </p>
+            <button mat-raised-button (click)="generateAdCampaign()" color="accent" class="mat-elevation-z2">
+              Run
+            </button>
+          </div>
         </div>
-      </div>
-      <div class="row">
-        <div class="col"><button mat-button matStepperPrevious>Back</button></div>
-      </div>
+        <div class="row">
+          <div class="col"><button mat-button matStepperPrevious>Back</button></div>
+        </div>
+      </ng-template>
     </mat-step>
   </mat-stepper>
 </form>

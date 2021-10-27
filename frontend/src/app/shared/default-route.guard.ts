@@ -40,12 +40,17 @@ export class DefaultRouteGuard implements CanActivate {
       return new Promise<boolean>((resolve) => {
         this.configService.loadConfig().then(config => {
           if (config.errors && config.errors.length) {
-            this.notificationService.message = "Configuration contains error, please <a href='/config' routerLink='/config'>correct</a> before generating";
+            this.notificationService.message = "Configuration contains error, please <a href='/config' routerLink='/config?edit=true'>correct</a> before generating";
           }
           resolve(true);
         }).catch(error => {
-          this.router.navigate(['/config'], { queryParams: { edit: true } });
-          resolve(false);
+          if (error && error.status === 500 && error.error?.error?.reason === 'not_initialized') {
+            this.router.navigate(['/setup'] /*, { queryParams: { edit: true } }*/);
+            resolve(false);
+          } else {
+            this.notificationService.showSnackbarWithError('Configuration fetch failed', error);
+            resolve(true);
+          }
         })
       });
     }

@@ -51,10 +51,11 @@ export class BackendService {
       }));
   }
 
-  postApi(url: string, payload?: any, opt?: { emptyResponse?: boolean }): Promise<any> {
+  postApi(url: string, payload?: any, opt?: { emptyResponse?: boolean, params?: Record<string, any> }): Promise<any> {
     let options: any = { headers: this.getBaseHeaders(opt) };
     if (opt?.emptyResponse)
       options['responseType'] = 'text';
+    options.params = options?.params;
     return lastValueFrom(this.http.post(
       this.getUrl(url),
       payload,

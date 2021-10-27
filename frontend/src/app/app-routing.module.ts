@@ -21,12 +21,14 @@ import { ProductsComponent } from './products.component';
 import { ConfigComponent } from './config.component';
 import { WizardComponent } from './wizard.component';
 import { DefaultRouteGuard } from './shared/default-route.guard';
+import { SetupComponent } from './setup.component';
 
 const routes: Routes = [
   { path: '', component: HomeComponent, canActivate: [DefaultRouteGuard] },
   { path: 'products', component: ProductsComponent, canActivate: [DefaultRouteGuard] },
   { path: 'wizard', component: WizardComponent, canActivate: [DefaultRouteGuard] },
-  { path: 'config', component: ConfigComponent, canActivate: [DefaultRouteGuard] }
+  { path: 'config', component: ConfigComponent, canActivate: [DefaultRouteGuard] },
+  { path: 'setup', component: SetupComponent }
 ];
 
 @NgModule({

@@ -13,18 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {MatDialog, MatDialogRef} from '@angular/material/dialog';
-import {MatSnackBar} from '@angular/material/snack-bar';
-import {ConfirmationDialogComponent, ConfirmationDialogModes} from './confirmation-dialog.component';
+import { MatDialogRef } from '@angular/material/dialog';
+import { NotificatinService } from '../shared/notification.service';
+import { ConfirmationDialogComponent } from './confirmation-dialog.component';
 
 export abstract class ComponentBase {
   errorMessage: string | null = null;
   loading = false;
 
-  constructor(
-    public dialog: MatDialog,
-    public snackBar: MatSnackBar) {
-
+  constructor(private notificationSvc: NotificatinService) {
   }
 
   closeErrorMessage() {
@@ -63,20 +60,7 @@ export abstract class ComponentBase {
   }
 
   showSnackbarWithError(message: string, e: any) {
-    let snackBarRef = this.snackBar.open(message, 'Details', {
-      duration: 6000,
-    });
-    snackBarRef.onAction().subscribe(() => {
-      let details = '';
-      typeof e === 'string' ? details = e : details = JSON.stringify(e);
-      snackBarRef.dismiss();
-      snackBarRef = this.snackBar.open(details, 'Dismiss', {
-        duration: 15000,
-      });
-      snackBarRef.onAction().subscribe(() => {
-        snackBarRef.dismiss();
-      });
-    });
+    this.notificationSvc.showSnackbarWithError(message, e);
   }
 
   /**
@@ -84,12 +68,7 @@ export abstract class ComponentBase {
    * @param message A user message
    */
   showSnackbar(message: string) {
-    const snackBarRef = this.snackBar.open(message, 'Dismiss', {
-      duration: 4000,
-    });
-    snackBarRef.onAction().subscribe(() => {
-      snackBarRef.dismiss();
-    });
+    this.notificationSvc.showSnackbar(message);
   }
 
   /**
@@ -98,32 +77,20 @@ export abstract class ComponentBase {
    * @returns Dialog
    */
   confirm(message: string) {
-    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
-      data: {
-        message,
-        mode: ConfirmationDialogModes.YesNo
-      }
-    });
-    return dialogRef;
+    return this.notificationSvc.confirm(message);
   }
 
   showAlert(message: string, header?: string): MatDialogRef<ConfirmationDialogComponent> {
-    return this.dialog.open(ConfirmationDialogComponent, {
-      data: {
-        message: message,
-        header: header,
-        mode: ConfirmationDialogModes.Ok
-      }
-    });
+    return this.notificationSvc.showAlert(message, header);
   }
 
   onTableRowClick($event: MouseEvent): boolean {
     // ignore click on links
-    if ((<any>$event.target).tagName === 'A') {return false;}
+    if ((<any>$event.target).tagName === 'A') { return false; }
     // ignore click on button
     let el = <any>$event.target;
     do {
-      if ((el).tagName === 'BUTTON') {return false;}
+      if ((el).tagName === 'BUTTON') { return false; }
       el = el.parentElement;
     } while (el && el !== $event.currentTarget);
 

@@ -30,13 +30,12 @@ from google.cloud.bigquery_datatransfer_v1 import types
 from google.protobuf import struct_pb2, timestamp_pb2
 from google.api_core import exceptions
 
-
 logging.getLogger().setLevel(logging.INFO)
 
 _MERCHANT_CENTER_ID = 'merchant_center'  # Data source id for Merchant Center.
 _GOOGLE_ADS_ID = 'adwords'  # Data source id for Google Ads.
 _SLEEP_SECONDS = 5  # Seconds to sleep before checking resource status.
-_MAX_WAIT_SECONDS = 1200 # Maximum seconds to wait for an operation to complete (20 minutes)
+_MAX_WAIT_SECONDS = 1200  # Maximum seconds to wait for an operation to complete (20 minutes)
 
 
 class DataTransferError(Exception):
@@ -106,6 +105,8 @@ class CloudDataTransferUtils(object):
                                                  types.TransferState.SUCCEEDED)
       params_match = self._check_params_match(transfer_config, params)
       name_matches = name is None or name == transfer_config.display_name
+      # TODO: transfer_config.userId contains a userid for a user under which the transfer running
+      #       we could campare it with the current user from credentials. But how?
       if params_match and is_valid_state and name_matches:
         return transfer_config
     return None

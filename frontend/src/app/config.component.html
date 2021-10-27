@@ -47,20 +47,24 @@
         </div>
       </div> -->
       <!-- merchant_id -->
-      <div class="row">
+      <div class="row my-2">
         <div class="col-10">
           <mat-form-field appearance="outline" color="accent" class="full-width">
             <mat-label>GMC account id</mat-label>
             <input matInput formControlName="merchant_id" [readonly]="editable ? false : true"
               [errorStateMatcher]="matcher">
-            <mat-hint>The root GMC account (merchant id) to create data transfer for. Can be a child account as well.
+            <mat-hint>A GMC account (merchant id) to create data transfer for. Can be either a child account or a MCA
+              account.
             </mat-hint>
+            <mat-error *ngIf="form.get('merchant_id')?.errors?.required">
+              GMC account id is required
+            </mat-error>
             <mat-error>{{ form.get('merchant_id')?.getError('invalid') }} </mat-error>
           </mat-form-field>
         </div>
       </div>
       <!-- dataset_id -->
-      <div class="row">
+      <div class="row my-2">
         <div class="col-10">
           <mat-form-field appearance="outline" color="accent" class="full-width">
             <mat-label>BigQuery dataset id</mat-label>
@@ -72,7 +76,7 @@
         </div>
       </div>
       <!-- dataset_location -->
-      <div class="row">
+      <div class="row my-2">
         <div class="col-10">
           <mat-form-field appearance="outline" color="accent" class="full-width">
             <mat-label>BigQuery dataset location</mat-label>
@@ -84,7 +88,7 @@
         </div>
       </div>
       <!-- dt_schedule -->
-      <div class="row">
+      <div class="row my-2">
         <div class="col-10">
           <mat-form-field appearance="outline" color="accent" class="full-width">
             <mat-label>DT schedule</mat-label>
@@ -105,7 +109,7 @@
             </div>
           </div>
           <!-- name -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Target name</mat-label>
@@ -120,7 +124,7 @@
             </div>
           </div>
           <!-- merchant_id -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>GMC account id</mat-label>
@@ -133,19 +137,19 @@
             </div>
           </div>
           <!-- page_feed_name -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Page feed name</mat-label>
                 <input matInput formControlName="page_feed_name" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Name of page feed in Google Ads</mat-hint>
+                <mat-hint>Name of page feed in Google Ads. Leave black for default 'pdsa-page-feed'</mat-hint>
                 <mat-error>{{ target.get('page_feed_name')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
           </div>
           <!-- page_feed_spreadsheetid -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Page feed spreadsheet id</mat-label>
@@ -161,19 +165,19 @@
             </div>
           </div>
           <!-- adcustomizer_feed_name -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Ad customizers feed name</mat-label>
                 <input matInput formControlName="adcustomizer_feed_name" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Name of ad customizers feed in Google Ads</mat-hint>
+                <mat-hint>Name of ad customizers feed in Google Ads. Leave blank for default 'pdsa-adcustomizers'</mat-hint>
                 <mat-error>{{ target.get('adcustomizer_feed_name')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
           </div>
           <!-- adcustomizer_spreadsheetid -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Ad customizers feed spreadsheet id</mat-label>
@@ -189,19 +193,19 @@
             </div>
           </div>
           <!-- dsa_lang -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>DSA language</mat-label>
                 <input matInput formControlName="dsa_lang" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint></mat-hint>
+                <mat-hint>A language code for DSA ads, e.g. 'en'</mat-hint>
                 <mat-error>{{ target.get('dsa_lang')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
           </div>
           <!-- dsa_website -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>DSA website</mat-label>
@@ -213,7 +217,7 @@
             </div>
           </div>
           <!-- category_campaign_name -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Category campaign name</mat-label>
@@ -225,7 +229,7 @@
             </div>
           </div>
           <!-- product_campaign_name -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Product campaign name</mat-label>
@@ -237,7 +241,7 @@
             </div>
           </div>
           <!-- ad_description_template -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
                 <mat-label>Ad description template</mat-label>
@@ -249,7 +253,7 @@
             </div>
           </div>
           <!-- category_ad_descriptions -->
-          <div class="row">
+          <div class="row my-2">
             <div class="col">
               <mat-expansion-panel #executionLogPanel>
                 <mat-expansion-panel-header>
@@ -265,26 +269,26 @@
                     <mat-cell *matCellDef="let element; let i = index" [formGroup]="element">
                       <mat-form-field appearance="legacy" color="accent" class="full-width"
                         [ngClass]="{'no-underline' : !editable}">
-                        <input matInput type="text" formControlName="label"
-                          [readonly]="!editable">
+                        <input matInput type="text" formControlName="label" [readonly]="!editable">
                       </mat-form-field>
                     </mat-cell>
                   </ng-container>
                   <ng-container matColumnDef="description">
                     <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
-                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element" [matTooltip]="element.get('description').value">
+                    <mat-cell *matCellDef="let element; let i = index" [formGroup]="element"
+                      [matTooltip]="element.get('description').value">
                       <mat-form-field appearance="legacy" color="accent" class="full-width"
                         [ngClass]="{'no-underline' : !editable}">
                         <input matInput type="text" formControlName="description" [readonly]="!editable">
                       </mat-form-field>
                     </mat-cell>
                   </ng-container>
-                  <ng-container matColumnDef="action" >
+                  <ng-container matColumnDef="action">
                     <mat-header-cell *matHeaderCellDef> Action </mat-header-cell>
                     <mat-cell *matCellDef="let element; let item_index = index" [formGroup]="element">
                       <span style="white-space:nowrap;width: 150px">
                         <button mat-icon-button color="warn" *ngIf="editable"
-                        (click)="labelDescList_deleteRow(i, item_index)" matTooltip="Delete">
+                          (click)="labelDescList_deleteRow(i, item_index)" matTooltip="Delete">
                           <mat-icon>delete</mat-icon>
                         </button>
                       </span>
@@ -298,6 +302,11 @@
                   <mat-icon class="add-button">add_box</mat-icon>
                 </button>
               </mat-expansion-panel>
+            </div>
+          </div>
+          <!-- Delete Target -->
+          <div class="row">
+            <div class="col">
               <mat-card-actions>
                 <button mat-button *ngIf="editable" (click)="deleteTarget(i)" color="accent">
                   <mat-icon>delete</mat-icon> Delete Target
@@ -307,6 +316,7 @@
           </div>
         </mat-card>
       </span>
+      <!-- Add Target -->
       <div class="row">
         <div class="col-10">
           <button mat-button (click)="addTarget()" color="accent" *ngIf="editable">
@@ -340,7 +350,7 @@
   </mat-tab>
   <mat-tab label="Setup">
     <form [formGroup]="formSetup" novalidate>
-      <mat-card>
+      <mat-card class="setup">
         <div class="alert alert-dark my-4">
           Before running setup please make sure you granted your service account
           (PROJECT_ID@appspot.gserviceaccount.com) access permissions (Standard) to your GMC account.
@@ -350,7 +360,7 @@
             <button mat-raised-button (click)="validateSetup()" color="accent" class="mat-elevation-z2">
               <mat-icon>check</mat-icon> Validate Setup
             </button>
-            <button mat-raised-button (click)="runSetup()" class="mx-3 mat-elevation-z2">
+            <button mat-raised-button (click)="runSetup()" color="accent" class="mx-3 mat-elevation-z2">
               <mat-icon>bolt</mat-icon> Run Setup
             </button>
           </div>

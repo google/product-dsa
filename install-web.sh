@@ -15,10 +15,7 @@
 # limitations under the License.
 
 # The script creates AppEngine application, builds the project and deploy it as AppEngine default service 
-# To run this script you should have either Owner role in the current project or these specific roles:
-# * "App Engine Admin" (appengine.appAdmin) 
-# * "App Engine Creator" (appengine.appCreator)
-# * "IAP Policy Admin" (iap.admin)
+# To run this script you should have either Owner role in the current project or Editor plus "IAM Policy Admin".
 
 # WARNING: if the current project is not in a Cloud Organization (your Google account isn't from Workspace)
 #          then at the stage "Creating oauth brand (consent screen) for IAP" we'll likely get an error:

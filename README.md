@@ -48,12 +48,11 @@ Make sure the user running the installation has following permissions.
 
 * [Standard Access For GMC](https://support.google.com/merchants/answer/1637190?hl=en)
 * one of the following set or [roles](https://cloud.google.com/iam/docs/understanding-roles) in Google Cloud Project
-  * Owner
+  * Owner (preferred)
   * Editor plus the following roles:
-    * AppEngine specific [roles](https://cloud.google.com/appengine/docs/standard/python/roles): App Engine Admin (`appengine.appAdmin`) and App Engine Creator (`appengine.appCreator`)
+    * App Engine Admin (`appengine.appAdmin`) and
+    * App Engine Creator (`appengine.appCreator`)
     * IAP Policy Admin (`iap.admin`)
-    * Big Query Admin (`bigquery.admin`)
-    * Pub/Sub Admin (actually the `pubsub.topics.setIamPolicy` permission is needed)
     * Project IAM Admin (`resourcemanager.projectIamAdmin`)
 
 ### 2.3 Clone repository

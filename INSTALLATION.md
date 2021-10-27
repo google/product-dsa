@@ -51,6 +51,4 @@ and create principals with "IAP-secured Web App User" role.
 
 ## Setup
 
-Open the app (http://${PROJECT_ID}.ew.r.appspot.com), fill settings and run Setup
-* merchant id
-* create at least one target
+Open the app (http://${PROJECT_ID}.ew.r.appspot.com) and follow the setup wizard.

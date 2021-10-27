@@ -8,8 +8,6 @@ google-cloud-pubsub
 google-cloud-resource-manager
 cryptography
 grpcio
-#grpcio-tools # do we really need it? It's very heavy on installing
-PyYAML
 flask
 gunicorn
 pytz

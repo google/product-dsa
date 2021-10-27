@@ -14,14 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This is the main installation script for Product DSA in GCP environment.
+# It installs a GAE Web App (using install-web.sh) and 
+# grant GAE service account additional roles required for executing setup.
+# Setup inself is executed from within the application.
+
 ./install-web.sh
 
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID | grep projectNumber | sed "s/.* '//;s/'//g")
 SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
-
-# export key for GAE default service account
-gcloud iam service-accounts keys create service_account.json --iam-account=$SERVICE_ACCOUNT
 
 # Grant GAE service account with the BigQuery Admin role so it could create data transfers
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/bigquery.admin

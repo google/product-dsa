@@ -91,12 +91,9 @@ class GoogleAdsEditorMgr:
     sentenceList = sentenceEnders.split(descrption)
     return sentenceList
 
-  def __get_ad_description(self, product):
-    ''' The limit for description is 90 characters, which can be easily exceeded.
-    This method will decide what information to take as the ad description. It also
-    removes any commas that exist in the string to avoid messing up the CSV file
-    If no valid sentance is found, we will leave it empty to be modified from
-    Google Ads Editor
+  def __get_ad_description_from_template(self, product):
+    ''' This method tries to generate an ad description using ad customizers template.
+        The limit for description is 90 characters.
     '''
     # Try to use adcustomizers
     if self._context.target.ad_description_template:
@@ -110,7 +107,15 @@ class GoogleAdsEditorMgr:
                            self._context.target.ad_description_template)
       if description != self._context.target.ad_description_template:
         return description
+      return ''
 
+  def __get_ad_description(self, product):
+    ''' The limit for description is 90 characters, which can be easily exceeded.
+    This method will decide what information to take as the ad description. It also
+    removes any commas that exist in the string to avoid messing up the CSV file
+    If no valid sentance is found, we will leave it empty to be modified from
+    Google Ads Editor
+    '''
     if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.description
 
@@ -163,6 +168,25 @@ class GoogleAdsEditorMgr:
     orig_ad_description = self._orig_descriptions.get(
         (campaign_name, adgroup_name)) or ''
     # TODO: current __get_category_description raises ValueError if a mapping (label-category) is missing in config
+    if is_product_level:
+      ad_description_from_template = self.__get_ad_description_from_template(
+        product)
+      if ad_description_from_template:
+        adgroup_details = {
+          CAMP_NAME: campaign_name,
+          ADGROUP_NAME: adgroup_name,
+          ADGROUP_MAX_CPM: '0.01',
+          ADGROUP_TARGET_CPM: '0.01',
+          ADGROUP_TYPE: 'Dynamic',
+          TARGET_CONDITION: 'CUSTOM_LABEL',
+          TARGET_VALUE: label,
+          AD_TYPE: 'Expanded Dynamic Search Ad',
+          AD_DESCRIPTION_ORIG: orig_ad_description,
+          AD_DESCRIPTION: ad_description_from_template.strip()
+        }
+        adgroup.update(adgroup_details)
+        self._rows.append(adgroup)
+
     ad_description = self.__get_ad_description(
         product) if is_product_level else self.__get_category_description(label)
     adgroup_details = {

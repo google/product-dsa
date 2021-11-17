@@ -35,7 +35,7 @@ export class SetupComponent extends ComponentBase implements OnInit {
   ngOnInit(): void {
     // extract project_id from current url
     if (location.hostname.endsWith('appspot.com')) {
-      this.service_account = location.hostname.split('.')[0];
+      this.service_account = location.hostname.split('.')[0] + '@appspot.gserviceaccount.com';
     }
   }
 

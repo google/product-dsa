@@ -16,8 +16,8 @@
 
 # This is the main installation script for Product DSA in GCP environment.
 # It installs a GAE Web App (using install-web.sh) and 
-# grant GAE service account additional roles required for executing setup.
-# Setup inself is executed from within the application.
+# grant the GAE service account additional roles required for executing setup.
+# Setup inself is executed from within the application (or via setup.sh).
 
 ./install-web.sh
 

@@ -20,14 +20,9 @@
 # WARNING: if the current project is not in a Cloud Organization (your Google account isn't from Workspace)
 #          then at the stage "Creating oauth brand (consent screen) for IAP" we'll likely get an error:
 # "create-oauth-client": ERROR: (gcloud.alpha.iap.oauth-brands.list) INVALID_ARGUMENT: Request contains an invalid argument.
-# Safely ignore it, but we'll need to do several manual steps afterwards:
+# Safely ignore it, but you'll need to do several manual steps afterwards:
 # * create an OAuth consent screen (brand)
 # * reenable IAP for AppEngine on the https://console.cloud.google.com/security/iap page
-
-# Things to consider:
-# if you're going to use the GAE service account for executing deployment then it should be granted additional roles:
-#   * "BigQuery Admin" (roles/bigquery.admin)
-#   * "Pub/Sub Admin" (roles/pubsub.admin)
 
 COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color

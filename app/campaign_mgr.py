@@ -77,6 +77,8 @@ class GoogleAdsEditorMgr:
     ]
     self._rows = []
     self._orig_descriptions = {}
+    self._re_splitter = re.compile('[.!?|\n]')
+    self._re_splitter_full = re.compile('[.!?|\n,;]')
 
   def __create_row(self):
     ''' Creates an object that represents an empty row of the csv file '''
@@ -85,9 +87,9 @@ class GoogleAdsEditorMgr:
       row[header] = ''
     return row
 
-  def __split_to_sentances(self, descrption):
-    ''' break a paragraph into sentences and return a list '''
-    sentenceEnders = re.compile('[.,!?\|]')
+  def __split_to_sentences(self, descrption: str, all_separators: bool):
+    ''' Break a paragraph into sentences and return a list '''
+    sentenceEnders = self._re_splitter_full if all_separators else self._re_splitter
     sentenceList = sentenceEnders.split(descrption)
     return sentenceList
 
@@ -122,9 +124,16 @@ class GoogleAdsEditorMgr:
     if len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.title
 
-    # The description and title are too long, split them to sentances
-    all_sentences = self.__split_to_sentances(
-        product.description) + self.__split_to_sentances(product.title)
+    # The description and title are too long, split them to sentences
+    all_sentences = (self.__split_to_sentences(product.title, False) +
+                     self.__split_to_sentences(product.description, False))
+    for sentence in all_sentences:
+      if (len(sentence) >= AD_DESCRIPTION_MIN_LENGTH and
+          len(sentence) <= AD_DESCRIPTION_MAX_LENGTH):
+        return sentence
+    # this time split using commas and semi-colons
+    all_sentences = (self.__split_to_sentences(product.title, True) +
+                     self.__split_to_sentences(product.description, True))
     for sentence in all_sentences:
       if (len(sentence) >= AD_DESCRIPTION_MIN_LENGTH and
           len(sentence) <= AD_DESCRIPTION_MAX_LENGTH):

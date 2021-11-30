@@ -17,6 +17,8 @@
 # The script initialize Google Cloud infrastructure for a project.
 # Can be run many times without any harm.
 # The minimum required Python version is 3.7 because it's the version installed in Cloud Shell
+# It's an alternative way to initialize project infrastructure 
+# as an alternative to executing setup from within application (which is recommended).
 
 COLOR='\033[0;36m' # Cyan
 RED='\033[0;31m' # Red Color

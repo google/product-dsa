@@ -27,7 +27,7 @@ from typing import Any, Dict, List
 from google.auth import credentials
 from google.cloud import storage
 from google.api_core import exceptions
-from common import config_utils, file_utils, sheets_utils
+from common import config_utils, file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context, ContextOptions
 
@@ -170,19 +170,19 @@ class GoogleAdsEditorMgr:
     # TODO: current __get_category_description raises ValueError if a mapping (label-category) is missing in config
     if is_product_level:
       ad_description_from_template = self.__get_ad_description_from_template(
-        product)
+          product)
       if ad_description_from_template:
         adgroup_details = {
-          CAMP_NAME: campaign_name,
-          ADGROUP_NAME: adgroup_name,
-          ADGROUP_MAX_CPM: '0.01',
-          ADGROUP_TARGET_CPM: '0.01',
-          ADGROUP_TYPE: 'Dynamic',
-          TARGET_CONDITION: 'CUSTOM_LABEL',
-          TARGET_VALUE: label,
-          AD_TYPE: 'Expanded Dynamic Search Ad',
-          AD_DESCRIPTION_ORIG: orig_ad_description,
-          AD_DESCRIPTION: ad_description_from_template.strip()
+            CAMP_NAME: campaign_name,
+            ADGROUP_NAME: adgroup_name,
+            ADGROUP_MAX_CPM: '0.01',
+            ADGROUP_TARGET_CPM: '0.01',
+            ADGROUP_TYPE: 'Dynamic',
+            TARGET_CONDITION: 'CUSTOM_LABEL',
+            TARGET_VALUE: label,
+            AD_TYPE: 'Expanded Dynamic Search Ad',
+            AD_DESCRIPTION_ORIG: orig_ad_description,
+            AD_DESCRIPTION: ad_description_from_template.strip()
         }
         adgroup.update(adgroup_details)
         self._rows.append(adgroup)
@@ -215,23 +215,25 @@ class GoogleAdsEditorMgr:
     dynamic_target.update(dynamic_target_details)
     self._rows.append(dynamic_target)
 
-    product_images = [product.image_link]
+    product_images = []
+    if product.image_link:
+      product_images.append(product.image_link)
     if product.additional_image_links:
       product_images += product.additional_image_links
 
-    # Add the image extension row
-    for image in product_images:
+    # Add the image extension row(s)
+    for uri in product_images:
       folder = os.path.join(self._context.output_folder,
                             self._context.image_folder)
+      local_image_path = file_utils.download_file(uri, folder)
+      two_image_file_paths = image_utils.resize(local_image_path)
       # Add square image
-      local_image_path = file_utils.download_image(image, folder)
-      rel_image_path = os.path.relpath(local_image_path,
-                                       self._context.output_folder or '')
-      self.add_image_ext(campaign_name, adgroup_name, rel_image_path)
+      rel_image_path_square = os.path.relpath(two_image_file_paths[0],
+                                              self._context.output_folder or '')
+      self.add_image_ext(campaign_name, adgroup_name, rel_image_path_square)
       # Add landscape
-      local_image_path_landscape = file_utils.download_image(image, folder, True)
-      rel_image_path_landscape = os.path.relpath(local_image_path_landscape,
-                                       self._context.output_folder or '')
+      rel_image_path_landscape = os.path.relpath(
+          two_image_file_paths[1], self._context.output_folder or '')
       self.add_image_ext(campaign_name, adgroup_name, rel_image_path_landscape)
 
   def add_image_ext(self, campaign_name: str, adgroup_name: str, img_path: str):
@@ -252,14 +254,14 @@ class GoogleAdsEditorMgr:
       writer.writerows(self._rows)
 
 
-def _get_ads_attribute_type(field, parent_field = None) -> str:
+def _get_ads_attribute_type(field, parent_field=None) -> str:
   # https://support.google.com/google-ads/answer/6093368
   # supported attrubute types: text, number, price, date
   field_type = field.field_type
   if field_type == 'STRING':
     return 'text'
   if field_type == 'INTEGER' or field_type == 'NUMERIC':
-    if parent_field and 'price' in parent_field.name :
+    if parent_field and 'price' in parent_field.name:
       return 'price'
     return 'number'
   if field_type == 'DATE' or field_type == 'TIMESTAMP':
@@ -324,7 +326,7 @@ class AdCustomizerGenerator:
     # NOTE: Google Ads requires fields to be 80 symbols or less (otherwise there will be an error: AD_PLACEHOLDER_STRING_TOO_LONG)
     return re.sub(' +', ' ', bq_value)[:80]
 
-  def _get_price_with_currency(self, price_field, use_symbol = False):
+  def _get_price_with_currency(self, price_field, use_symbol=False):
     value = price_field.get('value')
     currency = price_field.get('currency')
     if value is None or currency is None:
@@ -336,7 +338,7 @@ class AdCustomizerGenerator:
       return symbol + str(value)
     # There's a bug in Ad Customizers that doesn't allow float values
     # TODO: remove the casting to int
-    return str(int(value)) +' '+ currency
+    return str(int(value)) + ' ' + currency
 
   def add_product(self, prod, target_campaign: str, target_adgroup: str):
     row_values = []
@@ -474,8 +476,8 @@ class CampaignMgr:
                       label)
 
     gae.generate_csv(output_csv_path)
-    file_utils.upload_file_to_gcs(self._context.config.project_id, self._credentials,
-                                  output_csv_path)
+    file_utils.upload_file_to_gcs(self._context.config.project_id,
+                                  self._credentials, output_csv_path)
 
     return output_csv_path
 

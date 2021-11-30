@@ -20,7 +20,6 @@ import zipfile
 from urllib import parse
 from google.cloud import storage
 from google.api_core import exceptions
-from common import image_utils
 
 CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
 
@@ -36,29 +35,17 @@ def get_file_content(uri: str) -> str:
   raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
-def download_image(uri: str, folder: str, landscape:bool = False) -> str:
-  """Download a remote file from http and save it in a local folder.
-
-    The downloaded images are resized and normalized to be complient
-    with guidelines for image extensions.
-
-    Args:
-      uri: a remote (http(s)) url
-    Returns:
-      Image local file path
-  """
-  local_image_path = download_file(uri, folder)
-  # Resize the local image to follow guidelines
-  return image_utils.resize(local_image_path, landscape)
-
-
 def download_file(uri: str, folder: str) -> str:
   """Download a remote file into a local folder."""
   if not os.path.exists(folder):
     os.mkdir(folder)
   # Change the user agent because some websites don't like traffic from "non-browsers"
   headers = {'User-Agent': CHROME_USER_AGENT}
-  response = requests.get(uri, headers=headers)
+  try:
+    response = requests.get(uri, headers=headers)
+  except BaseException as e:
+    logging.error(f'Error occured during file {uri} download: {e}')
+    raise
   if response.status_code == 200:
     result = parse.urlparse(uri)
     file_name = os.path.basename(result.path)

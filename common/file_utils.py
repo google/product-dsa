@@ -36,7 +36,7 @@ def get_file_content(uri: str) -> str:
   raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
-def download_image(uri: str, folder: str) -> str:
+def download_image(uri: str, folder: str, landscape:bool = False) -> str:
   """Download a remote file from http and save it in a local folder.
 
     The downloaded images are resized and normalized to be complient
@@ -49,8 +49,7 @@ def download_image(uri: str, folder: str) -> str:
   """
   local_image_path = download_file(uri, folder)
   # Resize the local image to follow guidelines
-  image_utils.resize(local_image_path)
-  return local_image_path
+  return image_utils.resize(local_image_path, landscape)
 
 
 def download_file(uri: str, folder: str) -> str:

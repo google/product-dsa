@@ -23,19 +23,23 @@ LANDSCAPE_MIN_THRESHOLD = 1.5     # Min ratio at which to resize to landscape no
 
 logging.getLogger().setLevel(logging.INFO)
 
-def resize(image_path):
+def resize(image_path, landscape = False):
   """Resize PIL image keeping ratio and using white background to follow
      size guidelines of image extensions.
      https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
+     by default resizes the image to 1:1 ratio unless it should be landscape
   """
   image = Image.open(image_path)
   ratio = round(image.width/image.height , 2)
-  if ratio == 1 or ratio == LANDSCAPE_RATIO:
-    return
+  if landscape:
+    image_path = "{0}_ls{1}".format(*os.path.splitext(image_path))
+
+  if ratio == 1 and not landscape or ratio == LANDSCAPE_RATIO and landscape:
+    return image_path
 
   resize_width = image.width
   resize_height = image.height
-  if ratio < LANDSCAPE_MIN_THRESHOLD:
+  if not landscape:
     # Will resize to a square image
     if image.width > image.height:
       resize_height = image.width
@@ -55,5 +59,6 @@ def resize(image_path):
 
   try:
     background.convert('RGB').save(image_path)
+    return image_path
   except Exception:
     logging.warning(f'Failed to resize image {image_path}')

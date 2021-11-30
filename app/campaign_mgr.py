@@ -215,13 +215,24 @@ class GoogleAdsEditorMgr:
     dynamic_target.update(dynamic_target_details)
     self._rows.append(dynamic_target)
 
+    product_images = [product.image_link]
+    if product.additional_image_links:
+      product_images += product.additional_image_links
+
     # Add the image extension row
-    if product.image_link:
-      folder = os.path.join(self._context.output_folder, self._context.image_folder)
-      local_image_path = file_utils.download_image(product.image_link, folder)
+    for image in product_images:
+      folder = os.path.join(self._context.output_folder,
+                            self._context.image_folder)
+      # Add square image
+      local_image_path = file_utils.download_image(image, folder)
       rel_image_path = os.path.relpath(local_image_path,
                                        self._context.output_folder or '')
       self.add_image_ext(campaign_name, adgroup_name, rel_image_path)
+      # Add landscape
+      local_image_path_landscape = file_utils.download_image(image, folder, True)
+      rel_image_path_landscape = os.path.relpath(local_image_path_landscape,
+                                       self._context.output_folder or '')
+      self.add_image_ext(campaign_name, adgroup_name, rel_image_path_landscape)
 
   def add_image_ext(self, campaign_name: str, adgroup_name: str, img_path: str):
     image = self.__create_row()

@@ -32,7 +32,8 @@ from install import cloud_data_transfer, cloud_env_setup
 from common.auth import get_credentials
 from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
 
-logging.getLogger().setLevel(logging.INFO)
+loglevel = os.getenv('LOG_LEVEL') or 'INFO'
+logging.getLogger().setLevel(loglevel)
 
 STATIC_DIR = os.getenv(
     'STATIC_DIR'
@@ -644,5 +645,10 @@ if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE
   parser = argparse.ArgumentParser()
   parser.add_argument('--debug', action='store_true')
+  parser.add_argument('--log-level',
+                      dest='log_level',
+                      help='Logging level: DEBUG, INFO, WARN, ERROR')
   srv_args = parser.parse_known_args()[0]
+  if srv_args.log_level:
+    logging.getLogger().setLevel(srv_args.log_level)
   app.run(debug=srv_args.debug)  # run our Flask app

@@ -15,7 +15,7 @@
 import argparse
 import logging
 from typing import Dict, List
-import time
+from datetime import datetime
 import os
 import csv
 from google.auth import credentials
@@ -24,7 +24,9 @@ from common import auth, config_utils, sheets_utils, file_utils, bigquery_utils
 from app.context import Context, ContextOptions
 from app import campaign_mgr
 
-logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(format='[%(asctime)s] %(message)s',
+                    level=logging.INFO,
+                    datefmt='%H:%M:%S')
 
 
 def execute_sql_query(script_name: str, context: Context, params: Dict[str,str] = None):
@@ -77,8 +79,7 @@ def validate_config(context: Context):
 
 def create_or_update_page_feed(generate_csv: bool, context: Context):
   step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
-  t0 = time.time()
-  ts = time.strftime('%H:%M:%S')
+  ts_start = datetime.now()
   # Execute a SQL script (TODO: read its name from config) to get data for DSA page feed
   # The contract for the script:
   #   we expect 2-columns: 'Page_URL' and 'Custom_label'
@@ -86,7 +87,7 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
   #   the Custom_label column can contain one or many label, separated by ';'
   #   values in Page_URL column should be unique
   # NOTE: currently we don't validate all those invariants, only assume they
-  logging.info(f'[{ts}] Starting "{step_name}" step')
+  logging.info(f'Starting "{step_name}" step')
   data = execute_sql_query('create-page-feed.sql', context)
   logging.info(f'Page-feed query returned {data.total_rows} rows')
 
@@ -110,8 +111,8 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
   url = f'https://docs.google.com/spreadsheets/d/{context.target.page_feed_spreadsheetid}'
   logging.info('Generated page feed in Google Spreadsheet ' + url)
 
-  elapsed = time.time() - t0
-  logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
+  elapsed = datetime.now() - ts_start
+  logging.info(f'Finished "{step_name}" step, it took {elapsed}')
   return csv_file_name
 
 
@@ -133,9 +134,8 @@ def generate_campaign(context: Context) -> str:
       generatd CSV file path relative to context.output_folder
   """
   step_name = 'campaign creation'
-  t0 = time.time()
-  ts = time.strftime('%H:%M:%S')
-  logging.info(f'[{ts}] Starting "{step_name}" step')
+  ts_start = datetime.now()
+  logging.info(f'Starting "{step_name}" step')
   products = execute_sql_query('get-products.sql', context)
   logging.info(f'Fetched {products.total_rows} products')
   output_path = None
@@ -143,8 +143,8 @@ def generate_campaign(context: Context) -> str:
     context.ensure_folders()
     output_path = campaign_mgr.generate_csv(context, products)
     logging.info(f'Generated campaing data for Ads Editor in {output_path}')
-  elapsed = time.time() - t0
-  logging.info(f'Finished "{step_name}" step, it took {elapsed} sec')
+  elapsed = datetime.now() - ts_start
+  logging.info(f'Finished "{step_name}" step, it took {elapsed}')
   return output_path
 
 
@@ -167,14 +167,17 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
   if not output_file:
     logging.warning(f"Couldn't generate campaign as no products found")
   else:
+    logging.info('Creating a zip-archive')
+    ts_start = datetime.now()
     image_folder = os.path.join(context.output_folder, context.image_folder)
     # archive output csv and images folder, archive's name will be the same as output csv
     arcfilename = os.path.join(
         context.output_folder,
         os.path.splitext(os.path.basename(output_file))[0] + '.zip')
     file_utils.zip(arcfilename, [output_file, image_folder])
+    elapsed = datetime.now() - ts_start
     logging.info(
-        f'Generated a zip-archive with campaign data and images in {arcfilename}')
+        f'Generated a zip-archive with campaign data and images in {arcfilename}, elapsed {elapsed}')
 
 
 def add_args(parser: argparse.ArgumentParser):
@@ -194,10 +197,16 @@ def add_args(parser: argparse.ArgumentParser):
     dest='image_folder',
     help='Subfolder name/path of output folder to place product images into'
   )
-
+  parser.add_argument(
+    '--log-level',
+    dest='log_level',
+    help='Logging level: DEBUG, INFO, WARN, ERROR'
+  )
 
 def main():
   args = config_utils.parse_arguments(only_known=False, func=add_args)
+  if args.log_level:
+    logging.getLogger().setLevel(args.log_level)
   config = config_utils.get_config(args)
   pprint(vars(config))
   cred: credentials.Credentials = auth.get_credentials(args)

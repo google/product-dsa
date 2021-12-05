@@ -37,6 +37,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   matcher: ErrorStateMatcher = new CustomErrorStateMatcher();
   columnsLabelDescripions = ["label", "description", "action"];
   dataSourceLabelDescs: MatTableDataSource<any>[] = [];
+  service_account = "PROJECT_ID@appspot.gserviceaccount.com";
 
   constructor(private fb: FormBuilder,
     private configService: ConfigService,
@@ -64,6 +65,10 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   }
 
   async ngOnInit() {
+    // extract project_id from current url
+    if (location.hostname.endsWith('appspot.com')) {
+      this.service_account = location.hostname.split('.')[0] + '@appspot.gserviceaccount.com';
+    }
     let cfg = this.configService.getConfig();
     if (cfg) {
       this.updateConfig(cfg);
@@ -152,7 +157,10 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       adcustomizer_feed_name: '', //
       adcustomizer_spreadsheetid: '', //
       ad_description_template: '', //
-      category_ad_descriptions: null
+      category_ad_descriptions: null,
+      max_image_dimension: null,
+      skip_additional_images: false,
+      max_image_count: null
     };
     this.targets.push(this.fb.group(group_spec));
     this.dataSourceLabelDescs.push(new MatTableDataSource<any>([]));

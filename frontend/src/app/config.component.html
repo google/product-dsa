@@ -252,6 +252,23 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- max_image_dimension -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Maximum image dimension</mat-label>
+                <input matInput type="number" formControlName="max_image_dimension" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-hint>Specify a maximum dimension (width/height) for images, bigger images will be resized. By default 1200 px</mat-hint>
+                <mat-error>{{ target.get('max_image_dimension')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <!--
+          max_image_dimension: '',
+          skip_additional_images: false,
+          max_image_count: ''
+          -->
           <!-- category_ad_descriptions -->
           <div class="row my-2">
             <div class="col">
@@ -353,7 +370,7 @@
       <mat-card class="setup">
         <div class="alert alert-dark my-4">
           Before running setup please make sure you granted your service account
-          (PROJECT_ID@appspot.gserviceaccount.com) access permissions (Standard) to your GMC account.
+          ({{service_account}}) access permissions (Standard) to your GMC account.
         </div>
         <div class="row">
           <div class="col text-left">

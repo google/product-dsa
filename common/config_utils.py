@@ -19,6 +19,7 @@ import json
 from enum import Enum
 import re
 
+
 class ConfigItemBase(object):
 
   def __init__(self):
@@ -78,13 +79,21 @@ class ConfigTarget(ConfigItemBase):
   ad_description_template: str = ''
   # category descriptions, should be filled for category-based campaign labels
   category_ad_descriptions: dict = {}
+  max_image_dimension: int = 1200
+  """Maximum dimension for images (either width or height), 0 - no limit"""
+  skip_additional_images: bool = False
+  """Do not download additional product images (for image extensions in campaign data)"""
+  max_image_count: int or None = None
+  """Limit total amount of product images"""
 
-  def validate(self, generation = False) -> List:
+  def validate(self, generation=False) -> List:
     errors = []
     if not self.name or re.match('[^A-Za-z0-9_\-]', self.name):
       errors.append({
-        'field': 'name',
-        'error': 'Target name should not contain spaces (only symbols A-Za-z,0-9,_,-)'
+          'field':
+              'name',
+          'error':
+              'Target name should not contain spaces (only symbols A-Za-z,0-9,_,-)'
       })
     if generation:
       if not self.page_feed_spreadsheetid:
@@ -97,6 +106,19 @@ class ConfigTarget(ConfigItemBase):
             'field': 'dsa_website',
             'error': 'No DSA website found in configuration'
         })
+      if not self.max_image_dimension is None:
+        correct = False
+        try:
+          correct = int(self.max_image_dimension) >= 0
+        except:
+          correct = False
+        if not correct:
+          errors.append({
+            'field':
+                'max_image_dimension',
+            'error':
+                'max_image_dimension should either empty or a non negative integer'
+          })
     return errors
 
 
@@ -120,12 +142,14 @@ class Config(ConfigItemBase):
     self.targets: List[ConfigTarget] = []
     self.errors = []
 
-  def validate(self, generation = False, validate_targets = True) -> List:
+  def validate(self, generation=False, validate_targets=True) -> List:
     errors = []
     if not self.project_id:
       errors.append({
-        'field': 'project_id',
-        'error': 'No project_id found in configuration and it couldn\'t be detected'
+          'field':
+              'project_id',
+          'error':
+              'No project_id found in configuration and it couldn\'t be detected'
       })
     if not self.merchant_id:
       errors.append({
@@ -165,22 +189,25 @@ class Config(ConfigItemBase):
     }
     for t in self.targets:
       target_json = {
-        "name": t.name,
-        "merchant_id": t.merchant_id,
-        "ads_customer_id": t.ads_customer_id,
-        "product_campaign_name": t.product_campaign_name,
-        "category_campaign_name": t.category_campaign_name,
-        "dsa_website": t.dsa_website,
-        "dsa_lang": t.dsa_lang,
-        "page_feed_name": t.page_feed_name,
-        "page_feed_spreadsheetid": t.page_feed_spreadsheetid,
-        "adcustomizer_feed_name": t.adcustomizer_feed_name,
-        "adcustomizer_spreadsheetid": t.adcustomizer_spreadsheetid,
-        "page_feed_output_file": t.page_feed_output_file,
-        "campaign_output_file": t.campaign_output_file,
-        "adcustomizer_output_file": t.adcustomizer_output_file,
-        "ad_description_template": t.ad_description_template,
-        "category_ad_descriptions": t.category_ad_descriptions
+          "name": t.name,
+          "merchant_id": t.merchant_id,
+          "ads_customer_id": t.ads_customer_id,
+          "product_campaign_name": t.product_campaign_name,
+          "category_campaign_name": t.category_campaign_name,
+          "dsa_website": t.dsa_website,
+          "dsa_lang": t.dsa_lang,
+          "page_feed_name": t.page_feed_name,
+          "page_feed_spreadsheetid": t.page_feed_spreadsheetid,
+          "adcustomizer_feed_name": t.adcustomizer_feed_name,
+          "adcustomizer_spreadsheetid": t.adcustomizer_spreadsheetid,
+          "page_feed_output_file": t.page_feed_output_file,
+          "campaign_output_file": t.campaign_output_file,
+          "adcustomizer_output_file": t.adcustomizer_output_file,
+          "ad_description_template": t.ad_description_template,
+          "category_ad_descriptions": t.category_ad_descriptions,
+          "max_image_dimension": t.max_image_dimension,
+          "skip_additional_images": t.skip_additional_images,
+          "max_image_count": t.max_image_count
       }
       values["targets"].append(target_json)
     return values
@@ -194,6 +221,7 @@ class ApplicationErrorReason(Enum):
   INVALID_CONFIG = "invalid_config"
   """Missing or incorrect values in configuraiton file"""
   INVALID_DATA = "invalid_data"
+
 
 class ApplicationError:
 
@@ -216,7 +244,7 @@ def parse_arguments(
   """
   parser = argparse.ArgumentParser()
   parser.add_argument('--config', help='Config file name')
-  parser.add_argument('--project_id', help='GCP project id.')
+  parser.add_argument('--project_id', '--project-id', help='GCP project id.')
 
   auth.add_auth_arguments(parser)
   if func:

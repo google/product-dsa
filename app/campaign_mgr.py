@@ -23,13 +23,15 @@ import re
 import os
 import decimal
 import logging
+from datetime import datetime
 from typing import Any, Dict, List
 from google.auth import credentials
-from google.cloud import storage
 from google.api_core import exceptions
 from common import config_utils, file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
-from app.context import Context, ContextOptions
+from app.context import Context
+import concurrent.futures
+import resource
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -66,6 +68,7 @@ AD_DESCRIPTION_MIN_LENGTH = 35
 
 
 class GoogleAdsEditorMgr:
+  """Component that incapsulates logic for creating CSV with campaign data for Google Ads Editor"""
 
   def __init__(self, context: Context):
     self._context = context
@@ -170,17 +173,17 @@ class GoogleAdsEditorMgr:
     self._rows.append(campaign)
 
   def add_adgroup(self, campaign_name: str, adgroup_name: str,
-                  is_product_level: bool, product, label: str):
-    # Add the ad group row
-    adgroup = self.__create_row()
+                  is_product_level: bool, product, label: str,
+                  images: List[str]):
 
     orig_ad_description = self._orig_descriptions.get(
         (campaign_name, adgroup_name)) or ''
-    # TODO: current __get_category_description raises ValueError if a mapping (label-category) is missing in config
     if is_product_level:
+      # Add the ad group row if we have adcustomizers
       ad_description_from_template = self.__get_ad_description_from_template(
           product)
       if ad_description_from_template:
+        adgroup = self.__create_row()
         adgroup_details = {
             CAMP_NAME: campaign_name,
             ADGROUP_NAME: adgroup_name,
@@ -196,6 +199,9 @@ class GoogleAdsEditorMgr:
         adgroup.update(adgroup_details)
         self._rows.append(adgroup)
 
+    # Add the ad group row (with default description)
+    adgroup = self.__create_row()
+    # TODO: currently __get_category_description raises ValueError if a mapping (label-category) is missing in config
     ad_description = self.__get_ad_description(
         product) if is_product_level else self.__get_category_description(label)
     adgroup_details = {
@@ -224,26 +230,10 @@ class GoogleAdsEditorMgr:
     dynamic_target.update(dynamic_target_details)
     self._rows.append(dynamic_target)
 
-    product_images = []
-    if product.image_link:
-      product_images.append(product.image_link)
-    if product.additional_image_links:
-      product_images += product.additional_image_links
-
     # Add the image extension row(s)
-    for uri in product_images:
-      folder = os.path.join(self._context.output_folder,
-                            self._context.image_folder)
-      local_image_path = file_utils.download_file(uri, folder)
-      two_image_file_paths = image_utils.resize(local_image_path)
-      # Add square image
-      rel_image_path_square = os.path.relpath(two_image_file_paths[0],
-                                              self._context.output_folder or '')
-      self.add_image_ext(campaign_name, adgroup_name, rel_image_path_square)
-      # Add landscape
-      rel_image_path_landscape = os.path.relpath(
-          two_image_file_paths[1], self._context.output_folder or '')
-      self.add_image_ext(campaign_name, adgroup_name, rel_image_path_landscape)
+    if images:
+      for local_image_path in images:
+        self.add_image_ext(campaign_name, adgroup_name, local_image_path)
 
   def add_image_ext(self, campaign_name: str, adgroup_name: str, img_path: str):
     image = self.__create_row()
@@ -387,7 +377,6 @@ class CampaignMgr:
   """
 
   def __init__(self, context: Context, products):
-    #self._config = config
     self._context = context
     self._credentials = context.credentials
     self._products_by_label = {}
@@ -418,6 +407,7 @@ class CampaignMgr:
             PDSA_PRODUCT_CAMPAIGN_NAME, _get_product_adgroup_name(prod))
 
   def generate_adcustomizers(self, generate_csv: bool) -> str:
+    logging.info('Starting generating adcustomizer feed')
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
     if generate_csv:
@@ -442,7 +432,9 @@ class CampaignMgr:
     """Generate a CSV for Google Ads Editor with DSA campaign data"""
     if not self._products_by_label:
       return
+    old_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
+    logging.info('Starting generating campaign data')
     output_csv_path = os.path.join(self._context.output_folder,
                                    self._context.target.campaign_output_file)
     gae = GoogleAdsEditorMgr(self._context)
@@ -473,7 +465,16 @@ class CampaignMgr:
     if self._create_category_campaign:
       gae.add_campaign(category_campaign_name)
 
+    max_image_dimension = self._context.target.max_image_dimension
+    if max_image_dimension is None:
+      max_image_dimension = 0
+    else:
+      max_image_dimension = int(max_image_dimension)
+    logging.info(f'Using max_image_dimension: {max_image_dimension}')
+
+    i = 0
     for label in self._products_by_label:
+      i += 1
       is_product_level = is_product_label(label)
       campaign_name = product_campaign_name if is_product_level else category_campaign_name
       product = self._products_by_label[label]
@@ -481,14 +482,71 @@ class CampaignMgr:
       adgroup_name = _get_product_adgroup_name(
           product) if is_product_level else 'Ad group ' + label
       # NOTE: adgroup name is important as we use it in adcustomizers as well
+      images = self._get_images(product, max_image_dimension)
       gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
-                      label)
+                      label, images)
 
+      max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+      logging.info(
+          f'{i:3d} - {label}, adgroup: {adgroup_name}, images: {len(images)}, mem: {max_rss:,}'
+      )
+      if max_rss > old_rss:
+        logging.info(f'RSS increased to {max_rss:,} from {old_rss:,}')
+        old_rss = max_rss
+
+    logging.debug('Writing campaign data CSV')
     gae.generate_csv(output_csv_path)
+    logging.info(f'Campaign data CSV created in {output_csv_path}')
     file_utils.upload_file_to_gcs(self._context.config.project_id,
                                   self._credentials, output_csv_path)
-
+    logging.debug(f'Campaign data CSV uploaded to GCS')
     return output_csv_path
+
+  def _get_images(self, product, max_image_dimension) -> List[str]:
+    """Download all product images, resize them and return a list of local relative paths"""
+    image_rel_paths = []
+    product_images = []
+    if product.image_link:
+      product_images.append(product.image_link)
+    if product.additional_image_links and not self._context.target.skip_additional_images:
+      product_images += product.additional_image_links
+    # remove duplicates from image list
+    product_images = list(dict.fromkeys(product_images))
+    if self._context.target.max_image_count and self._context.target.max_image_count > 0:
+      product_images = product_images[:self._context.target.max_image_count]
+    logging.debug(product_images)
+
+    ts_start = datetime.now()
+    # now product_images is a list of product images' urls, let's download them
+    folder = os.path.join(self._context.output_folder,
+                          self._context.image_folder)
+    if len(product_images) == 0:
+      return image_rel_paths
+    if len(product_images) == 1:
+      # no need for parallelization if only one image
+      product_images = [file_utils.download_file(product_images[0], folder)]
+    else:
+      # download all images in parallel
+      with concurrent.futures.ThreadPoolExecutor() as exector:
+        product_images = exector.map(
+            lambda uri: file_utils.download_file(uri, folder), product_images)
+
+    elapsed = datetime.now() - ts_start
+    logging.debug(f'Images downloaded, elapsed {elapsed}')
+    # now product_images is a list (iterable) of product images' local file paths
+    # for each image we'll create two, square and landscape
+    for local_image_path in product_images:
+      two_image_file_paths = image_utils.resize(local_image_path,
+                                                max_image_dimension)
+      # Add square image
+      rel_image_path_square = os.path.relpath(two_image_file_paths[0],
+                                              self._context.output_folder or '')
+      image_rel_paths.append(rel_image_path_square)
+      # Add landscape
+      rel_image_path_landscape = os.path.relpath(
+          two_image_file_paths[1], self._context.output_folder or '')
+      image_rel_paths.append(rel_image_path_landscape)
+    return image_rel_paths
 
   def _get_previous_data(self, output_csv_path: str):
     file_name = os.path.basename(output_csv_path)

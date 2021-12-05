@@ -93,7 +93,10 @@ export class SetupComponent extends ComponentBase implements OnInit {
       adcustomizer_feed_name: '', //
       adcustomizer_spreadsheetid: '', //
       ad_description_template: '', //
-      category_ad_descriptions: null
+      category_ad_descriptions: null,
+      max_image_dimension: null,
+      skip_additional_images: false,
+      max_image_count: null
     };
     return this.fb.group(group_spec);
   }

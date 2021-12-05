@@ -1,6 +1,7 @@
 .git
 .pytest_cache
 .venv
+.virtenv
 .vscode
 __pycache__
 DS_Store

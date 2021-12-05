@@ -2,6 +2,7 @@
 *.swo
 *.bak
 .venv
+.virtenv
 .pytest_cache
 !/.gitignore
 __pycache__/

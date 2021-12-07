@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 import { Component, OnInit } from '@angular/core';
-import { Form, FormBuilder, FormGroup } from '@angular/forms';
-import { ComponentBase } from './components/component-base';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { GenerationComponentBase } from './components/generation-component-base';
 import { GenerationService } from './shared/generation.service';
 import { NotificatinService } from './shared/notification.service';
 
@@ -23,7 +23,7 @@ import { NotificatinService } from './shared/notification.service';
   templateUrl: './wizard.component.html',
   styleUrls: ['./wizard.component.scss']
 })
-export class WizardComponent extends ComponentBase implements OnInit {
+export class WizardComponent extends GenerationComponentBase implements OnInit {
   loading: boolean = false;
   pagefeed_speadsheet: string = '';
   pagefeed_name: string = '';
@@ -32,9 +32,9 @@ export class WizardComponent extends ComponentBase implements OnInit {
   form: FormGroup;
 
   constructor(private fb: FormBuilder,
-    private generationService: GenerationService,
+    generationService: GenerationService,
     notificationSvc: NotificatinService) {
-    super(notificationSvc);
+    super(generationService, notificationSvc);
     this.form = fb.group({
       pagefeed_file: ''
     });
@@ -64,18 +64,6 @@ export class WizardComponent extends ComponentBase implements OnInit {
       let res = await this.generationService.generateAdcustomizers();
       this.adcustomizer_speadsheet = res.spreadsheet_id;
       this.adcustomizer_feed_name = res.feed_name;
-    } catch (e) {
-      this.handleApiError(`A failure occured`, e);
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  async generateAdCampaign() {
-    try {
-      this.errorMessage = null;
-      this.loading = true;
-      let res = await this.generationService.generateAdCampaign();
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

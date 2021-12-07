@@ -39,6 +39,7 @@ echo -e "${COLOR}Enabling APIs...${NC}"
 gcloud services enable appengine.googleapis.com
 gcloud services enable iap.googleapis.com
 gcloud services enable cloudresourcemanager.googleapis.com
+gcloud services enable iamcredentials.googleapis.com
 
 echo -e "${COLOR}Creating App Engine...${NC}"
 
@@ -52,7 +53,11 @@ GIT_COMMIT=$(git rev-parse HEAD)
 sed -i'.original' -e "s/GIT_COMMIT\s*:\s*.*$/GIT_COMMIT: '$GIT_COMMIT'/" app.yaml
 
 echo -e "${COLOR}Deploying app to GAE...${NC}"
+# next command often fails in new projects with "NOT_FOUND: Unable to retrieve P4SA" error, just wait and run again afterwards
 gcloud app deploy -q
+
+# Grant GAE service account with the Service Account Token Creator role so it could create GCS signed urls
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/iam.serviceAccountTokenCreator
 
 # create IAP
 echo -e "${COLOR}Creating oauth brand (consent screen) for IAP...${NC}"

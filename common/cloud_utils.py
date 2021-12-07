@@ -19,9 +19,6 @@ import logging
 # Number of seconds to wait before re-checking for operation status.
 _WAIT_FOR_OPERATION_SLEEP_SECONDS = 5
 
-# Set logging level.
-logging.getLogger().setLevel(logging.INFO)
-
 
 def wait_for_operation(operation_client: googleapiclient.discovery.Resource,
                        operation: Dict[Text, Any],

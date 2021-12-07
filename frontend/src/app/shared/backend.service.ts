@@ -55,7 +55,7 @@ export class BackendService {
     let options: any = { headers: this.getBaseHeaders(opt) };
     if (opt?.emptyResponse)
       options['responseType'] = 'text';
-    options.params = options?.params;
+    options.params = opt?.params;
     return lastValueFrom(this.http.post(
       this.getUrl(url),
       payload,
@@ -63,9 +63,10 @@ export class BackendService {
     );
   }
 
-  async getFile(url: string, params?: Record<string, any>): Promise<void> {
-    const headers = this.getBaseHeaders()
-      .set('Content-Type', 'application/x-www-form-urlencoded');
+  async getFile<T=void>(url: string, params?: Record<string, any>): Promise<void|T> {
+    //const headers = this.getBaseHeaders()
+    //  .set('Content-Type', 'application/x-www-form-urlencoded');
+    let headers = this.getBaseHeaders();
     try {
       let res = await lastValueFrom(this.http.get<Blob>(this.getUrl(url), {
         responseType: 'blob' as 'json',
@@ -73,6 +74,11 @@ export class BackendService {
         headers,
         params
       }));
+      if (res.headers.get('content-type') == 'application/json') {
+        const res_text = await (<Blob>res.body).text();
+        const res_json = JSON.parse(res_text);
+        return res_json;
+      }
       const fileName = this.getFileNameFromHttpResponse(res);
       saveAs(res.body!, fileName);
     } catch (e: any) {

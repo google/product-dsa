@@ -26,7 +26,6 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List
 from google.auth import credentials
-from google.api_core import exceptions
 from common import config_utils, file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context

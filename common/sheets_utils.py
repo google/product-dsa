@@ -16,7 +16,6 @@ import logging
 from googleapiclient.discovery import build
 from google.auth import credentials
 
-logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 

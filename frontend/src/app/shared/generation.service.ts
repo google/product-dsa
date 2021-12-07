@@ -44,11 +44,25 @@ export class GenerationService {
     return res;
   }
 
-  async generateAdCampaign(opts: GenerateOptions = {}): Promise<GenerateResponse> {
+  /**
+   * Run generation of gAds Editor CSV with campaign data and
+   * download a zip archive with the CSV and images
+   */
+  async generateAdCampaign(): Promise<GenerateResponse|void> {
     const target = this.configService.currentTarget;
+    // The server either returns a generated file (zip-archive) as download (if it's not too big)
+    // or uploads it to GCS and returns a downloadble url for it.
+    // But sometimes (see server.py) it can't generate a downloadable url (http)
+    // and return just a gs:// url
     let res = await this.apiService.generateAdCampaign(target);
-    if (!opts?.skipDownload)
-      await this.apiService.downloadFile(res.filename);
-    return res;
+    if (res && res.filename) {
+      if (!res.filename.startsWith('gs://')) {
+        // got a downloadable url
+        await this.apiService.downloadFile(res.filename);
+      } else {
+        // let the caller to handle
+        return res;
+      }
+    }
   }
 }

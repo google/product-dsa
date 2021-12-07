@@ -18,18 +18,21 @@ from typing import Dict, List
 from datetime import datetime
 import os
 import csv
+import resource
 from google.auth import credentials
 from pprint import pprint
 from common import auth, config_utils, sheets_utils, file_utils, bigquery_utils
 from app.context import Context, ContextOptions
 from app import campaign_mgr
 
-logging.basicConfig(format='[%(asctime)s] %(message)s',
+logging.basicConfig(format='[%(asctime)s][%(name)s] %(message)s',
                     level=logging.INFO,
                     datefmt='%H:%M:%S')
 
 
-def execute_sql_query(script_name: str, context: Context, params: Dict[str,str] = None):
+def execute_sql_query(script_name: str,
+                      context: Context,
+                      params: Dict[str, str] = None):
   if not context.target:
     raise ValueError(f'Context does not have a target')
   if not params:
@@ -40,6 +43,7 @@ def execute_sql_query(script_name: str, context: Context, params: Dict[str,str] 
 
 
 def validate_config(context: Context):
+
   def _validate_target(target: config_utils.ConfigTarget, errors: List):
     errors.extend(target.validate(generation=True))
     context.target = target
@@ -57,7 +61,10 @@ def validate_config(context: Context):
           err_message = f'Missing category description for label \'{row[0]}\'\n'
       if missing_category_desc:
         err_message = 'Update the missing categories in the config.json file:\n' + err_message
-        errors.append({'field': 'category_ad_descriptions', 'error': err_message})
+        errors.append({
+            'field': 'category_ad_descriptions',
+            'error': err_message
+        })
 
   errors = []
   errors = context.config.validate(generation=True, validate_targets=False)
@@ -116,6 +123,12 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
   return csv_file_name
 
 
+def load_products(context: Context):
+  products = execute_sql_query('get-products.sql', context)
+  logging.info(f'Fetched {products.total_rows} products')
+  return products
+
+
 def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
   """Generate ad customizers (in Google Spreadsheet and CSV file)
     Args:
@@ -123,7 +136,7 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
     Returns:
       generated CSV file path
   """
-  products = execute_sql_query('get-products.sql', context)
+  products = load_products(context)
   mgr = campaign_mgr.CampaignMgr(context, products)
   return mgr.generate_adcustomizers(generate_csv)
 
@@ -136,13 +149,12 @@ def generate_campaign(context: Context) -> str:
   step_name = 'campaign creation'
   ts_start = datetime.now()
   logging.info(f'Starting "{step_name}" step')
-  products = execute_sql_query('get-products.sql', context)
-  logging.info(f'Fetched {products.total_rows} products')
+  products = load_products(context)
   output_path = None
   if products.total_rows:
     context.ensure_folders()
     output_path = campaign_mgr.generate_csv(context, products)
-    logging.info(f'Generated campaing data for Ads Editor in {output_path}')
+    logging.info(f'Generated campaign data for Ads Editor in {output_path}')
   elapsed = datetime.now() - ts_start
   logging.info(f'Finished "{step_name}" step, it took {elapsed}')
   return output_path
@@ -174,10 +186,12 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
     arcfilename = os.path.join(
         context.output_folder,
         os.path.splitext(os.path.basename(output_file))[0] + '.zip')
-    file_utils.zip(arcfilename, [output_file, image_folder])
+    file_utils.zip_stream(arcfilename, [output_file, image_folder])
+    #file_utils.zip(arcfilename, [output_file, image_folder])
     elapsed = datetime.now() - ts_start
     logging.info(
-        f'Generated a zip-archive with campaign data and images in {arcfilename}, elapsed {elapsed}')
+        f'Generated a zip-archive with campaign data and images in {arcfilename}, elapsed {elapsed}'
+    )
 
 
 def add_args(parser: argparse.ArgumentParser):
@@ -188,20 +202,19 @@ def add_args(parser: argparse.ArgumentParser):
       'Target name to generate artifacts for (by default all targets will be processed)'
   )
   parser.add_argument(
-    '--output-folder',
-    dest='output_folder',
-    help='Output folder path (relative to current dir or absolute) to place generated files into'
+      '--output-folder',
+      dest='output_folder',
+      help=
+      'Output folder path (relative to current dir or absolute) to place generated files into'
   )
   parser.add_argument(
-    '--image-folder',
-    dest='image_folder',
-    help='Subfolder name/path of output folder to place product images into'
-  )
-  parser.add_argument(
-    '--log-level',
-    dest='log_level',
-    help='Logging level: DEBUG, INFO, WARN, ERROR'
-  )
+      '--image-folder',
+      dest='image_folder',
+      help='Subfolder name/path of output folder to place product images into')
+  parser.add_argument('--log-level',
+                      dest='log_level',
+                      help='Logging level: DEBUG, INFO, WARN, ERROR')
+
 
 def main():
   args = config_utils.parse_arguments(only_known=False, func=add_args)

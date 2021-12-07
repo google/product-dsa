@@ -30,7 +30,6 @@ from google.cloud.bigquery_datatransfer_v1 import types
 from google.protobuf import struct_pb2, timestamp_pb2
 from google.api_core import exceptions
 
-logging.getLogger().setLevel(logging.INFO)
 
 _MERCHANT_CENTER_ID = 'merchant_center'  # Data source id for Merchant Center.
 _GOOGLE_ADS_ID = 'adwords'  # Data source id for Google Ads.
@@ -182,8 +181,8 @@ class CloudDataTransferUtils(object):
       self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:
     parameters = self._create_transfer_params(merchant_id)
     parent = f'projects/{self.project_id}'  #/locations/{self.dataset_location}'
-    transfer_config_: types.TransferConfig
-    transfer_config: types.TransferConfig
+    transfer_config_: types.TransferConfig = None
+    transfer_config: types.TransferConfig = None
     for transfer_config_ in self.client.list_transfer_configs(parent=parent):
       if transfer_config_.data_source_id != _MERCHANT_CENTER_ID:
         continue

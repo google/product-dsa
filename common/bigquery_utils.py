@@ -26,7 +26,6 @@ from google.cloud.bigquery.dataset import Dataset
 from common import file_utils
 
 # Set logging level.
-logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 

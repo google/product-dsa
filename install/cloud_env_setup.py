@@ -39,7 +39,6 @@ from common import auth, config_utils, cloud_utils, bigquery_utils, file_utils
 from install import cloud_data_transfer
 
 # Set logging level.
-logging.getLogger().setLevel(logging.INFO)
 logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 logging.getLogger('google.cloud.pubsub_v1.subscriber').setLevel(logging.WARNING)

@@ -17,8 +17,8 @@ import { Component, OnInit } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { ComponentBase } from './components/component-base';
 import { CustomSnackBar } from './components/custom-snackbar.component';
+import { GenerationComponentBase } from './components/generation-component-base';
 import { GenerationService } from './shared/generation.service';
 import { NotificatinService } from './shared/notification.service';
 
@@ -26,15 +26,15 @@ import { NotificatinService } from './shared/notification.service';
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss']
 })
-export class HomeComponent extends ComponentBase implements OnInit {
+export class HomeComponent extends GenerationComponentBase implements OnInit {
   loading: boolean = false;
 
   constructor(private fb: FormBuilder,
     private router: Router,
-    private generationService: GenerationService,
     private snackBar: MatSnackBar,
+    generationService: GenerationService,
     notificationSvc: NotificatinService) {
-    super(notificationSvc);
+    super(generationService, notificationSvc);
   }
 
   ngOnInit(): void {
@@ -71,18 +71,6 @@ export class HomeComponent extends ComponentBase implements OnInit {
           message: `Updated <a href="https://docs.google.com/spreadsheets/d/${res.spreadsheet_id}" target="_blank" class="primary-color">Google Spreadsheet</a> with ad customizers feed data`
         }
       });
-    } catch (e) {
-      this.handleApiError(`A failure occured`, e);
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  async generateCampaign() {
-    try {
-      this.errorMessage = null;
-      this.loading = true;
-      let res = await this.generationService.generateAdCampaign();
     } catch (e) {
       this.handleApiError(`A failure occured`, e);
     } finally {

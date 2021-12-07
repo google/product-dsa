@@ -14,3 +14,6 @@ pytz
 requests
 Pillow
 forex_python
+zipstream-ng
+smart_open
+smart_open[gcs]

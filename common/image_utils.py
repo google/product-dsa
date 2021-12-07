@@ -22,6 +22,8 @@ from typing import List
 LANDSCAPE_RATIO = 1.91
 LANDSCAPE_MIN_THRESHOLD = 1.5  # Min ratio at which to resize to landscape not square
 
+logging.getLogger('PIL').setLevel(logging.INFO)
+
 
 def __doResize(image: Image, resize_width: int, resize_height: int,
                image_path: str, suffix: str):

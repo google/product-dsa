@@ -44,9 +44,10 @@ export class ApiService {
     return res;
   }
 
-  async generateAdCampaign(target: string | undefined): Promise<GenerateResponse> {
-    let res = await this.backendService.getApi<GenerateResponse>(
-      '/campaign/generate', { target });
+  async generateAdCampaign(target: string | undefined): Promise<GenerateResponse|void> {
+    let res = await this.backendService.getFile<GenerateResponse>(`/campaign/generate`, {
+      target: target,
+    });
     return res;
   }
 

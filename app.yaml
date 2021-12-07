@@ -1,15 +1,24 @@
 runtime: python39
 default_expiration: 0
-automatic_scaling:
-  min_instances: 0
+#instance_class: B4
+basic_scaling:
   max_instances: 1
-instance_class: F2
-#F1 (default): 256MB / 600MHz - 28 free hours per day
+#automatic_scaling:
+#  min_instances: 0
+#  max_instances: 1
+
+#F1: 256MB / 600MHz - 28 free hours per day (default)
 #F2: 512MB / 1.2GHz - 14 free hours per day
 #F4: 1024MB / 2.4GHz - 7 free hours per day
+#B2: 512MB / 1.2GHz - 9 free hours per day (default)
+#B4: 1024MB / 2.4GHz - 4.5 free hours per day
+# request timeout:
+# F - 10 minutes
+# B - 24 hours
 
 env_variables:
   CONFIG: gs://$PROJECT_ID-pdsa/config.json
+  GIT_COMMIT:
 #  LOG_LEVEL: DEBUG
 #  PYTHONPATH: .
 

@@ -20,12 +20,15 @@ import argparse
 import logging
 import decimal
 from pprint import pprint
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask.json import JSONEncoder
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
+from google.cloud import storage
+import zipstream
+from smart_open import open
 from common import config_utils, file_utils, bigquery_utils, sheets_utils
 from common.config_utils import ApplicationError, ApplicationErrorReason
 from install import cloud_data_transfer, cloud_env_setup
@@ -34,6 +37,7 @@ from app.main import Context, create_or_update_page_feed, create_or_update_adcus
 
 loglevel = os.getenv('LOG_LEVEL') or 'INFO'
 logging.getLogger().setLevel(loglevel)
+logging.getLogger('smart_open.gcs').setLevel(logging.WARNING)
 
 STATIC_DIR = os.getenv(
     'STATIC_DIR'
@@ -44,6 +48,9 @@ app = Flask(__name__)
 IS_GAE = os.getenv('GAE_APPLICATION')
 OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
     os.path.join(app.root_path, './../output'))
+
+MAX_RESPONSE_SIZE = 32 * 1024 * 1024  #if IS_GAE else XXX
+
 
 class JsonEncoder(JSONEncoder):
 
@@ -73,7 +80,9 @@ def copy_config_to_cache(config_file_name: str):
     )
     args.config = config_file_name_cache
   except FileNotFoundError:
-    logging.warn('Could not copy config file to a local cache because the file was not found')
+    logging.warn(
+        'Could not copy config file to a local cache because the file was not found'
+    )
     # Application isn't initialized (no config), that's ok - let it to start
     config_file_name_cache = None
 
@@ -117,7 +126,9 @@ def _validate_iap_jwt() -> str:
     """
   iap_jwt = request.headers.get('X-Goog-IAP-JWT-Assertion')
   if not iap_jwt:
-    raise Exception("No IAP header found. Probably you're running server out of Google Cloud or disable IAP for GAE")
+    raise Exception(
+        "No IAP header found. Probably you're running server out of Google Cloud or disable IAP for GAE"
+    )
 
   try:
     decoded_jwt = id_token.verify_token(
@@ -151,9 +162,7 @@ def update_feeds():
   if not validation['valid']:
     error = ApplicationError(
         reason=ApplicationErrorReason.INVALID_CONFIG,
-        description=
-        f"There errors in configuration: {validation['message']}"
-    )
+        description=f"There errors in configuration: {validation['message']}")
     return return_api_config_error(error)
 
   for target in config.targets:
@@ -230,6 +239,8 @@ def adcustomizers_generate():
 @app.route("/api/campaign/generate", methods=["GET"])
 def campaign_generate():
   target_name = request.args.get('target')
+  force_download = request.args.get('force-download')
+  force_download = force_download == 'true' or force_download == 'True' or force_download == '1'
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
@@ -248,13 +259,58 @@ def campaign_generate():
         "error": "Couldn't generate a ad campaign because no products found"
     }), 500
   # archive output csv and images folder
-  image_folder = os.path.join(context.output_folder,
-                              context.image_folder)
-  arcfilename = os.path.join(
-      OUTPUT_FOLDER,
-      os.path.splitext(os.path.basename(output_file))[0] + '.zip')
-  file_utils.zip(arcfilename, [output_file, image_folder])
-  return jsonify({"filename": os.path.basename(arcfilename)})
+  image_folder = os.path.join(context.output_folder, context.image_folder)
+  zip_filename = os.path.splitext(os.path.basename(output_file))[0] + '.zip'
+  # NOTE: we need to be able to calculate zip's size, that's because not using compression
+  # NOTE: we don't use standard zipfile module because it puts all files into memory while zipstream uses streaming
+  zs = zipstream.ZipStream(compress_type=zipstream.ZIP_STORED, sized=True)
+  zs.add_path(output_file)
+  zs.add_path(image_folder)
+  # Should we save the zip locally as well? (for non GCP envinement)
+  #if not IS_GCP:
+  # arcfilename = os.path.join(OUTPUT_FOLDER, zip_filename)
+  # file_utils.zip_stream(arcfilename, [output_file, image_folder])
+
+  arc_size = len(zs)
+  if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
+    # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
+    # (and leave 1K for http stuff)
+    return Response(
+        zs,
+        mimetype="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={zip_filename}",
+            "Content-Length": len(zs),
+            "Last-Modified": zs.last_modified,
+        })
+  else:
+    # the zip-file is too big for downloading, upload it to GCS and generate a download http link for it
+    gs_url = f'gs://{context.config.project_id}-pdsa/{zip_filename}'
+    storage_client = storage.Client(project=context.config.project_id,
+                                    credentials=context.credentials)
+    # using smart_open streaming + zipstream we're uploading the zip to GCS
+    # without loading it into memory (it can be huge)
+    with open(gs_url, "wb", transport_params=dict(client=storage_client)) as f:
+      f.writelines(zs)
+    logging.info(
+        f'Generated zip-archive with campaign data uploaded to GCS: {gs_url}')
+    # NOTE: to create a signedUrl for GCS object we need to be autheticated as SA
+    # if it's not the case (e.g. running locally w/o a SA key file), then just return the GCS url
+    if hasattr(context.credentials, 'service_account_email'):
+      try:
+        url = file_utils.gcs_get_signed_url(client=storage_client,
+                                          url=gs_url,
+                                          credentials=context.credentials)
+        logging.info(f'Created a GCS signed url for download: {url}')
+      except Exception as e:
+        # NOTE: this is not normal, but it'd be very unfortunate for the user to get an exception at the very end of waiting
+        logging.exception(e)
+        logging.error(f'Failure on GCS signed url creation, returning a raw GCS url instead')
+        url = gs_url
+    else:
+      url = gs_url
+      logging.info(f'Impossible to create a GCS signed url (no service account), returning a GCS path {url}')
+    return jsonify({"filename": url, "filesize": arc_size})
 
 
 @app.route("/api/labels", methods=["GET"])
@@ -296,7 +352,8 @@ def load_pagefeed_spreadsheet():
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
   sheets_client = sheets_utils.GoogleSpreadsheetUtils(context.credentials)
-  data = sheets_client.get_values(context.target.page_feed_spreadsheetid, "A1:Z")
+  data = sheets_client.get_values(context.target.page_feed_spreadsheetid,
+                                  "A1:Z")
   return jsonify(
       data=data['values'] if 'values' in data else [],
       spreadsheet=
@@ -311,7 +368,8 @@ def share_spreadsheets():
   credentials = _get_credentials()
   for target in config.targets:
     if target.page_feed_spreadsheetid:
-      cloud_env_setup.set_permission_on_drive(target.page_feed_spreadsheetid, email, credentials)
+      cloud_env_setup.set_permission_on_drive(target.page_feed_spreadsheetid,
+                                              email, credentials)
     if target.adcustomizer_spreadsheetid:
       cloud_env_setup.set_permission_on_drive(target.adcustomizer_spreadsheetid,
                                               email, credentials)
@@ -361,7 +419,7 @@ def validate_setup():
     msg = "\n".join([e.error for e in errors])
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
-                    description="Application is not initialized: " + msg))
+                         description="Application is not initialized: " + msg))
   log.append("Configuratoin has no errors")
 
   # ok, config seems correct (at least for DT), check BQ dataset
@@ -378,6 +436,7 @@ def validate_setup():
   # ok, dataset exists, check Data Transfer (existence, state, schedule)
   data_transfer = cloud_data_transfer.CloudDataTransferUtils(
       config.project_id, config.dataset_location, credentials)
+  transfer_config = None
   try:
     transfer_config = data_transfer.check_merchant_center_transfer(
         config.merchant_id, config.dataset_id)
@@ -385,13 +444,16 @@ def validate_setup():
     app.logger.exception(e)
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
-                    description=f"Application is not initialized: {e}"))
-  log.append(f"BigQuery Data Transfer for Merchant Center ({transfer_config.name}) is valid")
+                         description=f"Application is not initialized: {e}"))
+  log.append(
+      f"BigQuery Data Transfer for Merchant Center ({transfer_config.name}) is valid"
+  )
 
   # ok, DT is correct, check that config contains at least one target and that target is valid
   if len(config.targets) == 0:
     return return_api_config_error(
-        ApplicationError(ApplicationErrorReason.INVALID_CONFIG, f'No target found'))
+        ApplicationError(ApplicationErrorReason.INVALID_CONFIG,
+                         f'No target found'))
 
   # now we'll check all targets by fetching data from our custom view (Products_Filtered_{target})
   for target in config.targets:
@@ -402,9 +464,12 @@ def validate_setup():
     except Exception as e:
       app.logger.exception(e)
       return return_api_config_error(
-          ApplicationError(ApplicationErrorReason.NOT_INITIALIZED,
-                      f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"))
-  log.append("Successfully fetched labels from views in BigQuery for all targets")
+          ApplicationError(
+              ApplicationErrorReason.NOT_INITIALIZED,
+              f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"
+          ))
+  log.append(
+      "Successfully fetched labels from views in BigQuery for all targets")
 
   # finally, GCP configuration seems OK but there could be some violation/warnings in config
   try:
@@ -444,7 +509,9 @@ def run_setup():
     except FileNotFoundError:
       error = ApplicationError(
           reason=ApplicationErrorReason.NOT_INITIALIZED,
-          description="Application is not initialized: config file not found, please fill in configuration settings and save")
+          description=
+          "Application is not initialized: config file not found, please fill in configuration settings and save"
+      )
       return return_api_config_error(error)
     credentials = _get_credentials()
     logging.info(
@@ -454,7 +521,8 @@ def run_setup():
     # TODO: before running a new deployment we might check for existing components and remove them
     created = cloud_env_setup.deploy(
         config, credentials,
-        cloud_env_setup.DeployOptions(skip_dt_run, user_email, skip_spreadsheets))
+        cloud_env_setup.DeployOptions(skip_dt_run, user_email,
+                                      skip_spreadsheets))
 
     if created:
       # overwrite config file with new data
@@ -497,10 +565,8 @@ def run_setup():
     if type(e) is cloud_data_transfer.DataTransferError:
       msg = f"GMC Data Transfer failed: {e}"
     return return_api_config_error(
-        ApplicationError(
-            reason=ApplicationErrorReason.INVALID_CLOUD_SETUP,
-            description=msg
-        ))
+        ApplicationError(reason=ApplicationErrorReason.INVALID_CLOUD_SETUP,
+                         description=msg))
   finally:
     if log_handler:
       logging.root.removeHandler(log_handler)
@@ -601,10 +667,7 @@ def catch_all(path):
   if not os.path.isfile(file_requested):
     path = "index.html"
   max_age = 0 if path == "index.html" else None
-  response = send_from_directory(
-      STATIC_DIR,
-      path,
-      max_age=max_age)
+  response = send_from_directory(STATIC_DIR, path, max_age=max_age)
   # There is a "feature" in GAE - all files have zeroed timestamp ("Tue, 01 Jan 1980 00:00:01 GMT")
   if IS_GAE:
     response.headers.remove("Last-Modified")
@@ -616,7 +679,8 @@ def catch_all(path):
 @app.errorhandler(Exception)
 def handle_exception(e: Exception):
   app.logger.exception(e)
-  if request.content_type == "application/json" and request.path.startswith('/api/'):
+  if request.content_type == "application/json" and request.path.startswith(
+      '/api/'):
     # NOTE: not all exceptions can be serialized
     try:
       return jsonify({"error": e}), 500
@@ -639,7 +703,6 @@ if IS_GAE:
   project = rmclient.get_project(name=f'projects/{project_id}')
   expected_audience = f'/{project.name}/apps/{project_id}'
   logging.info(f'Detected IAP audience: {expected_audience}')
-
 
 if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE

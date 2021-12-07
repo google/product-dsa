@@ -100,7 +100,8 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
 
   values = []
   for row in data:
-    values.append([row[0], row[1]])
+    labels = row[1] + '; PDSA'
+    values.append([row[0], labels])
 
   if generate_csv:
     context.ensure_folders()

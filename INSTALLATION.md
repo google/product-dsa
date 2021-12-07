@@ -18,6 +18,9 @@ Make sure you have access to this Google Group https://groups.google.com/a/profe
 
 * Go to https://professional-services.googlesource.com/new-password and copy code
 * Execute the code in Cloud Shell
+* `git clone https://professional-services.googlesource.com/solutions/product-dsa`
+
+If you want to get a non-default branch (for example with a dev or old versions) then:
 * `git clone -b v2 https://professional-services.googlesource.com/solutions/product-dsa`
 
 ## Prepare parameters

@@ -36,13 +36,15 @@ export class BackendService {
 
   private getUrl(url: string) {
     if (!url) { throw new Error(`[BackendService] url must be specified`); }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
     if (!url.startsWith('/')) { url = '/' + url; }
     return this.baseUrl + url;
   }
 
 
   async getApi<T>(url: string, params?: Record<string, any>): Promise<T> {
-
     return lastValueFrom(this.http.get<T>(
       this.getUrl(url),
       {

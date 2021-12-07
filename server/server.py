@@ -22,6 +22,7 @@ import decimal
 from pprint import pprint
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask.json import JSONEncoder
+from flask_cors import CORS
 import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
@@ -44,6 +45,7 @@ STATIC_DIR = os.getenv(
 ) or 'static'  # folder for static content relative to the current module
 
 app = Flask(__name__)
+CORS(app)
 
 IS_GAE = os.getenv('GAE_APPLICATION')
 OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
@@ -272,7 +274,7 @@ def campaign_generate():
   # file_utils.zip_stream(arcfilename, [output_file, image_folder])
 
   arc_size = len(zs)
-  if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
+  if force_download:# or arc_size < MAX_RESPONSE_SIZE - 1024:
     # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
     # (and leave 1K for http stuff)
     return Response(

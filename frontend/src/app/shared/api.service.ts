@@ -60,6 +60,10 @@ export class ApiService {
   }
 
   downloadFile(filename: string): Promise<void> {
+    if (filename.startsWith('http://') || filename.startsWith('https://')) {
+      // absolute url
+      return this.backendService.getFile(filename);
+    }
     return this.backendService.getFile(`/download`, {
       filename: filename
     });

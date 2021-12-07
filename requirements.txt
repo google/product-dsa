@@ -9,6 +9,7 @@ google-cloud-resource-manager
 cryptography
 grpcio
 flask
+flask-cors
 gunicorn
 pytz
 requests

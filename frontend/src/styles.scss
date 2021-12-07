@@ -16,10 +16,14 @@ body {
 .editable-table .mat-row:hover {
   cursor: pointer;
 }
-.mat-row:hover { 
+.mat-row:hover {
   background-color: rgb(70, 70, 70);
 }
 
 .full-width {
   width: 100%;
+}
+
+.alert {
+  overflow-wrap: break-word;
 }

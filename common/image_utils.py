@@ -20,13 +20,12 @@ from typing import List
 # Acceptable landscape ratio for image extensions
 # https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
 LANDSCAPE_RATIO = 1.91
-LANDSCAPE_MIN_THRESHOLD = 1.5  # Min ratio at which to resize to landscape not square
 
 logging.getLogger('PIL').setLevel(logging.INFO)
 
 
 def __doResize(image: Image, resize_width: int, resize_height: int,
-               image_path: str, suffix: str):
+               max_dimension: int, image_path: str, suffix: str):
   offset = (round(abs(image.width - resize_width) / 2),
             round(abs(image.height - resize_height) / 2))
   with Image.new('RGB', (resize_width, resize_height),
@@ -41,6 +40,13 @@ def __doResize(image: Image, resize_width: int, resize_height: int,
     output_image_filepath = os.path.join(
         image_folder, f'{image_filename_name}{suffix}{image_filename_ext}')
     try:
+      if max_dimension > 0 and (background.width > max_dimension or
+                                background.height > max_dimension):
+        background.thumbnail(size=(max_dimension, max_dimension))
+      if logging.getLogger().getEffectiveLevel() <= logging.DEBUG:
+        logging.debug(
+            f'Resized image {os.path.basename(output_image_filepath)}: {background.size}, aspect ration: {background.width/background.height:.2f}'
+        )
       background.save(output_image_filepath)
       return output_image_filepath
     except Exception as e:
@@ -49,11 +55,12 @@ def __doResize(image: Image, resize_width: int, resize_height: int,
 
 def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
   """Create two images, one square and another landscape to follow
-     size guidelines of image extensions.
-     (https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions)
+     size guidelines of image extensions:
+     * https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
+     * https://support.google.com/google-ads/answer/9566341
      Supported image sizes for image extensions:
-      1.91:1, minimum 600 x 314
-      1:1, minimum 300 x 300
+      1.91:1, minimum 600 x 314, recommended 1200x628
+      1:1, minimum 300 x 300, recommended 1200x1200
      If image is square it's only resized to landscape, and on the contrary.
      When an image resized it's put on white background.
 
@@ -72,19 +79,19 @@ def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
     # we could skip small images that violate image extension requirements,
     # or enlarge them to the minimum dimentions.
     logging.debug(
-        f'Resizing {image_path}, width: {image.width}, heigh: {image.height}, ratio: {ratio}'
+        f'Processing image {image_path}, width: {image.width}, heigh: {image.height}, ratio: {ratio}'
     )
     if max_dimension > 0 and (image.width > max_dimension or
                               image.height > max_dimension):
       image.thumbnail(size=(max_dimension, max_dimension))
       image.save(image_path)
-      logging.debug(f'Image shunk to {max_dimension}px')
+      logging.debug(f'Image too big, shrinking to {image.size}')
 
     keep_original = False
     image_paths = []
+    # 1 create a square image
     resize_width = image.width
     resize_height = image.height
-    # 1 create a square image
     if ratio == 1:
       image_paths.append(image_path)
       keep_original = True
@@ -94,22 +101,24 @@ def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
         resize_height = image.width
       else:
         resize_width = image.height
-      sq_image_filepath = __doResize(image, resize_width, resize_height,
+      sq_image_filepath = __doResize(image, resize_width, resize_height, 0,
                                      image_path, '_sq')
       image_paths.append(sq_image_filepath or '')
 
     # 2 create a landscape image
+    resize_width = image.width
+    resize_height = image.height
     if ratio == LANDSCAPE_RATIO:
       image_paths.append(image_path)
       keep_original = True
     else:
       # Will resize to landscape image
       if ratio <= LANDSCAPE_RATIO:
-        resize_width = round(image.height * LANDSCAPE_RATIO)
+        resize_width = round(resize_height * LANDSCAPE_RATIO)
       else:
-        resize_height = round(image.width / LANDSCAPE_RATIO)
+        resize_height = round(resize_width / LANDSCAPE_RATIO)
       ls_image_filepath = __doResize(image, resize_width, resize_height,
-                                     image_path, '_ls')
+                                     max_dimension, image_path, '_ls')
       image_paths.append(ls_image_filepath or '')
 
   if not keep_original:

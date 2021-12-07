@@ -246,7 +246,8 @@ class GoogleAdsEditorMgr:
 
   def generate_csv(self, output_csv_path: str):
     self._context.ensure_folders()
-    with open(output_csv_path, 'w') as csv_file:
+    # NOTE: Google Ads Editor doesn't understand UTF-8!
+    with open(output_csv_path, 'w', encoding = 'UTF-16') as csv_file:
       writer = csv.DictWriter(csv_file, fieldnames=self._headers)
       writer.writeheader()
       writer.writerows(self._rows)

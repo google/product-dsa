@@ -27,7 +27,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERV
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/pubsub.admin
 
 # Grant BigQuery DTS service permissions (iam.serviceAccountTokenCreator) on the GAE service account
-# But DTS SA doesn't exit right after the API enabled, so we have to call any DT method to trigger its creation
+# But DTS SA doesn't exist right after the API enabled, so we have to call any DT method to trigger its creation
 TOKEN=$(gcloud auth print-access-token)
 gcloud services enable bigquerydatatransfer.googleapis.com
 curl -X GET -H "Content-Type: application/json" \

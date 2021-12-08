@@ -21,7 +21,7 @@
 # It's required for local module resolutions
 export PYTHONPATH="."
 
-python3 ./install/cloud_env_setup.py --client-secrets-file client_secrets.json
+python3 ./install/cloud_env_setup.py "$@" --client-secrets-file client_secrets.json
 
 # for Cloud Shell
 # ./setup.sh --client-secrets-file client_secret.json --non-interactive

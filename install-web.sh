@@ -46,6 +46,9 @@ echo -e "${COLOR}Creating App Engine...${NC}"
 # NOTE: despite other GCP services GAE supports only two regions: europe-west and us-central
 gcloud app create --region $GAE_LOCATION
 
+# generate app.yaml:
+cp app.yaml.copy app.yaml
+
 # build and deploy app to GAE:
 echo -e "${COLOR}Building app...${NC}"
 ./build.sh

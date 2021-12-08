@@ -1,5 +1,5 @@
 import { ComponentBase } from './component-base';
-import { GenerationService } from '../shared/generation.service';
+import { GenerateCampaignOptions, GenerationService } from '../shared/generation.service';
 import { NotificatinService } from '../shared/notification.service';
 
 export abstract class GenerationComponentBase extends ComponentBase {
@@ -8,11 +8,11 @@ export abstract class GenerationComponentBase extends ComponentBase {
     super(notificationSvc);
   }
 
-  public async generateAdCampaign() {
+  public async generateAdCampaign(images_dry_run?: boolean) {
     try {
       this.errorMessage = null;
       this.loading = true;
-      let res = await this.generationService.generateAdCampaign();
+      let res = await this.generationService.generateAdCampaign({ images_dry_run });
       if (res && res.filename) {
         // a large file saved on GCS but the server couldn't generate a downloadable link
         // res.filename: gcs://project_bucket/file_name

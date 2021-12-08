@@ -31,12 +31,12 @@ export class WizardComponent extends GenerationComponentBase implements OnInit {
   adcustomizer_feed_name: string = ''
   form: FormGroup;
 
-  constructor(private fb: FormBuilder,
+  constructor(fb: FormBuilder,
     generationService: GenerationService,
     notificationSvc: NotificatinService) {
     super(generationService, notificationSvc);
     this.form = fb.group({
-      pagefeed_file: ''
+      images_dry_run: false
     });
   }
 

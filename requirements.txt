@@ -6,6 +6,7 @@ google-cloud-bigquery-datatransfer
 google-cloud-storage
 google-cloud-pubsub
 google-cloud-resource-manager
+google-cloud-profiler
 cryptography
 grpcio
 flask

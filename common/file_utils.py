@@ -40,7 +40,7 @@ def get_file_content(uri: str) -> str:
   raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
-def download_file(uri: str, folder: str) -> str:
+def download_file(uri: str, folder: str, *, dry_run: bool=False) -> str:
   """Download a remote file into a local folder."""
   if not os.path.exists(folder):
     os.mkdir(folder)
@@ -50,6 +50,8 @@ def download_file(uri: str, folder: str) -> str:
     parsed_uri = parse.urlparse(uri)
     file_name = os.path.basename(parsed_uri.path)
     local_path = os.path.join(folder, file_name)
+    if dry_run:
+      return local_path
     if (os.path.exists(local_path)):
       headers['if-modified-since'] = _datetime2str(
           get_file_last_modified(local_path))
@@ -58,8 +60,6 @@ def download_file(uri: str, folder: str) -> str:
     logging.error(f'Error occured during file {uri} download: {e}')
     raise
   if response.status_code == 200:
-    #print(f'{uri} - {local_path} - etag: {response.headers.get("etag")}')
-    #print(response.headers)
     with open(local_path, 'wb') as f:
       f.write(response.content)
     last_modified = response.headers.get('Last-Modified')

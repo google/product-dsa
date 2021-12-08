@@ -96,15 +96,24 @@
       <ng-template matStepContent>
         <div class="row">
           <div class="col">
-            <p>Press Run to generate ad campaign data, and as it completes you'll get a zip file with CSV
-              for <a href="https://ads.google.com/home/tools/ads-editor/" target="_blank">Google Ads Editor</a> and
-              images
+            <p>Press Run to generate ad campaign data, and as it completes you'll get a zip file with CSV and images
+              for <a href="https://ads.google.com/home/tools/ads-editor/" target="_blank">Google Ads Editor</a>
             </p>
-            <button mat-raised-button (click)="generateAdCampaign()" color="accent" class="mat-elevation-z2">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col py-3">
+            <mat-checkbox [formControl]="$any(form.get('images_dry_run'))">Skip image downloading</mat-checkbox>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <button mat-raised-button (click)="generateAdCampaign(form.get('images_dry_run')?.value)" color="accent" class="mat-elevation-z2">
               Run
             </button>
           </div>
         </div>
+
         <div class="row">
           <div class="col"><button mat-button matStepperPrevious>Back</button></div>
         </div>

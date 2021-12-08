@@ -19,8 +19,10 @@ i.e. The expected output is a CSV file.
 """
 import collections
 import csv
+from io import TextIOWrapper
 import re
 import os
+import shutil
 import decimal
 import logging
 from datetime import datetime
@@ -444,13 +446,17 @@ class CampaignMgr:
     csv_file = self._get_previous_data(output_csv_path)
     if not csv_file is None:
       with csv_file:
-        reader = csv.DictReader(csv_file, gae.get_headers())
-        orig_desc = {
-            tuple((row[CAMP_NAME], row[ADGROUP_NAME])): row[AD_DESCRIPTION]
-            for row in reader
-            if row[AD_DESCRIPTION] != ''
-        }
-        gae.set_original_description(orig_desc)
+        try:
+          reader = csv.DictReader(csv_file, gae.get_headers())
+          orig_desc = {
+              tuple((row[CAMP_NAME], row[ADGROUP_NAME])): row[AD_DESCRIPTION]
+              for row in reader
+              if row[AD_DESCRIPTION] != ''
+          }
+          gae.set_original_description(orig_desc)
+        except UnicodeError as e:
+          logging.info(f'Failed to read CSV with previous data because of encoding mismatch: {e}')
+          # ignore encoding mismatch
 
     # If the campaign doesn't exist, create an empty one with default settings
     product_campaign_name = self._context.target.product_campaign_name
@@ -470,7 +476,9 @@ class CampaignMgr:
       max_image_dimension = 0
     else:
       max_image_dimension = int(max_image_dimension)
-    logging.info(f'Using max_image_dimension: {max_image_dimension}')
+    logging.info(f'[CampaignMgr] Using max_image_dimension: {max_image_dimension}')
+    if self._context.images_dry_run:
+      logging.warning(f'[CampaignMgr] using images_dry_run mode (images won\'t be downloaded and processed)')
 
     i = 0
     for label in self._products_by_label:
@@ -516,28 +524,41 @@ class CampaignMgr:
       product_images = product_images[:self._context.target.max_image_count]
     logging.debug(product_images)
 
+    dry_run = self._context.images_dry_run
     ts_start = datetime.now()
     # now product_images is a list of product images' urls, let's download them
-    folder = os.path.join(self._context.output_folder,
-                          self._context.image_folder)
+    download_folder = os.path.join(self._context.output_folder,
+                          self._context.image_folder + '-download')
     if len(product_images) == 0:
       return image_rel_paths
     if len(product_images) == 1:
       # no need for parallelization if only one image
-      product_images = [file_utils.download_file(product_images[0], folder)]
+      product_images = [
+          file_utils.download_file(product_images[0],
+                                   download_folder,
+                                   dry_run=dry_run)
+      ]
     else:
       # download all images in parallel
       with concurrent.futures.ThreadPoolExecutor() as exector:
         product_images = exector.map(
-            lambda uri: file_utils.download_file(uri, folder), product_images)
+            lambda uri: file_utils.download_file(
+                uri, download_folder, dry_run=dry_run), product_images)
 
     elapsed = datetime.now() - ts_start
     logging.debug(f'Images downloaded, elapsed {elapsed}')
+    output_folder = os.path.join(self._context.output_folder,
+                          self._context.image_folder)
     # now product_images is a list (iterable) of product images' local file paths
     # for each image we'll create two, square and landscape
+    _, _, free = shutil.disk_usage(self._context.output_folder)
+    keep_original = free > 2**30 # more 1GB of free space
     for local_image_path in product_images:
       two_image_file_paths = image_utils.resize(local_image_path,
-                                                max_image_dimension)
+                                                output_folder,
+                                                max_image_dimension,
+                                                dry_run=dry_run,
+                                                keep_original=keep_original)
       # Add square image
       rel_image_path_square = os.path.relpath(two_image_file_paths[0],
                                               self._context.output_folder or '')
@@ -548,18 +569,20 @@ class CampaignMgr:
       image_rel_paths.append(rel_image_path_landscape)
     return image_rel_paths
 
-  def _get_previous_data(self, output_csv_path: str):
+  def _get_previous_data(self, output_csv_path: str) -> TextIOWrapper:
     file_name = os.path.basename(output_csv_path)
     bucket = file_utils.get_or_create_project_gcs_bucket(
         self._context.config.project_id, self._credentials)
     csv_file = None
     blob = bucket.get_blob(file_name)
     if blob:
-      csv_file = blob.open()
+      csv_file = blob.open(encoding='UTF-16')
+      logging.info(f'Found previous campaign data file on GCS: {file_name}')
     else:
       # there's no a previous csv file on GCS, try to reuse a local file
       if os.path.isfile(output_csv_path):
-        csv_file = open(output_csv_path, 'r')
+        csv_file = open(output_csv_path, 'r', encoding='UTF-16')
+        logging.info(f'Found previous campaign data file: {output_csv_path}')
       else:
         logging.info('Previous campaign data file wasn\'t found')
     return csv_file

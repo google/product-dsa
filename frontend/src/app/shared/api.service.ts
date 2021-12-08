@@ -44,9 +44,10 @@ export class ApiService {
     return res;
   }
 
-  async generateAdCampaign(target: string | undefined): Promise<GenerateResponse|void> {
+  async generateAdCampaign(target: string | undefined, images_dry_run: boolean | undefined): Promise<GenerateResponse | void> {
     let res = await this.backendService.getFile<GenerateResponse>(`/campaign/generate`, {
       target: target,
+      "images-dry-run": images_dry_run
     });
     return res;
   }
@@ -85,7 +86,7 @@ export class ApiService {
     return this.backendService.getApi('/setup/validate');
   }
 
-  runSetup(options: { skip_dt_run?: boolean }, config?: any): Promise<{ log: string[], labels: Record<string,string[]> }> {
+  runSetup(options: { skip_dt_run?: boolean }, config?: any): Promise<{ log: string[], labels: Record<string, string[]> }> {
     return this.backendService.postApi('/setup/run', config, {
       params: {
         "skip-dt-run": options?.skip_dt_run,

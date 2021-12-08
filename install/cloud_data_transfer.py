@@ -20,7 +20,7 @@ from common.config_utils import ApplicationError, ApplicationErrorReason
 import datetime
 import logging
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytz
 from google.auth import credentials
@@ -177,6 +177,25 @@ class CloudDataTransferUtils(object):
                  new_transfer_config.display_name)
     return new_transfer_config
 
+  def _get_transfer_last_run_errors(self,
+                                    transfer_config: types.TransferConfig) -> List[str]:
+    response = types.TransferRun = self.client.list_transfer_runs(
+        parent=transfer_config.name)
+    latest_run = None
+    for run_ in response:
+      latest_run = run_
+      break
+    if not latest_run:
+      return []
+    response = self.client.list_transfer_logs(
+        types.ListTransferLogsRequest(
+            parent=latest_run.name,
+            message_types=[types.TransferMessage.MessageSeverity.ERROR]))
+    errors = []
+    for log_ in response:
+      errors.append(log_.message_text)
+    return errors
+
   def check_merchant_center_transfer(
       self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:
     parameters = self._create_transfer_params(merchant_id)
@@ -193,8 +212,11 @@ class CloudDataTransferUtils(object):
         continue
       # this is a DT for GMC, targets our dataset, and our merchant_id
       if transfer_config_.state == types.TransferState.FAILED:
+        errors = self._get_transfer_last_run_errors(transfer_config_)
+        error_msg = '\n'.join(errors)
+        # "No Products data to transfer found for your Google Merchant Center account"
         raise DataTransferError(
-            f'Data Transfer ({transfer_config.display_name}) for GMC account {merchant_id} is in FAILED state'
+            f'Data Transfer ({transfer_config_.display_name}) for GMC account {merchant_id} is in FAILED state, last run result: {error_msg}'
         )
       transfer_config = transfer_config_
       break
@@ -422,8 +444,10 @@ class CloudDataTransferUtils(object):
         return
       if (latest_transfer.state == types.TransferState.FAILED or
           latest_transfer.state == types.TransferState.CANCELLED):
-        error_message = (f'Transfer {transfer_config_name} was not successful. '
-                         f'Error - {latest_transfer.error_status}')
+        errors = self._get_transfer_last_run_errors(latest_transfer)
+        error_message = (
+            f'Transfer {transfer_config_name} was not successful: '
+            '\n'.join(errors))
         logging.error(error_message)
         raise DataTransferError(error_message)
       logging.info(

@@ -97,8 +97,19 @@ export class BackendService {
 
   private getFileNameFromHttpResponse(httpResponse: HttpResponse<Blob>) {
     const contentDispositionHeader = httpResponse.headers.get('Content-Disposition');
-    if (!contentDispositionHeader) return '';
-    const result = contentDispositionHeader.split(';')[1].trim().split('=')[1];
-    return result.replace(/"/g, '');
+    let filename = '';
+    if (contentDispositionHeader) {
+      const result = contentDispositionHeader.split(';')[1].trim().split('=')[1];
+      filename = result.replace(/"/g, '');
+    }
+    if (!filename) {
+      let url = httpResponse.url!;
+      let idx = url?.indexOf('?');
+      if (idx > 0) {
+        url = url?.substring(0, idx)
+      }
+      filename = url.substring(url.lastIndexOf('/') + 1);
+    }
+    return filename;
   }
 }

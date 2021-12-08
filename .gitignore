@@ -14,3 +14,4 @@ server/static/
 app.yaml.original
 .oauth
 client_secrets.json
+app.yaml

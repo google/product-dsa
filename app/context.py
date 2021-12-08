@@ -25,6 +25,8 @@ class ContextOptions:
   """Output folder path (relative to current dir or absolute) to place generated files into"""
   image_folder: str
   """Subfolder name/path of output folder to place product images into"""
+  images_dry_run: bool = False
+  """If True then images won't be downloaded and resized/padded (but image extensions still will be created)"""
 
 
 class Context:
@@ -41,7 +43,10 @@ class Context:
       self.output_folder = os.path.join(self.output_folder, target.name)
     self.bq_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
                                                        credentials)
+    self.images_dry_run = options.images_dry_run
 
   def ensure_folders(self):
+    if not os.path.isabs(self.output_folder):
+      self.output_folder = os.path.abspath(self.output_folder)
     if self.output_folder and not os.path.exists(self.output_folder):
       os.mkdir(self.output_folder)

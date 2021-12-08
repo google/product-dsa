@@ -28,6 +28,7 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
 from google.cloud import storage
+import googlecloudprofiler
 import zipstream
 from smart_open import open
 from common import config_utils, file_utils, bigquery_utils, sheets_utils
@@ -52,6 +53,12 @@ OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
     os.path.join(app.root_path, './../output'))
 
 MAX_RESPONSE_SIZE = 32 * 1024 * 1024  #if IS_GAE else XXX
+
+if IS_GAE and os.getenv('CLOUD_PROFILER', '').upper() == 'TRUE':
+  try:
+    googlecloudprofiler.start(verbose=3)
+  except (ValueError, NotImplementedError) as exc:
+    logging.exception(exc)
 
 
 class JsonEncoder(JSONEncoder):
@@ -144,6 +151,12 @@ def _validate_iap_jwt() -> str:
   except Exception as e:
     raise Exception(f'JWT validation error: {e}') from e
 
+
+def _get_req_arg_bool(name: str):
+  arg = request.args.get(name)
+  if not arg:
+    return False
+  return arg.upper() == 'TRUE' or arg == '1'
 
 @app.route("/api/update", methods=["POST", "GET"])
 def update_feeds():
@@ -241,11 +254,12 @@ def adcustomizers_generate():
 @app.route("/api/campaign/generate", methods=["GET"])
 def campaign_generate():
   target_name = request.args.get('target')
-  force_download = request.args.get('force-download')
-  force_download = force_download == 'true' or force_download == 'True' or force_download == '1'
+  force_download = _get_req_arg_bool('force-download')
+  images_dry_run = _get_req_arg_bool('images-dry-run')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
+  context.images_dry_run = images_dry_run
   validation = validate_config(context)
   if not validation['valid']:
     error = ApplicationError(
@@ -274,7 +288,7 @@ def campaign_generate():
   # file_utils.zip_stream(arcfilename, [output_file, image_folder])
 
   arc_size = len(zs)
-  if force_download:# or arc_size < MAX_RESPONSE_SIZE - 1024:
+  if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
     # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
     # (and leave 1K for http stuff)
     return Response(

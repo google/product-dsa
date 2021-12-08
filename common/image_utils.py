@@ -15,45 +15,55 @@
 from PIL import Image
 import logging
 import os
+import shutil
 from typing import List
 
 # Acceptable landscape ratio for image extensions
 # https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
 LANDSCAPE_RATIO = 1.91
+MINIMUM_DIMENSION = 300
 
 logging.getLogger('PIL').setLevel(logging.INFO)
 
 
-def __doResize(image: Image, resize_width: int, resize_height: int,
-               max_dimension: int, image_path: str, suffix: str):
+def _pad_image(image: Image, resize_width: int, resize_height: int,
+               max_dimension: int, output_filepath: str):
+  """Create a new image by inserting the original image into white rectangel of specified size"""
   offset = (round(abs(image.width - resize_width) / 2),
             round(abs(image.height - resize_height) / 2))
   with Image.new('RGB', (resize_width, resize_height),
                  (255, 255, 255)) as background:
     background.paste(image, offset)
-
-    path = os.path.split(image_path)
-    image_folder = path[0]
-    image_filename_parts = os.path.splitext(path[1])
-    image_filename_name = image_filename_parts[0]
-    image_filename_ext = image_filename_parts[1]
-    output_image_filepath = os.path.join(
-        image_folder, f'{image_filename_name}{suffix}{image_filename_ext}')
     try:
       if max_dimension > 0 and (background.width > max_dimension or
                                 background.height > max_dimension):
         background.thumbnail(size=(max_dimension, max_dimension))
       if logging.getLogger().getEffectiveLevel() <= logging.DEBUG:
         logging.debug(
-            f'Resized image {os.path.basename(output_image_filepath)}: {background.size}, aspect ration: {background.width/background.height:.2f}'
+            f'Resized image {os.path.basename(output_filepath)}: {background.size}, aspect ration: {background.width/background.height:.2f}'
         )
-      background.save(output_image_filepath)
-      return output_image_filepath
+      background.save(output_filepath)
+      return output_filepath
     except Exception as e:
-      logging.error(f'Failed to resize image {image_path}: {e}')
+      logging.error(f'Failed to resize image {output_filepath}: {e}')
+      return ''
 
 
-def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
+def _construct_file_path(filename, folder, filename_suffix):
+  filename_parts = os.path.splitext(filename)
+  filename_name = filename_parts[0]
+  filename_ext = filename_parts[1]
+  output_filepath = os.path.join(
+      folder, f'{filename_name}{filename_suffix}{filename_ext}')
+  return output_filepath
+
+
+def resize(image_path: str,
+           output_folder: str = None,
+           max_dimension: int = 1200,
+           *,
+           keep_original: bool = True,
+           dry_run: bool = False) -> List[str]:
   """Create two images, one square and another landscape to follow
      size guidelines of image extensions:
      * https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
@@ -73,6 +83,12 @@ def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
     a 2-element array with local image paths,
     where the first is square and the second is landscape
   """
+  image_filename = os.path.basename(image_path)
+  if not output_folder:
+    output_folder = os.path.split(image_path)[0]
+  if not os.path.exists(output_folder):
+    os.mkdir(output_folder)
+  output_image_path = None
   with Image.open(image_path) as image:
     ratio = round(image.width / image.height, 2)
     # TODO[segy]: currently we ignore image dimensions but
@@ -84,47 +100,71 @@ def resize(image_path: str, max_dimension: int = 1200) -> List[str]:
     if max_dimension > 0 and (image.width > max_dimension or
                               image.height > max_dimension):
       image.thumbnail(size=(max_dimension, max_dimension))
-      image.save(image_path)
-      logging.debug(f'Image too big, shrinking to {image.size}')
+      if keep_original:
+        output_image_path = os.path.join(output_folder, image_filename)
+        image.save(output_image_path)
+      else:
+        image.save(image_path)
+      logging.debug(f'Image too big, shrinked to {image.size}')
+    elif image.width < MINIMUM_DIMENSION or image.height < MINIMUM_DIMENSION:
+      if keep_original:
+        output_image_path = os.path.join(output_folder, image_filename)
+      _pad_image(image, MINIMUM_DIMENSION, MINIMUM_DIMENSION, max_dimension,
+                 output_image_path or image_path)
+      logging.debug(f'Image too small, padded to 300px')
 
-    keep_original = False
     image_paths = []
     # 1 create a square image
     resize_width = image.width
     resize_height = image.height
+    sq_image_filepath = _construct_file_path(image_filename, output_folder,
+                                             "_sq")
     if ratio == 1:
-      image_paths.append(image_path)
-      keep_original = True
+      if output_image_path:
+        shutil.move(output_image_path, sq_image_filepath)
+      else:
+        shutil.copyfile(image_path, sq_image_filepath)
+      logging.debug(
+          f'Reusing image {os.path.basename(image_path)} as square: {sq_image_filepath}'
+      )
+      image_paths.append(sq_image_filepath)
     else:
       # Will resize to a square image
       if image.width > image.height:
         resize_height = image.width
       else:
         resize_width = image.height
-      sq_image_filepath = __doResize(image, resize_width, resize_height, 0,
-                                     image_path, '_sq')
-      image_paths.append(sq_image_filepath or '')
+      image_paths.append(
+          _pad_image(image, resize_width, resize_height, 0, sq_image_filepath))
 
     # 2 create a landscape image
     resize_width = image.width
     resize_height = image.height
+    ls_image_filepath = _construct_file_path(image_filename, output_folder,
+                                             "_ls")
     if ratio == LANDSCAPE_RATIO:
-      image_paths.append(image_path)
-      keep_original = True
+      if output_image_path:
+        shutil.move(output_image_path, ls_image_filepath)
+      else:
+        shutil.copyfile(image_path, ls_image_filepath)
+      logging.debug(
+          f'Reusing image {os.path.basename(image_path)} as landscape: {ls_image_filepath}'
+      )
+      image_paths.append(ls_image_filepath)
     else:
       # Will resize to landscape image
       if ratio <= LANDSCAPE_RATIO:
         resize_width = round(resize_height * LANDSCAPE_RATIO)
       else:
         resize_height = round(resize_width / LANDSCAPE_RATIO)
-      ls_image_filepath = __doResize(image, resize_width, resize_height,
-                                     max_dimension, image_path, '_ls')
-      image_paths.append(ls_image_filepath or '')
+      image_paths.append(
+          _pad_image(image, resize_width, resize_height, max_dimension,
+                     ls_image_filepath))
 
   if not keep_original:
-    # we didn't use original image
-    # (we had to resize it as new images for both square and landspace),
-    # so we can remove the original
     os.remove(image_path)
+
+  if output_image_path and os.path.exists(output_image_path):
+    os.remove(output_image_path)
 
   return image_paths

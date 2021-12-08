@@ -28,6 +28,7 @@ from app import campaign_mgr
 logging.basicConfig(format='[%(asctime)s][%(name)s] %(message)s',
                     level=logging.INFO,
                     datefmt='%H:%M:%S')
+logging.getLogger('google.api_core').setLevel(logging.WARNING)
 
 
 def execute_sql_query(script_name: str,
@@ -215,6 +216,12 @@ def add_args(parser: argparse.ArgumentParser):
   parser.add_argument('--log-level',
                       dest='log_level',
                       help='Logging level: DEBUG, INFO, WARN, ERROR')
+  parser.add_argument(
+      '--images-dry-run',
+      action="store_true",
+      help=
+      'If passed then images won\'t be downloaded and resized/padded (but image extensions still will be created)'
+  )
 
 
 def main():
@@ -224,7 +231,9 @@ def main():
   config = config_utils.get_config(args)
   pprint(vars(config))
   cred: credentials.Credentials = auth.get_credentials(args)
-  opts = ContextOptions(args.output_folder or 'output', args.image_folder)
+  opts = ContextOptions(args.output_folder or 'output',
+                        args.image_folder,
+                        images_dry_run=args.images_dry_run)
   if args.target:
     target = next(filter(lambda t: t.name == args.target, config.targets), None)
     execute(config, target, cred, opts)

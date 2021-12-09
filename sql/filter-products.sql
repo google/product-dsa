@@ -32,7 +32,7 @@ AS r"""
   function getLabelValue(label, offer_id) {{
     if (!label) return null;
     if (label.toUpperCase().indexOf('PDSA_PRODUCT') === 0) {{
-      return 'product_' + offer_id + '; PDSA_PRODUCT';
+      return 'product_' + offer_id;
     }}
     let prefix = 'PDSA_CATEGORY_';
     if (label.toUpperCase().indexOf(prefix) === 0) {{

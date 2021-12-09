@@ -101,7 +101,15 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
 
   values = []
   for row in data:
+    # add a common label for all our URLs
     labels = row[1] + '; PDSA'
+    # and add a common label for product-only URLs
+    for label in labels.split(';'):
+      label = label.strip()
+      if label.startswith('product_'):
+        labels += '; PDSA_PRODUCT'
+        break
+
     values.append([row[0], labels])
 
   if generate_csv:

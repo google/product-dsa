@@ -42,8 +42,7 @@ def get_file_content(uri: str) -> str:
 
 def download_file(uri: str, folder: str, *, dry_run: bool=False) -> str:
   """Download a remote file into a local folder."""
-  if not os.path.exists(folder):
-    os.mkdir(folder)
+  os.makedirs(folder, exist_ok=True)
   # Change the user agent because some websites don't like traffic from "non-browsers"
   headers = {'User-Agent': CHROME_USER_AGENT}
   try:

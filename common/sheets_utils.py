@@ -14,6 +14,7 @@
 # limitations under the License.
 import logging
 from googleapiclient.discovery import build
+from googleapiclient import errors
 from google.auth import credentials
 
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
@@ -34,24 +35,32 @@ class GoogleSpreadsheetUtils(object):
         clear_values: flags to clear the whole sheet before writing values
     """
     # Clear the contents of the spreadsheet
-    if clear_values:
-      self.sheetsAPI.spreadsheets().values().clear(
+    try:
+      if clear_values:
+        self.sheetsAPI.spreadsheets().values().clear(
+            spreadsheetId=docid,
+            range=range,
+            body={}).execute()
+      # Write the new values
+      result = self.sheetsAPI.spreadsheets().values().update(
           spreadsheetId=docid,
           range=range,
-          body={}).execute()
-    # Write the new values
-    result = self.sheetsAPI.spreadsheets().values().update(
-        spreadsheetId=docid,
-        range=range,
-        valueInputOption='USER_ENTERED',
-        body={
-            "range": range,
-            "majorDimension": "ROWS",
-            "values": values
-        }).execute()
+          valueInputOption='USER_ENTERED',
+          body={
+              "range": range,
+              "majorDimension": "ROWS",
+              "values": values
+          }).execute()
+    except errors.HttpError as e:
+      raise Exception(f"Spreadsheet can't be updated: {e.error_details}", e)
+# googleapiclient.errors.HttpError: <HttpError 403 when requesting https://sheets.googleapis.com/v4/spreadsheets/1T2nfLxVcjyAhiFcxecm4pIaR1bBzWrPIOWtmoNXvzNg/values/A1%3AAZ:clear?alt=json returned "The caller does not have permission". Details: "The caller does not have permission">"
+
 
   def get_values(self, docid: str, range):
     """Fetch values (as 2-dimentional array) from a range"""
-    result = self.sheetsAPI.spreadsheets().values().get(
-        spreadsheetId=docid, range=range, majorDimension="ROWS").execute()
-    return result
+    try:
+      result = self.sheetsAPI.spreadsheets().values().get(
+          spreadsheetId=docid, range=range, majorDimension="ROWS").execute()
+      return result
+    except errors.HttpError as e:
+      raise Exception(f"Spreadsheet can't be accessed: {e.error_details}", e)

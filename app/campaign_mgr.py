@@ -26,13 +26,13 @@ import shutil
 import decimal
 import logging
 from datetime import datetime
+import concurrent.futures
 from typing import Any, Dict, List
 from google.auth import credentials
 from common import config_utils, file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context
-import concurrent.futures
-import resource
+from common.utils import get_rss
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -249,7 +249,7 @@ class GoogleAdsEditorMgr:
   def generate_csv(self, output_csv_path: str):
     self._context.ensure_folders()
     # NOTE: Google Ads Editor doesn't understand UTF-8!
-    with open(output_csv_path, 'w', encoding = 'UTF-16') as csv_file:
+    with open(output_csv_path, 'w', encoding='UTF-16') as csv_file:
       writer = csv.DictWriter(csv_file, fieldnames=self._headers)
       writer.writeheader()
       writer.writerows(self._rows)
@@ -434,7 +434,7 @@ class CampaignMgr:
     """Generate a CSV for Google Ads Editor with DSA campaign data"""
     if not self._products_by_label:
       return
-    old_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    old_rss = get_rss()
 
     logging.info('Starting generating campaign data')
     output_csv_path = os.path.join(self._context.output_folder,
@@ -455,7 +455,9 @@ class CampaignMgr:
           }
           gae.set_original_description(orig_desc)
         except UnicodeError as e:
-          logging.info(f'Failed to read CSV with previous data because of encoding mismatch: {e}')
+          logging.info(
+              f'Failed to read CSV with previous data because of encoding mismatch: {e}'
+          )
           # ignore encoding mismatch
 
     # If the campaign doesn't exist, create an empty one with default settings
@@ -476,9 +478,12 @@ class CampaignMgr:
       max_image_dimension = 0
     else:
       max_image_dimension = int(max_image_dimension)
-    logging.info(f'[CampaignMgr] Using max_image_dimension: {max_image_dimension}')
+    logging.info(
+        f'[CampaignMgr] Using max_image_dimension: {max_image_dimension}')
     if self._context.images_dry_run:
-      logging.warning(f'[CampaignMgr] using images_dry_run mode (images won\'t be downloaded and processed)')
+      logging.warning(
+          f'[CampaignMgr] using images_dry_run mode (images won\'t be downloaded and processed)'
+      )
 
     i = 0
     for label in self._products_by_label:
@@ -494,7 +499,7 @@ class CampaignMgr:
       gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
                       label, images)
 
-      max_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+      max_rss = get_rss()
       logging.info(
           f'{i:3d} - {label}, adgroup: {adgroup_name}, images: {len(images)}, mem: {max_rss:,}'
       )
@@ -528,7 +533,7 @@ class CampaignMgr:
     ts_start = datetime.now()
     # now product_images is a list of product images' urls, let's download them
     download_folder = os.path.join(self._context.output_folder,
-                          self._context.image_folder + '-download')
+                                   self._context.image_folder + '-download')
     if len(product_images) == 0:
       return image_rel_paths
     if len(product_images) == 1:
@@ -548,17 +553,14 @@ class CampaignMgr:
     elapsed = datetime.now() - ts_start
     logging.debug(f'Images downloaded, elapsed {elapsed}')
     output_folder = os.path.join(self._context.output_folder,
-                          self._context.image_folder)
+                                 self._context.image_folder)
     # now product_images is a list (iterable) of product images' local file paths
     # for each image we'll create two, square and landscape
-    _, _, free = shutil.disk_usage(self._context.output_folder)
-    keep_original = free > 2**30 # more 1GB of free space
     for local_image_path in product_images:
       two_image_file_paths = image_utils.resize(local_image_path,
                                                 output_folder,
                                                 max_image_dimension,
-                                                dry_run=dry_run,
-                                                keep_original=keep_original)
+                                                dry_run=dry_run)
       # Add square image
       rel_image_path_square = os.path.relpath(two_image_file_paths[0],
                                               self._context.output_folder or '')

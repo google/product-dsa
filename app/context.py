@@ -48,5 +48,6 @@ class Context:
   def ensure_folders(self):
     if not os.path.isabs(self.output_folder):
       self.output_folder = os.path.abspath(self.output_folder)
-    if self.output_folder and not os.path.exists(self.output_folder):
-      os.mkdir(self.output_folder)
+    if self.output_folder:
+      os.makedirs(self.output_folder, exist_ok=True)
+

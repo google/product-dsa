@@ -179,22 +179,26 @@ class CloudDataTransferUtils(object):
 
   def _get_transfer_last_run_errors(self,
                                     transfer_config: types.TransferConfig) -> List[str]:
-    response = types.TransferRun = self.client.list_transfer_runs(
-        parent=transfer_config.name)
-    latest_run = None
-    for run_ in response:
-      latest_run = run_
-      break
-    if not latest_run:
-      return []
-    response = self.client.list_transfer_logs(
-        types.ListTransferLogsRequest(
-            parent=latest_run.name,
-            message_types=[types.TransferMessage.MessageSeverity.ERROR]))
-    errors = []
-    for log_ in response:
-      errors.append(log_.message_text)
-    return errors
+    try:
+      response = types.TransferRun = self.client.list_transfer_runs(
+          parent=transfer_config.name)
+      latest_run = None
+      for run_ in response:
+        latest_run = run_
+        break
+      if not latest_run:
+        return []
+      response = self.client.list_transfer_logs(
+          types.ListTransferLogsRequest(
+              parent=latest_run.name,
+              message_types=[types.TransferMessage.MessageSeverity.ERROR]))
+      errors = []
+      for log_ in response:
+        errors.append(log_.message_text)
+      return errors
+    except exceptions.GoogleAPICallError as e:
+      logging.exception(e)
+      return [transfer_config.error_status]
 
   def check_merchant_center_transfer(
       self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:

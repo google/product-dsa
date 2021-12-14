@@ -171,7 +171,8 @@
                 <mat-label>Ad customizers feed name</mat-label>
                 <input matInput formControlName="adcustomizer_feed_name" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Name of ad customizers feed in Google Ads. Leave blank for default 'pdsa-adcustomizers'</mat-hint>
+                <mat-hint>Name of ad customizers feed in Google Ads. Leave blank for default 'pdsa-adcustomizers'
+                </mat-hint>
                 <mat-error>{{ target.get('adcustomizer_feed_name')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
@@ -252,6 +253,24 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- skip_additional_images -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-slide-toggle formControlName="skip_additional_images" [disabled]="editable ? false : true">Skip additional images (use only main one)</mat-slide-toggle>
+            </div>
+          </div>
+          <!-- max_image_count -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Maximum image count</mat-label>
+                <input matInput type="number" formControlName="max_image_count" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-hint>Maximum number of images per product (makes sense only if you didn't skip additional images). By default - unlimited.</mat-hint>
+                <mat-error>{{ target.get('max_image_count')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
           <!-- max_image_dimension -->
           <div class="row my-2">
             <div class="col-10">
@@ -259,16 +278,12 @@
                 <mat-label>Maximum image dimension</mat-label>
                 <input matInput type="number" formControlName="max_image_dimension" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Specify a maximum dimension (width/height) for images, bigger images will be resized. By default 1200 px</mat-hint>
+                <mat-hint>Specify a maximum dimension (width/height) for images, bigger images will be resized. By
+                  default 1200 px</mat-hint>
                 <mat-error>{{ target.get('max_image_dimension')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
           </div>
-          <!--
-          max_image_dimension: '',
-          skip_additional_images: false,
-          max_image_count: ''
-          -->
           <!-- category_ad_descriptions -->
           <div class="row my-2">
             <div class="col">

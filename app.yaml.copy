@@ -21,6 +21,7 @@ basic_scaling:
 env_variables:
   CONFIG: gs://$PROJECT_ID-pdsa/config.json
   GIT_COMMIT:
+#  CLOUD_DEBUGGER: True
 #  CLOUD_PROFILER: True
 #  LOG_LEVEL: DEBUG
 #  PYTHONPATH: .

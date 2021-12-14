@@ -209,6 +209,26 @@
                 </mat-form-field>
               </div>
             </div>
+            <!-- skip_additional_images -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-slide-toggle formControlName="skip_additional_images">Skip
+                  additional images (use only main one)</mat-slide-toggle>
+              </div>
+            </div>
+            <!-- max_image_count -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Maximum image count</mat-label>
+                  <input matInput type="number" formControlName="max_image_count">
+                  <mat-hint>Maximum number of images per product (makes sense only if you didn't skip additional
+                    images). By default - unlimited.</mat-hint>
+                  <mat-error>{{ target.get('max_image_count')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
+
             <div class="row">
               <div class="col">
                 <mat-card-actions>
@@ -235,7 +255,7 @@
       </ng-template>
     </mat-step>
     <mat-step>
-      <ng-template matStepLabel>Deployement</ng-template>
+      <ng-template matStepLabel>Deployment</ng-template>
       <ng-template matStepContent>
         <div class="row">
           <div class="col px-5">

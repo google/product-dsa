@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 from typing import List
+from common.utils import get_rss
 
 # Acceptable landscape ratio for image extensions
 # https://support.google.com/google-ads/editor/answer/57755#zippy=%2Cimage-extensions
@@ -62,7 +63,6 @@ def resize(image_path: str,
            output_folder: str = None,
            max_dimension: int = 1200,
            *,
-           keep_original: bool = True,
            dry_run: bool = False) -> List[str]:
   """Create two images, one square and another landscape to follow
      size guidelines of image extensions:
@@ -86,31 +86,33 @@ def resize(image_path: str,
   image_filename = os.path.basename(image_path)
   if not output_folder:
     output_folder = os.path.split(image_path)[0]
-  if not os.path.exists(output_folder):
-    os.mkdir(output_folder)
-  output_image_path = None
+  os.makedirs(output_folder, exist_ok=True)
+  if dry_run:
+    return [
+        _construct_file_path(image_filename, output_folder, "_sq"),
+        _construct_file_path(image_filename, output_folder, "_ls")
+    ]
   with Image.open(image_path) as image:
     ratio = round(image.width / image.height, 2)
-    # TODO[segy]: currently we ignore image dimensions but
-    # we could skip small images that violate image extension requirements,
-    # or enlarge them to the minimum dimentions.
     logging.debug(
         f'Processing image {image_path}, width: {image.width}, heigh: {image.height}, ratio: {ratio}'
     )
     if max_dimension > 0 and (image.width > max_dimension or
                               image.height > max_dimension):
       image.thumbnail(size=(max_dimension, max_dimension))
-      if keep_original:
-        output_image_path = os.path.join(output_folder, image_filename)
-        image.save(output_image_path)
-      else:
-        image.save(image_path)
+      image.save(image_path)
       logging.debug(f'Image too big, shrinked to {image.size}')
     elif image.width < MINIMUM_DIMENSION or image.height < MINIMUM_DIMENSION:
-      if keep_original:
-        output_image_path = os.path.join(output_folder, image_filename)
-      _pad_image(image, MINIMUM_DIMENSION, MINIMUM_DIMENSION, max_dimension,
-                 output_image_path or image_path)
+      if image.width < MINIMUM_DIMENSION and image.height < MINIMUM_DIMENSION:
+        resize_width = resize_height = MINIMUM_DIMENSION
+      elif image.width < MINIMUM_DIMENSION:
+        resize_width = MINIMUM_DIMENSION
+        resize_height = round(MINIMUM_DIMENSION / ratio)
+      elif image.height < MINIMUM_DIMENSION:
+        resize_height = MINIMUM_DIMENSION
+        resize_width = round(MINIMUM_DIMENSION * ratio)
+      image = Image.open(
+          _pad_image(image, resize_width, resize_height, max_dimension, image_path))
       logging.debug(f'Image too small, padded to 300px')
 
     image_paths = []
@@ -120,10 +122,7 @@ def resize(image_path: str,
     sq_image_filepath = _construct_file_path(image_filename, output_folder,
                                              "_sq")
     if ratio == 1:
-      if output_image_path:
-        shutil.move(output_image_path, sq_image_filepath)
-      else:
-        shutil.copyfile(image_path, sq_image_filepath)
+      shutil.move(image_path, sq_image_filepath)
       logging.debug(
           f'Reusing image {os.path.basename(image_path)} as square: {sq_image_filepath}'
       )
@@ -143,10 +142,7 @@ def resize(image_path: str,
     ls_image_filepath = _construct_file_path(image_filename, output_folder,
                                              "_ls")
     if ratio == LANDSCAPE_RATIO:
-      if output_image_path:
-        shutil.move(output_image_path, ls_image_filepath)
-      else:
-        shutil.copyfile(image_path, ls_image_filepath)
+      shutil.move(image_path, ls_image_filepath)
       logging.debug(
           f'Reusing image {os.path.basename(image_path)} as landscape: {ls_image_filepath}'
       )
@@ -161,10 +157,7 @@ def resize(image_path: str,
           _pad_image(image, resize_width, resize_height, max_dimension,
                      ls_image_filepath))
 
-  if not keep_original:
+  if os.path.exists(image_path):
     os.remove(image_path)
-
-  if output_image_path and os.path.exists(output_image_path):
-    os.remove(output_image_path)
 
   return image_paths

@@ -28,7 +28,6 @@ from google.auth.transport import requests
 from google.oauth2 import id_token
 from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
 from google.cloud import storage
-import googlecloudprofiler
 import zipstream
 from smart_open import open
 from common import config_utils, file_utils, bigquery_utils, sheets_utils
@@ -54,11 +53,20 @@ OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
 
 MAX_RESPONSE_SIZE = 32 * 1024 * 1024  #if IS_GAE else XXX
 
+# activate GCP diagnostics services if needed (actually they can be used even outside GAE)
 if IS_GAE and os.getenv('CLOUD_PROFILER', '').upper() == 'TRUE':
   try:
+    import googlecloudprofiler
     googlecloudprofiler.start(verbose=3)
   except (ValueError, NotImplementedError) as exc:
     logging.exception(exc)
+if IS_GAE and os.getenv('CLOUD_DEBUGGER', '').upper() == 'TRUE':
+  try:
+    import googleclouddebugger
+    googleclouddebugger.enable()
+  except ImportError:
+    # NOTE: this googleclouddebugger can be installed ONLY on Linux
+    pass
 
 
 class JsonEncoder(JSONEncoder):
@@ -157,6 +165,7 @@ def _get_req_arg_bool(name: str):
   if not arg:
     return False
   return arg.upper() == 'TRUE' or arg == '1'
+
 
 @app.route("/api/update", methods=["POST", "GET"])
 def update_feeds():
@@ -291,14 +300,20 @@ def campaign_generate():
   if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
     # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
     # (and leave 1K for http stuff)
-    return Response(
-        zs,
-        mimetype="application/zip",
-        headers={
-            "Content-Disposition": f"attachment; filename={zip_filename}",
-            "Content-Length": len(zs),
-            "Last-Modified": zs.last_modified,
-        })
+    zip_filepath = os.path.join(context.output_folder, zip_filename)
+    with open(zip_filepath, "wb") as f:
+      f.writelines(zs)
+
+    return jsonify({"filename": os.path.relpath(zip_filepath, OUTPUT_FOLDER)})
+    # NOTE: TODO: unfortunately zipstream-ng fails (response never ends) on returning archives with empty folders
+    # return Response(
+    #     zs,
+    #     mimetype="application/zip",
+    #     headers={
+    #         "Content-Disposition": f"attachment; filename={zip_filename}",
+    #         "Content-Length": len(zs),
+    #         "Last-Modified": zs.last_modified,
+    #     })
   else:
     # the zip-file is too big for downloading, upload it to GCS and generate a download http link for it
     gs_url = f'gs://{context.config.project_id}-pdsa/{zip_filename}'
@@ -315,17 +330,21 @@ def campaign_generate():
     if hasattr(context.credentials, 'service_account_email'):
       try:
         url = file_utils.gcs_get_signed_url(client=storage_client,
-                                          url=gs_url,
-                                          credentials=context.credentials)
+                                            url=gs_url,
+                                            credentials=context.credentials)
         logging.info(f'Created a GCS signed url for download: {url}')
       except Exception as e:
         # NOTE: this is not normal, but it'd be very unfortunate for the user to get an exception at the very end of waiting
         logging.exception(e)
-        logging.error(f'Failure on GCS signed url creation, returning a raw GCS url instead')
+        logging.error(
+            f'Failure on GCS signed url creation, returning a raw GCS url instead'
+        )
         url = gs_url
     else:
       url = gs_url
-      logging.info(f'Impossible to create a GCS signed url (no service account), returning a GCS path {url}')
+      logging.info(
+          f'Impossible to create a GCS signed url (no service account), returning a GCS path {url}'
+      )
     return jsonify({"filename": url, "filesize": arc_size})
 
 

@@ -30,11 +30,11 @@ from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
 from google.cloud import storage
 import zipstream
 from smart_open import open
-from common import config_utils, file_utils, bigquery_utils, sheets_utils
+from common import config_utils, file_utils, sheets_utils
 from common.config_utils import ApplicationError, ApplicationErrorReason
 from install import cloud_data_transfer, cloud_env_setup
 from common.auth import get_credentials
-from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, execute_sql_query, validate_config
+from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, validate_config
 
 loglevel = os.getenv('LOG_LEVEL') or 'INFO'
 logging.getLogger().setLevel(loglevel)
@@ -353,8 +353,12 @@ def get_labels():
   target_name = request.args.get('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
+  category_only = _get_req_arg_bool('category-only')
+  product_only = _get_req_arg_bool('product-only')
   context = create_context(target_name)
-  labels = execute_sql_query('get-labels.sql', context, {"WHERE_CLAUSE": ""})
+  labels = context.data_gateway.load_labels(target_name,
+                                            category_only=category_only,
+                                            product_only=product_only)
   result = []
   for row in labels:
     obj = {}
@@ -369,8 +373,13 @@ def get_products():
   target_name = request.args.get('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
+  in_stock_only = _get_req_arg_bool('in-stock')
+  long_description = _get_req_arg_bool('long-description')
   context = create_context(target_name)
-  products = execute_sql_query('get-products.sql', context)
+  products = context.data_gateway.load_products(
+      target_name,
+      in_stock_only=in_stock_only,
+      long_description=long_description)
   result = []
   for row in products:
     obj = {}
@@ -378,6 +387,17 @@ def get_products():
       obj[col] = val
     result.append(obj)
   return jsonify(result)
+
+
+@app.route("/api/products/<product_id>", methods=["POST"])
+def update_product(product_id):
+  target_name = request.args.get('target')
+  if not target_name:
+    return jsonify({"error": "Required 'target' parameter is missing"}), 400
+  data = request.json
+  context = create_context(target_name)
+  context.data_gateway.update_product(target_name, product_id, data)
+  return 'Updated', 200
 
 
 @app.route("/api/feeds/pagefeed", methods=["GET"])
@@ -458,7 +478,7 @@ def validate_setup():
   log.append("Configuratoin has no errors")
 
   # ok, config seems correct (at least for DT), check BQ dataset
-  dataset = context.bq_client.get_dataset(config.dataset_id)
+  dataset = context.data_gateway.bq_client.get_dataset(config.dataset_id)
   if not dataset:
     return return_api_config_error(
         ApplicationError(
@@ -494,8 +514,8 @@ def validate_setup():
   for target in config.targets:
     try:
       context.target = target
-      labels = execute_sql_query('get-labels.sql', context,
-                                 {"WHERE_CLAUSE": ""})
+      # NOTE: we load products here (and not labels or page_feed) because it affects both our custom tables
+      products = context.data_gateway.load_products(target.name, maxrows=1)
     except Exception as e:
       app.logger.exception(e)
       return return_api_config_error(
@@ -504,7 +524,7 @@ def validate_setup():
               f"Application is not initialized: failed to load labels for target '{target.name}' - {e}"
           ))
   log.append(
-      "Successfully fetched labels from views in BigQuery for all targets")
+      "Successfully fetched products from views in BigQuery for all targets")
 
   # finally, GCP configuration seems OK but there could be some violation/warnings in config
   try:
@@ -570,12 +590,11 @@ def run_setup():
     # fetch labels for category mapping (they need a label-description mapping)
     context = Context(config, None, credentials,
                       ContextOptions(OUTPUT_FOLDER, 'images'))
-    params = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
     labels_by_target = {}
     for target in config.targets:
       try:
         context.target = target
-        category_labels = execute_sql_query('get-labels.sql', context, params)
+        category_labels = context.data_gateway.load_labels(target.name, category_only=True)
         if category_labels.total_rows:
           labels = []
           for row in category_labels:
@@ -590,6 +609,7 @@ def run_setup():
 
     log = ''
     log_handler.close()
+    logging.root.removeHandler(log_handler)
     log_handler = None
     with open(log_file_name, 'r') as f:
       log = f.readlines()
@@ -604,6 +624,7 @@ def run_setup():
                          description=msg))
   finally:
     if log_handler:
+      log_handler.close()
       logging.root.removeHandler(log_handler)
 
 

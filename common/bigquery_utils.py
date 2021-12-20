@@ -18,10 +18,11 @@
 
 import logging
 import os
-from typing import Any, Dict, Union, Sequence
+import re
+from typing import Any, Dict, List, Union, Sequence
 from google.auth import credentials
 from google.cloud import bigquery
-from google.cloud import exceptions
+from google.api_core import exceptions
 from google.cloud.bigquery.dataset import Dataset
 from common import file_utils
 
@@ -69,19 +70,17 @@ class CloudBigQueryUtils(object):
     except exceptions.NotFound:
       pass
 
-  def _configure_sql(self, sql_file: str, query_params: Dict[str, Any]) -> str:
+  def _configure_sql(self, sql_script: str, query_params: Dict[str,
+                                                               Any]) -> str:
     """Configures parameters of SQL script with variables supplied.
 
     Args:
-      sql_path: Path to SQL script.
+      sql_script: SQL script.
       query_params: Configuration containing query parameter values.
 
     Returns:
       sql_script: String representation of SQL script with parameters assigned.
     """
-    sql_path = os.path.join('sql', sql_file)
-    sql_script = file_utils.get_file_content(sql_path)
-
     params = {}
     for param_key, param_value in query_params.items():
       # If given value is list of strings (ex. 'a,b,c'), create tuple of
@@ -95,25 +94,57 @@ class CloudBigQueryUtils(object):
 
     return sql_script.format(**params)
 
-  def execute_queries(self, sql_files: Union[Sequence[str], str], dataset_id: str,
-                      params: Dict[str, Any]) -> None:
-    """Executes a SQL query or a list of queries."""
-
+  def _get_query_params(self, dataset_id: str, params: Dict[str, Any]):
     query_params = {
         'project_id': self.project_id,
         'dataset': dataset_id,
         'dataset_fqn': f'{self.project_id}.{dataset_id}'
     }
     query_params = {**query_params, **params}
+    return query_params
 
+  def execute_scripts(self,
+                      sql_files: Union[Sequence[str], str],
+                      dataset_id: str,
+                      params: Dict[str, Any],
+                      sql_params: List[bigquery.ScalarQueryParameter] = None):
+    """Executes a SQL query script or a list of scripts."""
     if isinstance(sql_files, str):
       sql_files = [sql_files]
-
-    for sql_file in sql_files:
+    query_params = self._get_query_params(dataset_id, params)
+    for idx, sql_file in enumerate(sql_files):
       try:
-        query = self._configure_sql(sql_file, query_params)
-        query_job = self.client.query(query)
-        return query_job.result()
+        sql_path = os.path.join('sql', sql_file)
+        sql_script = file_utils.get_file_content(sql_path)
+        query = self._configure_sql(sql_script, query_params)
+        job_config = None
+        if sql_params:
+          job_config = bigquery.QueryJobConfig(query_parameters=sql_params)
+        query_job = self.client.query(query, job_config=job_config)
+        if idx == len(sql_files) - 1:
+          # TODO: theriotically we can combine several results together if needed
+          return query_job.result()
+        query_job.result()
       except Exception as e:
         logging.exception(f'Error occurred during \'{sql_file}\' script execution: {e}')
+        if (isinstance(e, exceptions.NotFound)):
+          match = re.match('Not found: (Table|View) ([^ ]+) was not found', e.message)
+          if match and match.groups:
+            # Example: "Not found: Table project:gmcdsa.Ads_Preview_Products_Target was not found in location US"
+            raise Exception(f'{match.group(1)} \'{match.group(2)}\' doesn\'t exist, you should run setup again')
         raise
+
+  def execute_query(self, sql_query: str, dataset_id: str, params: Dict[str,
+                                                                        Any],
+                    sql_params: List[bigquery.ScalarQueryParameter] = None):
+    query_params = self._get_query_params(dataset_id, params)
+    try:
+      query = self._configure_sql(sql_query, query_params)
+      job_config = None
+      if sql_params:
+        job_config = bigquery.QueryJobConfig(query_parameters=sql_params)
+      query_job = self.client.query(query, job_config=job_config)
+      return query_job.result()
+    except Exception as e:
+      logging.exception(f'Error occurred during script execution: {e}')
+      raise

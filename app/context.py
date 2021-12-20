@@ -15,6 +15,7 @@
 import os
 from dataclasses import dataclass
 from google.auth import credentials
+from app.data_gateway import DataGateway
 from common import config_utils, bigquery_utils
 
 
@@ -41,13 +42,12 @@ class Context:
     self.image_folder = options.image_folder or 'images'
     if (target):
       self.output_folder = os.path.join(self.output_folder, target.name)
-    self.bq_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
-                                                       credentials)
+    self.data_gateway = DataGateway(config, credentials)
     self.images_dry_run = options.images_dry_run
+    self.gcs_bucket = (config.project_id + '-pdsa') if config.project_id else None
 
   def ensure_folders(self):
     if not os.path.isabs(self.output_folder):
       self.output_folder = os.path.abspath(self.output_folder)
     if self.output_folder:
       os.makedirs(self.output_folder, exist_ok=True)
-

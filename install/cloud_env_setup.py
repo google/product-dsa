@@ -50,7 +50,8 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
   if not target.name:
     raise ValueError("Target has no name")
   sql_files = [
-      'filter-products.sql',
+      'create-filtered-products.sql',
+      'create-ads-preview.sql'
   ]
   SEARCH_CONDITIONS = "SEARCH_CONDITIONS"
   # AND merchant_id IN ({merchant_id})
@@ -65,7 +66,7 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
     params[SEARCH_CONDITIONS] = condition
   params['merchant_id'] = config.merchant_id
   params['target'] = target.name
-  bigquery_util.execute_queries(sql_files, config.dataset_id, params)
+  bigquery_util.execute_scripts(sql_files, config.dataset_id, params)
 
 
 def set_permission_on_drive(fileId, email, credentials):
@@ -88,7 +89,7 @@ def set_permission_on_drive(fileId, email, credentials):
       raise Exception(
           f'Error occured on adding drive permissions, please make sure that account \'{email}\' really exists ({e.reason})'
       ) from e
-    raise
+    raise Exception(f'Error occured on adding drive permissions: {e}') from e
 
 
 def get_service_account_email(project_id: str):
@@ -150,11 +151,11 @@ def create_spreadsheet(title: str, credentials: credentials.Credentials) -> str:
 def backup_config(config_file_name: str, config: config_utils.Config,
                   credentials):
   """Backs up config file onto GCS (bucket "{project_id}-pdsa", will be created if doesn't exist)"""
-  if not config_file_name.startswith('gs://'):
-    file_utils.upload_file_to_gcs(config.project_id, credentials,
-                                  config_file_name)
+  if not config_file_name.startswith('gs://') and config.project_id:
+    gcs_bucket = config.project_id + '-pdsa'
+    file_utils.upload_file_to_gcs(gcs_bucket, config_file_name, credentials, config.project_id)
     logging.info(
-        f'config file ({config_file_name}) has been copied to gs://{config.project_id}-pdsa'
+        f'config file ({config_file_name}) has been copied to gs://{gcs_bucket}'
     )
 
 

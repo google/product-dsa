@@ -20,26 +20,35 @@ import { ApiService } from './api.service';
   providedIn: 'root'
 })
 export class ProductService {
-  labels: Record<string, any>[] | undefined;
-  products: Record<string, any>[] | undefined;
+  labels: Record<string, Record<string, any>[]>;
+  products: Record<string, Record<string, any>[]>;
 
-  constructor(public apiService: ApiService) { }
-
-  getLabels(): Record<string, any>[] | undefined {
-    return this.labels;
+  constructor(public apiService: ApiService) {
+    this.labels = {};
+    this.products = {};
   }
 
-  async loadLabels(target: string): Promise<Record<string, any>[]> {
-    this.labels = await this.apiService.getLabels(target);
-    return this.labels;
+  getLabels(target: string): Record<string, any>[] | undefined {
+    return this.labels[target];
   }
 
-  getProducts(): Record<string, any>[] | undefined {
-    return this.products;
+  async loadLabels(target: string, filter?: { categoryOnly?: boolean, productOnly?: boolean }): Promise<Record<string, any>[]> {
+    let labels = await this.apiService.getLabels(target, filter?.categoryOnly, filter?.productOnly);
+    this.labels[target] = labels;
+    return labels;
   }
 
-  async loadProducts(target: string): Promise<Record<string, any>[]> {
-    this.products = await this.apiService.getProducts(target);
-    return this.products;
+  getProducts(target: string): Record<string, any>[] | undefined {
+    return this.products[target];
+  }
+
+  async loadProducts(target: string, filter?: { onlyInStock?: boolean, onlyLongDescription?: boolean}): Promise<Record<string, any>[]> {
+    let products = await this.apiService.getProducts(target, filter?.onlyInStock, filter?.onlyLongDescription);
+    this.products[target] = products;
+    return products;
+  }
+
+  async updateProduct(target: string, product_id: string, values: Record<string, any>) {
+    return this.apiService.updateProduct(target, product_id, values);
   }
 }

@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
+import { Subscription } from 'rxjs';
 import { ComponentBase } from './components/component-base';
 import { ObjectDetailsDialogComponent } from './components/object-details-dialog.component';
 import { ConfigService, GetConfigResponse } from './shared/config.service';
@@ -29,18 +30,17 @@ import { ProductService } from './shared/product.service';
   templateUrl: './products.component.html',
   styleUrls: ['./products.component.scss']
 })
-export class ProductsComponent extends ComponentBase implements OnInit {
+export class ProductsComponent extends ComponentBase implements OnInit, OnDestroy {
   loading: boolean = false;
   formLabels: FormGroup;
   formProducts: FormGroup;
   dataSourceLabels: MatTableDataSource<any>;
-  columnsLabels: string[] | undefined;
+  columnsLabels = ['label', 'count'];
   dataSourceProducts: MatTableDataSource<any>;
-  columnsProducts = ['offer_id', 'title', 'brand', 'in_stock', 'pdsa_custom_labels'];
+  columnsProducts = ['offer_id', 'title', 'brand', 'in_stock', 'custom_description'];
   @ViewChild('paginatorLabels') paginatorLabels: MatPaginator | undefined;
   @ViewChild('paginatorProducts') paginatorProducts: MatPaginator | undefined;
-  config: any;
-  //selectedTarget: string | undefined;
+  private _subscription: Subscription | undefined;
 
   constructor(private fb: FormBuilder,
     private productService: ProductService,
@@ -50,31 +50,25 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     super(notificationSvc);
 
     this.formLabels = this.fb.group({
+      mode: 'both'
     }, { updateOn: 'blur' });
     this.formProducts = this.fb.group({
+      only_in_stock: false,
+      only_long_description: false
     }, { updateOn: 'blur' });
     this.dataSourceLabels = new MatTableDataSource<any>();
     this.dataSourceProducts = new MatTableDataSource<any>();
-    this.config = this.configService.getConfig()!.config;
-    // if (this.config.targets) {
-    //   if (this.config.targets.length >= 1) {
-    //     this.selectedTarget = this.config.targets[0].name;
-    //   }
-    // }
-    // if (!this.selectedTarget) {
-    //   // show some warning
-    // }
   }
 
   ngOnInit(): void {
-    let labels = this.productService.getLabels();
-    if (labels) {
-      this.showLabels(labels);
-    }
-    let products = this.productService.getProducts();
-    if (products) {
-      this.showProducts(products)
-    }
+    this.showData();
+    this._subscription = this.configService.currentTargetChanged.subscribe((value) => {
+      this.showData();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this._subscription?.unsubscribe();
   }
 
   ngAfterViewInit() {
@@ -82,13 +76,23 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     this.dataSourceProducts.paginator = this.paginatorProducts!;
   }
 
+  showData() {
+    let labels = this.productService.getLabels(this.configService.currentTarget!);
+    this.showLabels(labels);
+    let products = this.productService.getProducts(this.configService.currentTarget!);
+    this.showProducts(products)
+  }
+
   async loadLabels() {
     try {
+      let filter = this.formLabels.get('mode')?.value;
+      let categoryOnly = filter === 'category_only';
+      let productOnly = filter === 'product_only';
       this.errorMessage = null;
       this.loading = true;
       this.dataSourceLabels.data = [];
-      const data = await this.productService.loadLabels(this.configService.currentTarget!);
-      this.showLabels(data);
+      const data = await this.productService.loadLabels(this.configService.currentTarget!, { categoryOnly, productOnly });
+      this.showLabels(data, true);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);
     } finally {
@@ -96,22 +100,26 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     }
   }
 
-  showLabels(serverData: Record<string, any>[]) {
+  showLabels(serverData: Record<string, any>[] | undefined, showNotifications: boolean = false) {
+    this.dataSourceLabels.data = [];
     if (!serverData || !serverData.length) {
-      this.showSnackbar("No data found");
+      if (showNotifications) {
+        this.showSnackbar("No data found");
+      }
       return;
     }
     this.dataSourceLabels.data = serverData;
-    this.columnsLabels = Object.keys(serverData[0]);
   }
 
   async loadProducts() {
     try {
       this.errorMessage = null;
+      let onlyLongDescription = !!this.formProducts.get('only_long_description')?.value;
+      let onlyInStock = !!this.formProducts.get('only_in_stock')?.value;
       this.loading = true;
       this.dataSourceProducts.data = [];
-      const data = await this.productService.loadProducts(this.configService.currentTarget!);
-      this.showProducts(data);
+      const data = await this.productService.loadProducts(this.configService.currentTarget!, { onlyInStock, onlyLongDescription });
+      this.showProducts(data, true);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);
     } finally {
@@ -119,13 +127,15 @@ export class ProductsComponent extends ComponentBase implements OnInit {
     }
   }
 
-  showProducts(serverData: Record<string, any>[]) {
+  showProducts(serverData: Record<string, any>[] | undefined, showNotifications: boolean = false) {
+    this.dataSourceProducts.data = [];
     if (!serverData || !serverData.length) {
-      this.showSnackbar("No data found");
+      if (showNotifications) {
+        this.showSnackbar("No data found");
+      }
       return;
     }
     this.dataSourceProducts.data = serverData;
-    //this.columnsProducts = Object.keys(serverData[0]);
   }
 
   mouseOverIndex = -1;

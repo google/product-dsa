@@ -38,6 +38,7 @@ import { DefaultRouteGuard } from './shared/default-route.guard';
 import { NotificationBarComponent } from './components/notification-bar.component';
 import { JsonPipe } from './components/json.pipe';
 import { SetupComponent } from './setup.component';
+import { EditValueDialogComponent } from './components/edit-value-dialog.component';
 
 @NgModule({
   declarations: [
@@ -53,7 +54,8 @@ import { SetupComponent } from './setup.component';
     ConfigComponent,
     NotificationBarComponent,
     JsonPipe,
-    SetupComponent
+    SetupComponent,
+    EditValueDialogComponent
   ],
   imports: [
     BrowserModule,

@@ -50,7 +50,11 @@ export abstract class ComponentBase {
       }
     }
     let fullMessage = message + (details ? ": " + details : "")
-    this.errorMessage = fullMessage.replace(/(?:\r\n|\r|\n)/g, '<br>');
+    fullMessage = fullMessage.replace(/>/g, "&gt;")
+      .replace(/</g, "&lt;")
+      .replace(/\\n/g, '<br>')
+      .replace(/\r\n|\r|\n/g, '<br>');
+    this.errorMessage = fullMessage;
     if (showAlert) {
       this.showAlert(fullMessage);
     } else {

@@ -17,19 +17,16 @@ Responsible for campaign creation of Product DSAs to upload into Google Ads
 Uploading will initially be only supported through Google Ads Editor
 i.e. The expected output is a CSV file.
 """
-import collections
 import csv
 from io import TextIOWrapper
 import re
 import os
-import shutil
 import decimal
 import logging
 from datetime import datetime
 import concurrent.futures
 from typing import Any, Dict, List
-from google.auth import credentials
-from common import config_utils, file_utils, image_utils, sheets_utils
+from common import file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context
 from common.utils import get_rss
@@ -510,9 +507,11 @@ class CampaignMgr:
     logging.debug('Writing campaign data CSV')
     gae.generate_csv(output_csv_path)
     logging.info(f'Campaign data CSV created in {output_csv_path}')
-    file_utils.upload_file_to_gcs(self._context.config.project_id,
-                                  self._credentials, output_csv_path)
-    logging.debug(f'Campaign data CSV uploaded to GCS')
+    if self._context.gcs_bucket:
+      file_utils.upload_file_to_gcs(self._context.gcs_bucket, output_csv_path,
+                                    self._credentials,
+                                    self._context.config.project_id)
+      logging.debug(f'Campaign data CSV uploaded to GCS')
     return output_csv_path
 
   def _get_images(self, product, max_image_dimension) -> List[str]:
@@ -573,10 +572,14 @@ class CampaignMgr:
 
   def _get_previous_data(self, output_csv_path: str) -> TextIOWrapper:
     file_name = os.path.basename(output_csv_path)
-    bucket = file_utils.get_or_create_project_gcs_bucket(
-        self._context.config.project_id, self._credentials)
     csv_file = None
-    blob = bucket.get_blob(file_name)
+    blob = None
+    if self._context.gcs_bucket:
+      bucket = file_utils.get_gcs_bucket(self._context.gcs_bucket,
+                                         self._credentials,
+                                         self._context.config.project_id)
+      if bucket:
+        blob = bucket.get_blob(file_name)
     if blob:
       csv_file = blob.open(encoding='UTF-16')
       logging.info(f'Found previous campaign data file on GCS: {file_name}')

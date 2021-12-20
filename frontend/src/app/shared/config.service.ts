@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 import {ApiService} from './api.service';
 
 export interface ConfigurationTarget {
@@ -74,16 +74,28 @@ export class ConfigService {
 
   constructor(public apiService: ApiService) { }
 
-  loaded: BehaviorSubject<any> = new BehaviorSubject<any>(null);
-  currentTarget: string|undefined;
+  loaded: Subject<Configuration> = new Subject<Configuration>();
+  private _currentTarget: string | undefined;
+  currentTargetChanged: Subject<string | undefined> = new Subject<string | undefined>();
 
   getConfig(): GetConfigResponse | undefined {
     return this.config;
   }
 
+  get currentTarget(): string | undefined {
+    return this._currentTarget;
+  }
+  set currentTarget(value: string | undefined) {
+    const changed = this._currentTarget !== value;
+    this._currentTarget = value;
+    if (changed) {
+      this.currentTargetChanged.next(value);
+    }
+  }
+
   async loadConfig(): Promise<GetConfigResponse> {
     this.config = await this.apiService.getConfig();
-    this.loaded.next(this.config?.config);
+    this.loaded.next(this.config?.config!);
     return this.config!;
   }
 

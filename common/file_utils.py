@@ -143,10 +143,11 @@ def save_file_to_gcs(uri: str, content: str):
     raise
 
 
-def get_or_create_project_gcs_bucket(project_id: str,
-                                     credentials) -> storage.Bucket:
+def get_or_create_gcs_bucket(
+    bucket_name: str,
+    credentials,
+    project_id: str = None) -> storage.Bucket:
   storage_client = storage.Client(project=project_id, credentials=credentials)
-  bucket_name = project_id + '-pdsa'
   try:
     bucket = storage_client.get_bucket(bucket_name)
   except exceptions.NotFound:
@@ -154,9 +155,23 @@ def get_or_create_project_gcs_bucket(project_id: str,
   return bucket
 
 
-def upload_file_to_gcs(project_id: str, credentials, local_file_path: str):
-  """Uploads a local file to project's GCS default bucket ({project_id}-pdsa."""
-  bucket = get_or_create_project_gcs_bucket(project_id, credentials)
+def get_gcs_bucket(bucket_name: str,
+                   credentials,
+                   project_id: str = None) -> storage.Bucket:
+  storage_client = storage.Client(project=project_id, credentials=credentials)
+  try:
+    bucket = storage_client.get_bucket(bucket_name)
+  except exceptions.NotFound:
+    bucket = None
+  return bucket
+
+
+def upload_file_to_gcs(bucket_name: str,
+                       local_file_path: str,
+                       credentials,
+                       project_id: str = None):
+  """Uploads a local file to project's a GCS bucket."""
+  bucket = get_or_create_gcs_bucket(bucket_name, credentials, project_id)
   file_name = os.path.basename(local_file_path)
   blob = bucket.blob(file_name)
   blob.upload_from_filename(local_file_path)

@@ -55,7 +55,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       targets: fb.array([])
     });
     this.formSetup = fb.group({
-      skip_dt_run: ''
+      skip_dt_run: false
     });
     this.editable = activatedRoute.snapshot.queryParamMap.get('edit') == "true";
   }
@@ -311,7 +311,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       if (response.labels) {
         for (let target of Object.keys(response.labels)) {
           let labels = response.labels[target];
-          log = [`Target ${target} requires a mapping for the following labels, please make sure it exists:`];
+          log = [`Target ${target} requires a mapping for the following labels, please make sure they exist:`];
           log.push(...labels);
           // TODO: theriotically we can check the mapping in config, but which to use (client or server)?
           this.showLog(log, true);

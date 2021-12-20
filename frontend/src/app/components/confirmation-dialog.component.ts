@@ -51,7 +51,8 @@ export class ConfirmationDialogComponent {
     if (data.html) {
       this.html = this.sanitized.bypassSecurityTrustHtml(data.html);
     } else if (data.message) {
-      this.html = this.sanitized.sanitize(SecurityContext.HTML, data.message.replace(/\n/g, "<br>")) || '';
+      let msg = data.message.replace(/>/g, "&gt;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+      this.html = this.sanitized.sanitize(SecurityContext.HTML, msg) || '';
     } else {
       throw new Error('Either html or message properties should be specified');
     }

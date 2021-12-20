@@ -18,10 +18,9 @@ from typing import Dict, List
 from datetime import datetime
 import os
 import csv
-import resource
 from google.auth import credentials
 from pprint import pprint
-from common import auth, config_utils, sheets_utils, file_utils, bigquery_utils
+from common import auth, config_utils, sheets_utils, file_utils
 from app.context import Context, ContextOptions
 from app import campaign_mgr
 
@@ -31,25 +30,13 @@ logging.basicConfig(format='[%(asctime)s][%(name)s] %(message)s',
 logging.getLogger('google.api_core').setLevel(logging.WARNING)
 
 
-def execute_sql_query(script_name: str,
-                      context: Context,
-                      params: Dict[str, str] = None):
-  if not context.target:
-    raise ValueError(f'Context does not have a target')
-  if not params:
-    params = {}
-  params['target'] = context.target.name
-  return context.bq_client.execute_queries(script_name,
-                                           context.config.dataset_id, params)
-
-
 def validate_config(context: Context):
 
   def _validate_target(target: config_utils.ConfigTarget, errors: List):
     errors.extend(target.validate(generation=True))
     context.target = target
-    params = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
-    category_labels = execute_sql_query('get-labels.sql', context, params)
+    category_labels = context.data_gateway.load_labels(target.name,
+                                                       category_only=True)
     if category_labels.total_rows:
       missing_category_desc = False
       err_message = ''
@@ -88,15 +75,8 @@ def validate_config(context: Context):
 def create_or_update_page_feed(generate_csv: bool, context: Context):
   step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
   ts_start = datetime.now()
-  # Execute a SQL script (TODO: read its name from config) to get data for DSA page feed
-  # The contract for the script:
-  #   we expect 2-columns: 'Page_URL' and 'Custom_label'
-  #   both columns should not be empty or NULL
-  #   the Custom_label column can contain one or many label, separated by ';'
-  #   values in Page_URL column should be unique
-  # NOTE: currently we don't validate all those invariants, only assume they
   logging.info(f'Starting "{step_name}" step')
-  data = execute_sql_query('create-page-feed.sql', context)
+  data = context.data_gateway.load_page_feed(context.target.name)
   logging.info(f'Page-feed query returned {data.total_rows} rows')
 
   values = []
@@ -133,12 +113,6 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
   return csv_file_name
 
 
-def load_products(context: Context):
-  products = execute_sql_query('get-products.sql', context)
-  logging.info(f'Fetched {products.total_rows} products')
-  return products
-
-
 def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
   """Generate ad customizers (in Google Spreadsheet and CSV file)
     Args:
@@ -146,7 +120,7 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
     Returns:
       generated CSV file path
   """
-  products = load_products(context)
+  products = context.data_gateway.load_products(context.target.name)
   mgr = campaign_mgr.CampaignMgr(context, products)
   return mgr.generate_adcustomizers(generate_csv)
 
@@ -159,7 +133,7 @@ def generate_campaign(context: Context) -> str:
   step_name = 'campaign creation'
   ts_start = datetime.now()
   logging.info(f'Starting "{step_name}" step')
-  products = load_products(context)
+  products = context.data_gateway.load_products(context.target.name)
   output_path = None
   if products.total_rows:
     context.ensure_folders()

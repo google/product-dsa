@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 /*
-  Gets a list of product details for the filtered products.
-
-  The query only runs on the table of filtered products (i.e. in-stock and
-  selected as part of the Products DSA run).
-
+  Create a table for the ads data that will be extracted from the product information
   Parameters:
   - project_id
   - dataset
   - target
 */
 
-SELECT ad.ad_description1 as custom_description, p.*
-FROM `{project_id}.{dataset}.Products_Filtered_{target}` p
-  LEFT JOIN `{project_id}.{dataset}.Ads_Preview_Products_{target}` ad ON ad.product_id = p.offer_id
-{WHERE_CLAUSE}
+-- Creat the table that will hold the ads additional information
+CREATE OR REPLACE TABLE `{project_id}.{dataset}.Ads_Preview_Products_{target}` (
+    product_id STRING NOT NULL,
+    ad_description1 STRING,
+    ad_description2 STRING
+);

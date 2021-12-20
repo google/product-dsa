@@ -52,12 +52,27 @@ export class ApiService {
     return res;
   }
 
-  getLabels(target: string): Promise<Record<string, any>[]> {
-    return this.backendService.getApi<Record<string, any>[]>('/labels', { target });
+  getLabels(target: string, categoryOnly: boolean | undefined, productOnly: boolean | undefined): Promise<Record<string, any>[]> {
+    return this.backendService.getApi<Record<string, any>[]>('/labels', {
+      target,
+      "category-only": categoryOnly,
+      "product-only": productOnly
+    });
   }
 
-  getProducts(target: string): Promise<Record<string, any>[]> {
-    return this.backendService.getApi<Record<string, any>[]>('/products', { target });
+  getProducts(target: string, onlyInStock: boolean | undefined, onlyLongDescription: boolean | undefined): Promise<Record<string, any>[]> {
+    return this.backendService.getApi<Record<string, any>[]>('/products', {
+      target,
+      "in-stock": onlyInStock,
+      "long-description": onlyLongDescription
+    });
+  }
+
+  updateProduct(target: string, product_id: string, values: Record<string, any>): Promise<void> {
+    return this.backendService.postApi('/products/' + product_id, values, {
+      params: { target },
+      emptyResponse: true
+    });
   }
 
   downloadFile(filename: string): Promise<void> {

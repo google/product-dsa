@@ -40,35 +40,44 @@ def get_file_content(uri: str) -> str:
   raise FileNotFoundError(f'File {uri} wasn\'t found')
 
 
-def download_file(uri: str, folder: str, *, dry_run: bool=False) -> str:
+def download_file(uri: str,
+                  local_path: str,
+                  *,
+                  folder: str = None,
+                  dry_run: bool = False,
+                  invalidate_cache: bool = False) -> str:
   """Download a remote file into a local folder."""
-  os.makedirs(folder, exist_ok=True)
-  # Change the user agent because some websites don't like traffic from "non-browsers"
-  headers = {'User-Agent': CHROME_USER_AGENT}
-  try:
+  if not local_path:
+    if not folder:
+      raise ValueError('Path should specified if no local_path provided')
+    os.makedirs(folder, exist_ok=True)
     parsed_uri = parse.urlparse(uri)
     file_name = os.path.basename(parsed_uri.path)
     local_path = os.path.join(folder, file_name)
+  # Change the user agent because some websites don't like traffic from "non-browsers"
+  headers = {'User-Agent': CHROME_USER_AGENT}
+  try:
     if dry_run:
       return local_path
-    if (os.path.exists(local_path)):
+    if os.path.exists(local_path) and not invalidate_cache:
       headers['if-modified-since'] = _datetime2str(
           get_file_last_modified(local_path))
-    response = requests.get(uri, headers=headers)
+    with requests.get(uri, headers=headers) as response:
+      if response.status_code == 304:
+        logging.debug(f'Reusing local copy of file {uri} (304)')
+        return local_path
+      if response.status_code == 200:
+        with open(local_path, 'wb') as f:
+          f.write(response.content)
+        last_modified = response.headers.get('Last-Modified')
+        if last_modified:
+          set_file_last_modified(local_path, _str2datetime(last_modified))
+        return local_path
+      raise FileNotFoundError(
+          f"Couldn't download file {uri}: {response.reason}")
   except BaseException as e:
     logging.error(f'Error occured during file {uri} download: {e}')
     raise
-  if response.status_code == 200:
-    with open(local_path, 'wb') as f:
-      f.write(response.content)
-    last_modified = response.headers.get('Last-Modified')
-    if last_modified:
-      set_file_last_modified(local_path, _str2datetime(last_modified))
-    return local_path
-  if response.status_code == 304:
-    logging.debug(f'Reusing local copy of file {uri} (304)')
-    return local_path
-  raise FileNotFoundError(f"Couldn't download file {uri}: {response.reason}")
 
 
 def copy_file_from_gcs(uri: str, destination_file_name: str):
@@ -143,10 +152,9 @@ def save_file_to_gcs(uri: str, content: str):
     raise
 
 
-def get_or_create_gcs_bucket(
-    bucket_name: str,
-    credentials,
-    project_id: str = None) -> storage.Bucket:
+def get_or_create_gcs_bucket(bucket_name: str,
+                             credentials,
+                             project_id: str = None) -> storage.Bucket:
   storage_client = storage.Client(project=project_id, credentials=credentials)
   try:
     bucket = storage_client.get_bucket(bucket_name)

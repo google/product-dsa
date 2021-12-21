@@ -25,6 +25,7 @@ import decimal
 import logging
 from datetime import datetime
 import concurrent.futures
+from urllib import parse
 from typing import Any, Dict, List
 from common import file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
@@ -90,6 +91,8 @@ class GoogleAdsEditorMgr:
 
   def __split_to_sentences(self, descrption: str, all_separators: bool):
     ''' Break a paragraph into sentences and return a list '''
+    if not descrption:
+      return []
     sentenceEnders = self._re_splitter_full if all_separators else self._re_splitter
     sentenceList = sentenceEnders.split(descrption)
     return sentenceList
@@ -106,6 +109,8 @@ class GoogleAdsEditorMgr:
         return '{=' + self._context.target.adcustomizer_feed_name + '.' + match.group(
             1) + '}'
 
+      # TODO: an expanded ad description (after evaluating adcustomizers) can exceed the ad description maximum length
+
       description = re.sub('\{([^}]+)\}', replacer,
                            self._context.target.ad_description_template)
       if description != self._context.target.ad_description_template:
@@ -114,15 +119,18 @@ class GoogleAdsEditorMgr:
 
   def __get_ad_description(self, product):
     ''' The limit for description is 90 characters, which can be easily exceeded.
-    This method will decide what information to take as the ad description. It also
-    removes any commas that exist in the string to avoid messing up the CSV file
+    This method will decide what information to take as the ad description.
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
-    if len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
+    if product.custom_description and len(product.custom_description) > 0 and len(
+        product.custom_description) <= AD_DESCRIPTION_MAX_LENGTH:
+      return product.custom_description
+
+    if product.description and len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.description
 
-    if len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
+    if product.title and len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.title
 
     # The description and title are too long, split them to sentences
@@ -514,16 +522,32 @@ class CampaignMgr:
       logging.debug(f'Campaign data CSV uploaded to GCS')
     return output_csv_path
 
+  def _generate_filepath_for_image_url(self, uri, folder):
+    parsed_uri = parse.urlparse(uri)
+    file_name = os.path.basename(parsed_uri.path)
+    local_path = os.path.join(folder, file_name)
+    return local_path
+
+
   def _get_images(self, product, max_image_dimension) -> List[str]:
     """Download all product images, resize them and return a list of local relative paths"""
+    download_folder = os.path.join(self._context.output_folder,
+                                   self._context.image_folder + '-download')
     image_rel_paths = []
     product_images = []
     if product.image_link:
       product_images.append(product.image_link)
     if product.additional_image_links and not self._context.target.skip_additional_images:
       product_images += product.additional_image_links
-    # remove duplicates from image list
+    # remove url duplicates from image list
     product_images = list(dict.fromkeys(product_images))
+    # remove file name duplicates from the list
+    product_images_to_urls = {
+        self._generate_filepath_for_image_url(uri, download_folder): uri
+        for uri in product_images
+    }
+    product_images_to_urls[self._generate_filepath_for_image_url(
+        product.image_link, download_folder)] = product.image_link
     if self._context.target.max_image_count and self._context.target.max_image_count > 0:
       product_images = product_images[:self._context.target.max_image_count]
     logging.debug(product_images)
@@ -531,23 +555,21 @@ class CampaignMgr:
     dry_run = self._context.images_dry_run
     ts_start = datetime.now()
     # now product_images is a list of product images' urls, let's download them
-    download_folder = os.path.join(self._context.output_folder,
-                                   self._context.image_folder + '-download')
-    if len(product_images) == 0:
+    os.makedirs(download_folder, exist_ok=True)
+    if len(product_images_to_urls) == 0:
       return image_rel_paths
-    if len(product_images) == 1:
+    if len(product_images_to_urls) == 1:
       # no need for parallelization if only one image
+      item = list(product_images_to_urls.items())[0]
       product_images = [
-          file_utils.download_file(product_images[0],
-                                   download_folder,
-                                   dry_run=dry_run)
+          file_utils.download_file(item[1], item[0], dry_run=dry_run)
       ]
     else:
       # download all images in parallel
       with concurrent.futures.ThreadPoolExecutor() as exector:
         product_images = exector.map(
-            lambda uri: file_utils.download_file(
-                uri, download_folder, dry_run=dry_run), product_images)
+            lambda item: file_utils.download_file(
+                item[1], item[0], dry_run=dry_run), product_images_to_urls.items())
 
     elapsed = datetime.now() - ts_start
     logging.debug(f'Images downloaded, elapsed {elapsed}')

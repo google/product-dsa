@@ -287,7 +287,7 @@
           <!-- category_ad_descriptions -->
           <div class="row my-2">
             <div class="col">
-              <mat-expansion-panel #executionLogPanel>
+              <mat-expansion-panel #executionLogPanel expanded="true">
                 <mat-expansion-panel-header>
                   <mat-panel-title>Label to description mapping</mat-panel-title>
                   <mat-panel-description>Click to expand</mat-panel-description>
@@ -357,7 +357,7 @@
         </div>
       </div>
       <div class="row my-4">
-        <div class="col">
+        <div class="col-7">
           <button mat-raised-button (click)="reload()" color="accent" class="mx-2 mat-elevation-z2"
             [disabled]="editable">
             <mat-icon>refresh</mat-icon> Reload
@@ -365,14 +365,14 @@
           <button mat-raised-button (click)="edit()" class="mx-2 mat-elevation-z2" *ngIf="!editable">
             <mat-icon>edit</mat-icon> Edit
           </button>
-          <button mat-raised-button (click)="save()" class="mx-2 mat-elevation-z2" *ngIf="editable">
+          <button mat-raised-button (click)="save()" color="accent" class="mx-2 mat-elevation-z2" *ngIf="editable">
             <mat-icon>upload</mat-icon> Save
           </button>
           <button mat-raised-button (click)="cancel()" class="mx-2 mat-elevation-z2" *ngIf="editable">
             <mat-icon>cancel</mat-icon> Cancel
           </button>
         </div>
-        <div class="col-5">
+        <div class="col-5 text-end">
           <button mat-raised-button (click)="shareSpreadsheets()" class="mx-3 mat-elevation-z2">
             <mat-icon>share</mat-icon> Share Spreadsheets
           </button>
@@ -388,7 +388,7 @@
           ({{service_account}}) access permissions (Standard) to your GMC account.
         </div>
         <div class="row">
-          <div class="col text-left">
+          <div class="col text-start">
             <button mat-raised-button (click)="validateSetup()" color="accent" class="mat-elevation-z2">
               <mat-icon>check</mat-icon> Validate Setup
             </button>

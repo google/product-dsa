@@ -375,11 +375,15 @@ def get_products():
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   in_stock_only = _get_req_arg_bool('in-stock')
   long_description = _get_req_arg_bool('long-description')
+  category_only = _get_req_arg_bool('category-only')
+  product_only = _get_req_arg_bool('product-only')
   context = create_context(target_name)
   products = context.data_gateway.load_products(
       target_name,
       in_stock_only=in_stock_only,
-      long_description=long_description)
+      long_description=long_description,
+      category_only=category_only,
+      product_only=product_only)
   result = []
   for row in products:
     obj = {}

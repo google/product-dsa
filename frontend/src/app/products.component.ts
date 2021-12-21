@@ -53,6 +53,7 @@ export class ProductsComponent extends ComponentBase implements OnInit, OnDestro
       mode: 'both'
     }, { updateOn: 'blur' });
     this.formProducts = this.fb.group({
+      mode: 'both',
       only_in_stock: false,
       only_long_description: false
     }, { updateOn: 'blur' });
@@ -116,9 +117,15 @@ export class ProductsComponent extends ComponentBase implements OnInit, OnDestro
       this.errorMessage = null;
       let onlyLongDescription = !!this.formProducts.get('only_long_description')?.value;
       let onlyInStock = !!this.formProducts.get('only_in_stock')?.value;
+      let filter = this.formProducts.get('mode')?.value;
+      let categoryOnly = filter === 'category_only';
+      let productOnly = filter === 'product_only';
+
       this.loading = true;
       this.dataSourceProducts.data = [];
-      const data = await this.productService.loadProducts(this.configService.currentTarget!, { onlyInStock, onlyLongDescription });
+      const data = await this.productService.loadProducts(this.configService.currentTarget!, {
+        onlyInStock, onlyLongDescription, categoryOnly, productOnly
+      });
       this.showProducts(data, true);
     } catch (e) {
       this.handleApiError(`Labels failed to load`, e);

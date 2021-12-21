@@ -53,6 +53,8 @@ class DataGateway:
                     *,
                     in_stock_only: bool = False,
                     long_description: bool = False,
+                    category_only: bool = False,
+                    product_only: bool = False,
                     maxrows: int = 0):
     self._check_target(target)
     where_clause = ''
@@ -64,6 +66,18 @@ class DataGateway:
       else:
         where_clause = 'WHERE '
       where_clause += 'length(p.title) > 90 and length(p.description) > 90 and ad.ad_description1 is null'
+    if category_only:
+      if where_clause:
+        where_clause += ' AND '
+      else:
+        where_clause = 'WHERE '
+      where_clause += "pdsa_custom_labels not like 'product_%'"
+    elif product_only:
+      if where_clause:
+        where_clause += ' AND '
+      else:
+        where_clause = 'WHERE '
+      where_clause += "pdsa_custom_labels like 'product_%'"
     if maxrows > 0:
       where_clause += '\nLIMIT ' + str(maxrows)
     params = {"WHERE_CLAUSE": where_clause}

@@ -24,6 +24,16 @@ export interface GenerateResponse {
   spreadsheet_id: string,
   feed_name: string
 };
+export interface LabelFilter {
+  categoryOnly?: boolean
+  productOnly?: boolean
+}
+export interface ProductFilter {
+  onlyInStock?: boolean
+  onlyLongDescription?: boolean
+  categoryOnly?: boolean
+  productOnly?: boolean
+}
 
 @Injectable({
   providedIn: 'root'
@@ -44,7 +54,8 @@ export class ApiService {
     return res;
   }
 
-  async generateAdCampaign(target: string | undefined, images_dry_run: boolean | undefined): Promise<GenerateResponse | void> {
+  async generateAdCampaign(target: string | undefined, images_dry_run: boolean | undefined
+  ): Promise<GenerateResponse | void> {
     let res = await this.backendService.getFile<GenerateResponse>(`/campaign/generate`, {
       target: target,
       "images-dry-run": images_dry_run
@@ -52,19 +63,21 @@ export class ApiService {
     return res;
   }
 
-  getLabels(target: string, categoryOnly: boolean | undefined, productOnly: boolean | undefined): Promise<Record<string, any>[]> {
+  getLabels(target: string, filter?: LabelFilter): Promise<Record<string, any>[]> {
     return this.backendService.getApi<Record<string, any>[]>('/labels', {
       target,
-      "category-only": categoryOnly,
-      "product-only": productOnly
+      "category-only": filter?.categoryOnly,
+      "product-only": filter?.productOnly
     });
   }
 
-  getProducts(target: string, onlyInStock: boolean | undefined, onlyLongDescription: boolean | undefined): Promise<Record<string, any>[]> {
+  getProducts(target: string, filter?: ProductFilter): Promise<Record<string, any>[]> {
     return this.backendService.getApi<Record<string, any>[]>('/products', {
       target,
-      "in-stock": onlyInStock,
-      "long-description": onlyLongDescription
+      "in-stock": filter?.onlyInStock,
+      "long-description": filter?.onlyLongDescription,
+      "category-only": filter?.categoryOnly,
+      "product-only": filter?.productOnly
     });
   }
 
@@ -101,7 +114,8 @@ export class ApiService {
     return this.backendService.getApi('/setup/validate');
   }
 
-  runSetup(options: { skip_dt_run?: boolean }, config?: any): Promise<{ log: string[], labels: Record<string, string[]> }> {
+  runSetup(options: { skip_dt_run?: boolean }, config?: any
+  ): Promise<{ log: string[], labels: Record<string, string[]> }> {
     return this.backendService.postApi('/setup/run', config, {
       params: {
         "skip-dt-run": options?.skip_dt_run,

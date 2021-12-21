@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Injectable } from '@angular/core';
-import { ApiService } from './api.service';
+import { ApiService, LabelFilter, ProductFilter } from './api.service';
 
 @Injectable({
   providedIn: 'root'
@@ -32,8 +32,8 @@ export class ProductService {
     return this.labels[target];
   }
 
-  async loadLabels(target: string, filter?: { categoryOnly?: boolean, productOnly?: boolean }): Promise<Record<string, any>[]> {
-    let labels = await this.apiService.getLabels(target, filter?.categoryOnly, filter?.productOnly);
+  async loadLabels(target: string, filter?: LabelFilter): Promise<Record<string, any>[]> {
+    let labels = await this.apiService.getLabels(target, filter);
     this.labels[target] = labels;
     return labels;
   }
@@ -42,8 +42,8 @@ export class ProductService {
     return this.products[target];
   }
 
-  async loadProducts(target: string, filter?: { onlyInStock?: boolean, onlyLongDescription?: boolean}): Promise<Record<string, any>[]> {
-    let products = await this.apiService.getProducts(target, filter?.onlyInStock, filter?.onlyLongDescription);
+  async loadProducts(target: string, filter?: ProductFilter): Promise<Record<string, any>[]> {
+    let products = await this.apiService.getProducts(target, filter);
     this.products[target] = products;
     return products;
   }

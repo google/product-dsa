@@ -24,13 +24,13 @@
   <mat-tab label="Labels">
     <form [formGroup]="formLabels" novalidate>
       <mat-card>
-        <div class="row label-filter">
-          <div class="col-2 my-3 px-3">Show labels:</div>
+        <div class="row list-filter">
+          <div class="col-2 px-3">Show labels:</div>
           <div class="col-10">
             <mat-radio-group aria-label="Show labels" formControlName="mode" class="radio-group">
+              <mat-radio-button value="both">All</mat-radio-button>
               <mat-radio-button value="category_only">Category only</mat-radio-button>
               <mat-radio-button value="product_only">Product only</mat-radio-button>
-              <mat-radio-button value="both">Both</mat-radio-button>
             </mat-radio-group>
           </div>
         </div>
@@ -69,11 +69,21 @@
         <div class="row">
           <div class="col">
             <div class="alert alert-dark my-4">
-              These are products selected from all products in GMC
+              These are products selected from all products in GMC.
+              Those marked by PDSA_PRODUCT custom label will be used for product-level ads (one adgroup per product).
+              And those marked by any PDSA_CATEGORY_XYZ label will be used for category-level ads (classic approach for adgroup per category).
             </div>
           </div>
         </div>
-        <div class="row product-filter">
+        <div class="row list-filter">
+          <div class="col-2 px-3">Show products:</div>
+          <div class="col">
+            <mat-radio-group aria-label="Show products" formControlName="mode" class="radio-group">
+              <mat-radio-button value="both">All (no filter)</mat-radio-button>
+              <mat-radio-button value="category_only">Only for category-level ads</mat-radio-button>
+              <mat-radio-button value="product_only">Only for product-level ads</mat-radio-button>
+            </mat-radio-group>
+          </div>
           <div class="col px-3">
             <mat-checkbox formControlName="only_in_stock">Only in-stock</mat-checkbox>
             <br>

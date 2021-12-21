@@ -11,12 +11,12 @@ th.mat-header-cell, td.mat-cell {
   text-align: center;
 }
 
-.label-filter mat-radio-group {
+.list-filter mat-radio-group {
   display: flex;
   flex-direction: column;
-  margin: 15px 0;
+  //margin: 15px 0;
 }
 
-.label-filter mat-radio-button {
+.list-filter mat-radio-button {
   margin: 5px;
 }

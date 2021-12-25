@@ -67,10 +67,10 @@ export class NotificatinService {
   }
 
   /**
- * Show a confirmation dialog (with Yes/No)
- * @param message a user message
- * @returns Dialog
- */
+   * Show a confirmation dialog (with Yes/No)
+   * @param message a user message
+   * @returns Dialog
+   */
   confirm(message: string) {
     const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
       data: {
@@ -85,6 +85,16 @@ export class NotificatinService {
     return this.dialog.open(ConfirmationDialogComponent, {
       data: {
         message: message,
+        header: header,
+        mode: ConfirmationDialogModes.Ok
+      }
+    });
+  }
+
+  showAlertHtml(html: string, header?: string): MatDialogRef<ConfirmationDialogComponent> {
+    return this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        html: html,
         header: header,
         mode: ConfirmationDialogModes.Ok
       }

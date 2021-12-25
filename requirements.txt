@@ -7,7 +7,7 @@ google-cloud-storage
 google-cloud-pubsub
 google-cloud-resource-manager
 google-cloud-profiler
-google-python-cloud-debugger
+#google-python-cloud-debugger
 cryptography
 grpcio
 flask

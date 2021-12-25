@@ -92,6 +92,7 @@ def resize(image_path: str,
         _construct_file_path(image_filename, output_folder, "_sq"),
         _construct_file_path(image_filename, output_folder, "_ls")
     ]
+  output_image_path = None
   with Image.open(image_path) as image:
     ratio = round(image.width / image.height, 2)
     logging.debug(
@@ -100,7 +101,8 @@ def resize(image_path: str,
     if max_dimension > 0 and (image.width > max_dimension or
                               image.height > max_dimension):
       image.thumbnail(size=(max_dimension, max_dimension))
-      image.save(image_path)
+      output_image_path = os.path.join(output_folder, image_filename)
+      image.save(output_image_path)
       logging.debug(f'Image too big, shrinked to {image.size}')
     elif image.width < MINIMUM_DIMENSION or image.height < MINIMUM_DIMENSION:
       if image.width < MINIMUM_DIMENSION and image.height < MINIMUM_DIMENSION:
@@ -111,8 +113,10 @@ def resize(image_path: str,
       elif image.height < MINIMUM_DIMENSION:
         resize_height = MINIMUM_DIMENSION
         resize_width = round(MINIMUM_DIMENSION * ratio)
+      output_image_path = os.path.join(output_folder, image_filename)
       image = Image.open(
-          _pad_image(image, resize_width, resize_height, max_dimension, image_path))
+          _pad_image(image, resize_width, resize_height, max_dimension,
+                     output_image_path))
       logging.debug(f'Image too small, padded to 300px')
 
     image_paths = []
@@ -122,7 +126,7 @@ def resize(image_path: str,
     sq_image_filepath = _construct_file_path(image_filename, output_folder,
                                              "_sq")
     if ratio == 1:
-      shutil.move(image_path, sq_image_filepath)
+      shutil.copyfile(image_path, sq_image_filepath)
       logging.debug(
           f'Reusing image {os.path.basename(image_path)} as square: {sq_image_filepath}'
       )
@@ -142,7 +146,7 @@ def resize(image_path: str,
     ls_image_filepath = _construct_file_path(image_filename, output_folder,
                                              "_ls")
     if ratio == LANDSCAPE_RATIO:
-      shutil.move(image_path, ls_image_filepath)
+      shutil.copyfile(image_path, ls_image_filepath)
       logging.debug(
           f'Reusing image {os.path.basename(image_path)} as landscape: {ls_image_filepath}'
       )
@@ -156,8 +160,5 @@ def resize(image_path: str,
       image_paths.append(
           _pad_image(image, resize_width, resize_height, max_dimension,
                      ls_image_filepath))
-
-  if os.path.exists(image_path):
-    os.remove(image_path)
 
   return image_paths

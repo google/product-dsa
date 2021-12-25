@@ -13,32 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from google import oauth2
-from app.context import ContextOptions
 import json
 import os
 import argparse
 import logging
 import decimal
+from datetime import datetime
 from pprint import pprint
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask.json import JSONEncoder
 from flask_cors import CORS
-import google.auth
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from google.cloud.resourcemanager_v3.services.projects import ProjectsClient
-from google.cloud import storage
 import zipstream
 from smart_open import open
+from app.context import ContextOptions
+from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, validate_config
 from common import config_utils, file_utils, sheets_utils
 from common.config_utils import ApplicationError, ApplicationErrorReason
-from install import cloud_data_transfer, cloud_env_setup
 from common.auth import get_credentials
-from app.main import Context, create_or_update_page_feed, create_or_update_adcustomizers, generate_campaign, validate_config
+from install import cloud_data_transfer, cloud_env_setup
 
 loglevel = os.getenv('LOG_LEVEL') or 'INFO'
 logging.getLogger().setLevel(loglevel)
 logging.getLogger('smart_open.gcs').setLevel(logging.WARNING)
+logging.getLogger('smart_open.smart_open_lib').setLevel(logging.WARNING)
 
 STATIC_DIR = os.getenv(
     'STATIC_DIR'
@@ -209,7 +209,7 @@ def create_context(target_name: str) -> Context:
   target_name = request.args.get('target')
   target = next(filter(lambda t: t.name == target_name, config.targets), None)
   context = Context(config, target, credentials,
-                    ContextOptions(OUTPUT_FOLDER, 'images'))
+                    ContextOptions(OUTPUT_FOLDER, 'images', images_on_gcs=IS_GAE))
   return context
 
 
@@ -260,6 +260,31 @@ def adcustomizers_generate():
   })
 
 
+def _generate_gcs_download_url(gcs_url: str, credentials,
+                               storage_client) -> str:
+  # NOTE: to create a signedUrl for GCS object we need to be autheticated as SA
+  # if it's not the case (e.g. running locally w/o a SA key file), then just return the GCS url
+  if hasattr(credentials, 'service_account_email'):
+    try:
+      url = file_utils.gcs_get_signed_url(client=storage_client,
+                                          url=gcs_url,
+                                          credentials=credentials)
+      logging.info(f'Created a GCS signed url for download: {url}')
+    except Exception as e:
+      # NOTE: this is not normal, but it'd be very unfortunate for the user to get an exception at the very end of waiting
+      logging.exception(e)
+      logging.error(
+          f'Failure on GCS signed url creation, returning a raw GCS url instead'
+      )
+      url = gcs_url
+  else:
+    url = gcs_url
+    logging.info(
+        f'Impossible to create a GCS signed url (no service account), returning a GCS path {url}'
+    )
+  return url
+
+
 @app.route("/api/campaign/generate", methods=["GET"])
 def campaign_generate():
   target_name = request.args.get('target')
@@ -283,69 +308,73 @@ def campaign_generate():
     return jsonify({
         "error": "Couldn't generate a ad campaign because no products found"
     }), 500
-  # archive output csv and images folder
-  image_folder = os.path.join(context.output_folder, context.image_folder)
-  zip_filename = os.path.splitext(os.path.basename(output_file))[0] + '.zip'
-  # NOTE: we need to be able to calculate zip's size, that's because not using compression
-  # NOTE: we don't use standard zipfile module because it puts all files into memory while zipstream uses streaming
-  zs = zipstream.ZipStream(compress_type=zipstream.ZIP_STORED, sized=True)
-  zs.add_path(output_file)
-  zs.add_path(image_folder)
-  # Should we save the zip locally as well? (for non GCP envinement)
-  #if not IS_GCP:
-  # arcfilename = os.path.join(OUTPUT_FOLDER, zip_filename)
-  # file_utils.zip_stream(arcfilename, [output_file, image_folder])
 
-  arc_size = len(zs)
-  if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
-    # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
-    # (and leave 1K for http stuff)
-    zip_filepath = os.path.join(context.output_folder, zip_filename)
-    with open(zip_filepath, "wb") as f:
+  zip_filename = file_utils.generate_filename(output_file, extenssion='.zip')
+  # archive output csv and images, the method to do this depends on where images are
+  if context.images_on_gcs and not images_dry_run:
+    # images are on GCS
+    gcs_output_file = context.gs_base_path + 'output/' + zip_filename
+    ts_start = datetime.now()
+    logging.info(f'Starting generating zip-archive on GCS')
+    zs = file_utils.gcs_archive_files([context.gs_images_path],
+                                      storage_client=context.storage_client,
+                                      gs_path_base=context.gs_base_path)
+    zs.add_path(output_file)
+    with open(gcs_output_file,
+              "wb",
+              transport_params=dict(client=context.storage_client)) as f:
       f.writelines(zs)
 
-    return jsonify({"filename": os.path.relpath(zip_filepath, OUTPUT_FOLDER)})
-    # NOTE: TODO: unfortunately zipstream-ng fails (response never ends) on returning archives with empty folders
-    # return Response(
-    #     zs,
-    #     mimetype="application/zip",
-    #     headers={
-    #         "Content-Disposition": f"attachment; filename={zip_filename}",
-    #         "Content-Length": len(zs),
-    #         "Last-Modified": zs.last_modified,
-    #     })
-  else:
-    # the zip-file is too big for downloading, upload it to GCS and generate a download http link for it
-    gs_url = f'gs://{context.config.project_id}-pdsa/{zip_filename}'
-    storage_client = storage.Client(project=context.config.project_id,
-                                    credentials=context.credentials)
-    # using smart_open streaming + zipstream we're uploading the zip to GCS
-    # without loading it into memory (it can be huge)
-    with open(gs_url, "wb", transport_params=dict(client=storage_client)) as f:
-      f.writelines(zs)
     logging.info(
-        f'Generated zip-archive with campaign data uploaded to GCS: {gs_url}')
-    # NOTE: to create a signedUrl for GCS object we need to be autheticated as SA
-    # if it's not the case (e.g. running locally w/o a SA key file), then just return the GCS url
-    if hasattr(context.credentials, 'service_account_email'):
-      try:
-        url = file_utils.gcs_get_signed_url(client=storage_client,
-                                            url=gs_url,
-                                            credentials=context.credentials)
-        logging.info(f'Created a GCS signed url for download: {url}')
-      except Exception as e:
-        # NOTE: this is not normal, but it'd be very unfortunate for the user to get an exception at the very end of waiting
-        logging.exception(e)
-        logging.error(
-            f'Failure on GCS signed url creation, returning a raw GCS url instead'
-        )
-        url = gs_url
+        f'Generated a zip-archive with campaign data on GCS: {gcs_output_file}, elapsed: {datetime.now() - ts_start}'
+    )
+    url = _generate_gcs_download_url(gcs_output_file, context.credentials,
+                                     context.storage_client)
+    arc_size = -1
+  else:
+    # images are local or images_dry_run=True (we won't download and zip images)
+    image_folder = os.path.join(context.output_folder, context.image_folder)
+    # NOTE: we need to be able to calculate zip's size, that's because not using compression
+    # NOTE: we don't use standard zipfile module because it puts all files into memory while zipstream uses streaming
+    zs = zipstream.ZipStream(compress_type=zipstream.ZIP_STORED, sized=True)
+    zs.add_path(output_file)
+    if not images_dry_run:
+      zs.add_path(image_folder)
+
+    # Should we save the zip locally as well? (for non GCP envinement)?
+    #if not IS_GCP:
+    # arcfilename = os.path.join(OUTPUT_FOLDER, zip_filename)
+    # file_utils.zip_stream(arcfilename, [output_file, image_folder])
+
+    arc_size = len(zs)
+    if force_download or arc_size < MAX_RESPONSE_SIZE - 1024:
+      # NOTE: in AppEngine maximum response size is 32MB - https://cloud.google.com/appengine/docs/standard/python3/how-requests-are-handled#response_limits
+      # (and leave 1K for http stuff)
+      return Response(
+          zs,
+          mimetype="application/zip",
+          headers={
+              "Content-Disposition": f"attachment; filename={zip_filename}",
+              "Content-Length": len(zs),
+              "Last-Modified": zs.last_modified,
+          })
     else:
-      url = gs_url
+      # the zip-file is too big for downloading, upload it to GCS and generate a download http link for it
+      gcs_output_file = context.gs_base_path + 'output/' + zip_filename
+      # using smart_open streaming + zipstream we're uploading the zip to GCS
+      # without loading it into memory (it can be huge)
+      with open(gcs_output_file,
+                "wb",
+                transport_params=dict(client=context.storage_client)) as f:
+        f.writelines(zs)
       logging.info(
-          f'Impossible to create a GCS signed url (no service account), returning a GCS path {url}'
+          f'Generated zip-archive with campaign data uploaded to GCS: {gcs_output_file}'
       )
-    return jsonify({"filename": url, "filesize": arc_size})
+      url = _generate_gcs_download_url(gcs_output_file, context.credentials,
+                                       context.storage_client)
+
+  logging.info(f'{zip_filename} ready for download via {url}')
+  return jsonify({"filename": url, "filesize": arc_size})
 
 
 @app.route("/api/labels", methods=["GET"])

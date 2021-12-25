@@ -49,10 +49,7 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
                  target: config_utils.ConfigTarget):
   if not target.name:
     raise ValueError("Target has no name")
-  sql_files = [
-      'create-filtered-products.sql',
-      'create-ads-preview.sql'
-  ]
+  sql_files = ['create-filtered-products.sql', 'create-ads-preview.sql']
   SEARCH_CONDITIONS = "SEARCH_CONDITIONS"
   # AND merchant_id IN ({merchant_id})
   params = {SEARCH_CONDITIONS: ''}
@@ -96,8 +93,10 @@ def get_service_account_email(project_id: str):
   return f"{project_id}@appspot.gserviceaccount.com"
 
 
-def create_spreadsheets(config: config_utils.Config, target: config_utils.ConfigTarget,
-                        credentials: credentials.Credentials, share_with: str) -> bool:
+def create_spreadsheets(config: config_utils.Config,
+                        target: config_utils.ConfigTarget,
+                        credentials: credentials.Credentials,
+                        share_with: str) -> bool:
   created = False
   merchant_id = target.merchant_id or config.merchant_id
   if not share_with:
@@ -112,7 +111,8 @@ def create_spreadsheets(config: config_utils.Config, target: config_utils.Config
     target.page_feed_spreadsheetid = create_spreadsheet(title, credentials)
     created = True
   # set permission on the created spreadsheet for GAE default service account
-  set_permission_on_drive(target.page_feed_spreadsheetid, share_with, credentials)
+  set_permission_on_drive(target.page_feed_spreadsheetid, share_with,
+                          credentials)
 
   if target.adcustomizer_spreadsheetid:
     logging.info(
@@ -152,11 +152,12 @@ def backup_config(config_file_name: str, config: config_utils.Config,
                   credentials):
   """Backs up config file onto GCS (bucket "{project_id}-pdsa", will be created if doesn't exist)"""
   if not config_file_name.startswith('gs://') and config.project_id:
-    gcs_bucket = config.project_id + '-pdsa'
-    file_utils.upload_file_to_gcs(gcs_bucket, config_file_name, credentials, config.project_id)
+    gcs_path = config.project_id + '-pdsa'
+    gcs_path = file_utils.upload_file_to_gcs(
+        config_file_name, gcs_path,
+        storage.Client(project=config.project_id, credentials=credentials))
     logging.info(
-        f'config file ({config_file_name}) has been copied to gs://{gcs_bucket}'
-    )
+        f'config file ({config_file_name}) has been copied to {gcs_path}')
 
 
 def enable_apis(apis: List[str], config: config_utils.Config, credentials):
@@ -196,9 +197,10 @@ def create_pubsub_topic(config: config_utils.Config, credentials):
   return topic_name
 
 
-def wait_for_transfer_completion(pubsub_topic: str, config: config_utils.Config,
-                                 credentials, data_transfer: cloud_data_transfer.CloudDataTransferUtils,
-                                 transfer_config: TransferConfig):
+def wait_for_transfer_completion(
+    pubsub_topic: str, config: config_utils.Config, credentials,
+    data_transfer: cloud_data_transfer.CloudDataTransferUtils,
+    transfer_config: TransferConfig):
   """Checks data transfer completed via creating an async pull subscription pub/sub completion topic"""
 
   def callback(message):
@@ -257,6 +259,7 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
                   service_account_email=get_service_account_email(
                       config.project_id))))
 
+
 @dataclass
 class DeployOptions:
   skip_dt_run: bool
@@ -294,11 +297,12 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
   transfer_config = data_transfer.create_merchant_center_transfer(
       config.merchant_id, config.dataset_id, config.dt_schedule, pubsub_topic,
       options.skip_dt_run)
+  # TODO: it's very common for new transfers to fail with: "No Products data to transfer found for your Google Merchant Center account. If you have just created this transfer, you may need to wait for up to a day before the data of your Google Merchant Center account are prepared and available for the transfer."
 
   if not options.skip_dt_run:
     logging.info('Waiting for Data Transfer to complete...')
-    wait_for_transfer_completion(pubsub_topic, config, credentials, data_transfer,
-                                 transfer_config)
+    wait_for_transfer_completion(pubsub_topic, config, credentials,
+                                 data_transfer, transfer_config)
     logging.info('Data Transfer has completed')
 
   # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
@@ -326,6 +330,7 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
   logging.info('Installation is complete!')
   return created
 
+
 def add_args(parser: argparse.ArgumentParser):
   parser.add_argument('--skip-dt-run',
                       dest='skip_dt_run',
@@ -352,8 +357,7 @@ def main():
                                            None) != config.project_id:
     logging.error(
         f'Provided service account belongs to a different project ({getattr(credentials, "project_id", None)}) '
-        f'than your current project in config ({config.project_id})'
-    )
+        f'than your current project in config ({config.project_id})')
     exit()
   if args.service_account_file and not args.user_email:
     logging.error(f'You supplied a service account but not a user email')
@@ -368,14 +372,14 @@ def main():
       config, credentials,
       DeployOptions(args.skip_dt_run, args.user_email, args.skip_spreadsheets))
 
-  config_file_name = args.config or 'config.json'
+  config_file_path = args.config or 'config.json'
   if created:
     # overwrite config file with new data
-    config_utils.save_config(config, config_file_name)
+    config_utils.save_config(config, config_file_path)
 
   # As we could have modified the config (e.g. put a spreadsheet id),
   # we need to save it to a well-known location - GCS bucket {project_id}-pdsa:
-  backup_config(config_file_name, config, credentials)
+  backup_config(config_file_path, config, credentials)
 
 
 if __name__ == '__main__':

@@ -123,11 +123,13 @@ class GoogleAdsEditorMgr:
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
-    if product.custom_description and len(product.custom_description) > 0 and len(
-        product.custom_description) <= AD_DESCRIPTION_MAX_LENGTH:
+    if product.custom_description and len(
+        product.custom_description) > 0 and len(
+            product.custom_description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.custom_description
 
-    if product.description and len(product.description) <= AD_DESCRIPTION_MAX_LENGTH:
+    if product.description and len(
+        product.description) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.description
 
     if product.title and len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
@@ -489,6 +491,14 @@ class CampaignMgr:
       logging.warning(
           f'[CampaignMgr] using images_dry_run mode (images won\'t be downloaded and processed)'
       )
+    gcs_files_metadata = {}   # a map from file name to datetime of last-modified timestamp
+    if self._context.images_on_gcs and not self._context.images_dry_run:
+      # fetch all blobs for images on GCS to optimize downloading
+      gcs_files_metadata1 = file_utils.get_blobs_metadata(
+          self._context.gs_download_path, self._context.storage_client)
+      gcs_files_metadata2 = file_utils.get_blobs_metadata(
+          self._context.gs_images_path, self._context.storage_client)
+      gcs_files_metadata = {**gcs_files_metadata1, **gcs_files_metadata2} # In 3.9 we can be changed to z=x|y
 
     i = 0
     for label in self._products_by_label:
@@ -500,26 +510,39 @@ class CampaignMgr:
       adgroup_name = _get_product_adgroup_name(
           product) if is_product_level else 'Ad group ' + label
       # NOTE: adgroup name is important as we use it in adcustomizers as well
-      images = self._get_images(product, max_image_dimension)
+      images = self._get_images(product, max_image_dimension,
+                                gcs_files_metadata)
       gae.add_adgroup(campaign_name, adgroup_name, is_product_level, product,
                       label, images)
 
       max_rss = get_rss()
-      logging.info(
-          f'{i:3d} - {label}, adgroup: {adgroup_name}, images: {len(images)}, mem: {max_rss:,}'
-      )
+      logging.info(f'{i:3d} - {label}, images: {len(images)}, mem: {max_rss:,}')
       if max_rss > old_rss:
-        logging.info(f'RSS increased to {max_rss:,} from {old_rss:,}')
+        logging.info(
+            f'RSS increased to {max_rss:,} from {old_rss:,} after processing {images}'
+        )
         old_rss = max_rss
+
+    if self._context.images_on_gcs and not self._context.images_dry_run:
+      # remove files on GCS that weren't used by products
+      file_utils.gcs_delete_folder_files(
+          lambda blob: gcs_files_metadata.get(
+              os.path.basename(blob.name)) != True,
+          self._context.gs_download_path, self._context.storage_client)
+      file_utils.gcs_delete_folder_files(
+          lambda blob: gcs_files_metadata.get(
+              os.path.basename(blob.name)) != True,
+          self._context.gs_images_path, self._context.storage_client)
 
     logging.debug('Writing campaign data CSV')
     gae.generate_csv(output_csv_path)
     logging.info(f'Campaign data CSV created in {output_csv_path}')
     if self._context.gcs_bucket:
-      file_utils.upload_file_to_gcs(self._context.gcs_bucket, output_csv_path,
-                                    self._credentials,
-                                    self._context.config.project_id)
-      logging.debug(f'Campaign data CSV uploaded to GCS')
+      gcs_path = file_utils.upload_file_to_gcs(
+          output_csv_path,
+          self._context.gs_base_path,
+          storage_client=self._context.storage_client)
+      logging.debug(f'Campaign data CSV uploaded to GCS ({gcs_path})')
     return output_csv_path
 
   def _generate_filepath_for_image_url(self, uri, folder):
@@ -528,8 +551,8 @@ class CampaignMgr:
     local_path = os.path.join(folder, file_name)
     return local_path
 
-
-  def _get_images(self, product, max_image_dimension) -> List[str]:
+  def _get_images(self, product, max_image_dimension: int,
+                  files_metadata: dict) -> List[str]:
     """Download all product images, resize them and return a list of local relative paths"""
     download_folder = os.path.join(self._context.output_folder,
                                    self._context.image_folder + '-download')
@@ -562,26 +585,70 @@ class CampaignMgr:
       # no need for parallelization if only one image
       item = list(product_images_to_urls.items())[0]
       product_images = [
-          file_utils.download_file(item[1], item[0], dry_run=dry_run)
+          file_utils.download_file(item[1],
+                                   item[0],
+                                   dry_run=dry_run,
+                                   lastModified=files_metadata.get(
+                                       os.path.basename(item[0])))
       ]
     else:
       # download all images in parallel
       with concurrent.futures.ThreadPoolExecutor() as exector:
         product_images = exector.map(
             lambda item: file_utils.download_file(
-                item[1], item[0], dry_run=dry_run), product_images_to_urls.items())
+                item[1],
+                item[0],
+                dry_run=dry_run,
+                lastModified=files_metadata.get(os.path.basename(item[0]))),
+            product_images_to_urls.items())
 
     elapsed = datetime.now() - ts_start
     logging.debug(f'Images downloaded, elapsed {elapsed}')
     output_folder = os.path.join(self._context.output_folder,
                                  self._context.image_folder)
     # now product_images is a list (iterable) of product images' local file paths
-    # for each image we'll create two, square and landscape
-    for local_image_path in product_images:
+    # for each image we'll create two: square and landscape
+    for local_image_path, status in product_images:
+      # NOTE: status is either 200 (file was downloaded) or 304 (cache hit),
+      # in the latter case we don't have a local copy, so we can't resize and
+      # update to gcs, so we assume that there're proper files on gcs already
+      # But to be sure we're checking it via files_metadata dictionary - it should contain both "_sq" and "_ls" files;
+      # If any of them is missing then optimization (of skipping downloading) disabled.
+      dry_run_ = dry_run or self._context.images_on_gcs and status == 304
+      if not dry_run and self._context.images_on_gcs and status == 304:
+        if not files_metadata.get(file_utils.generate_filename(local_image_path, suffix='_sq')) or \
+           not files_metadata.get(file_utils.generate_filename(local_image_path, suffix='_ls')):
+          dry_run_ = False
       two_image_file_paths = image_utils.resize(local_image_path,
                                                 output_folder,
                                                 max_image_dimension,
-                                                dry_run=dry_run)
+                                                dry_run=dry_run_)
+      if self._context.images_on_gcs:
+        if status == 200:
+          # we have three image files (original in -download, and two sq_/ls_ in images), upload them to GCS
+          file_utils.upload_file_to_gcs(
+              local_image_path,
+              self._context.gs_download_path,
+              storage_client=self._context.storage_client)
+          file_utils.upload_file_to_gcs(
+              two_image_file_paths[0],
+              self._context.gs_images_path,
+              storage_client=self._context.storage_client)
+          file_utils.upload_file_to_gcs(
+              two_image_file_paths[1],
+              self._context.gs_images_path,
+              storage_client=self._context.storage_client)
+        if os.path.exists(local_image_path):
+          os.remove(local_image_path)
+        if os.path.exists(two_image_file_paths[0]):
+          os.remove(two_image_file_paths[0])
+        if os.path.exists(two_image_file_paths[1]):
+          os.remove(two_image_file_paths[1])
+
+      # NOTE: mark files as used, it'll be used later to remove unneeded files on GCS
+      files_metadata[os.path.basename(local_image_path)] = True
+      files_metadata[os.path.basename(two_image_file_paths[0])] = True
+      files_metadata[os.path.basename(two_image_file_paths[1])] = True
       # Add square image
       rel_image_path_square = os.path.relpath(two_image_file_paths[0],
                                               self._context.output_folder or '')
@@ -597,11 +664,11 @@ class CampaignMgr:
     csv_file = None
     blob = None
     if self._context.gcs_bucket:
-      bucket = file_utils.get_gcs_bucket(self._context.gcs_bucket,
-                                         self._credentials,
-                                         self._context.config.project_id)
+      result = parse.urlparse(self._context.gs_base_path)
+      bucket = file_utils.get_gcs_bucket(
+          self._context.gcs_bucket, storage_client=self._context.storage_client)
       if bucket:
-        blob = bucket.get_blob(file_name)
+        blob = bucket.get_blob(result.path[1:] + '/' + file_name)
     if blob:
       csv_file = blob.open(encoding='UTF-16')
       logging.info(f'Found previous campaign data file on GCS: {file_name}')

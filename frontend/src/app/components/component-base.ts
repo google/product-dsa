@@ -21,7 +21,7 @@ export abstract class ComponentBase {
   errorMessage: string | null = null;
   loading = false;
 
-  constructor(private notificationSvc: NotificatinService) {
+  constructor(protected notificationSvc: NotificatinService) {
   }
 
   closeErrorMessage() {

@@ -24,7 +24,7 @@ from common import auth, config_utils, sheets_utils, file_utils
 from app.context import Context, ContextOptions
 from app import campaign_mgr
 
-logging.basicConfig(format='[%(asctime)s][%(name)s] %(message)s',
+logging.basicConfig(format='[%(asctime)s][%(name)s][%(levelname)s] %(message)s',
                     level=logging.INFO,
                     datefmt='%H:%M:%S')
 logging.getLogger('google.api_core').setLevel(logging.WARNING)
@@ -169,7 +169,7 @@ def execute(config: config_utils.Config, target: config_utils.ConfigTarget,
     # archive output csv and images folder, archive's name will be the same as output csv
     arcfilename = os.path.join(
         context.output_folder,
-        os.path.splitext(os.path.basename(output_file))[0] + '.zip')
+        file_utils.generate_filename(output_file, extenssion='.zip'))
     file_utils.zip_stream(arcfilename, [output_file, image_folder])
     #file_utils.zip(arcfilename, [output_file, image_folder])
     elapsed = datetime.now() - ts_start
@@ -204,6 +204,12 @@ def add_args(parser: argparse.ArgumentParser):
       help=
       'If passed then images won\'t be downloaded and resized/padded (but image extensions still will be created)'
   )
+  parser.add_argument(
+      '--images-on-gcs',
+      action="store_true",
+      help=
+      'If passed then images will be kept on GCS instead of locally'
+  )
 
 
 def main():
@@ -215,7 +221,8 @@ def main():
   cred: credentials.Credentials = auth.get_credentials(args)
   opts = ContextOptions(args.output_folder or 'output',
                         args.image_folder,
-                        images_dry_run=args.images_dry_run)
+                        images_dry_run=args.images_dry_run,
+                        images_on_gcs=args.images_on_gcs)
   if args.target:
     target = next(filter(lambda t: t.name == args.target, config.targets), None)
     execute(config, target, cred, opts)

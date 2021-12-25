@@ -26,7 +26,7 @@ export abstract class GenerationComponentBase extends ComponentBase {
           let project = bucket.substring(0, bucket.length - "-pdsa".length);
           gcs_browser_link = `https://console.cloud.google.com/storage/browser/_details/${bucket}/${path}?project=${project}`;
         }
-        this.showAlert(`Campaign data generated and uploaded to Google Cloud Storage - ${res.filename}. <a href='${gcs_browser_link}' target='_blank' class='accent-color'>Open</a>.`, 'Success');
+        this.notificationSvc.showAlertHtml(`Campaign data generated and uploaded to Google Cloud Storage - ${res.filename}. <a href='${gcs_browser_link}' target='_blank' class='accent-color'>Open</a>.`, 'Success');
       }
     } catch (e) {
       this.handleApiError(`A failure occured`, e);

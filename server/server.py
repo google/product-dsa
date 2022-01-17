@@ -167,6 +167,13 @@ def _get_req_arg_bool(name: str):
   return arg.upper() == 'TRUE' or arg == '1'
 
 
+def _get_req_arg_str(name: str):
+  arg = request.args.get(name)
+  if not arg or arg == 'null' or arg == 'undefined':
+    return None
+  return str(arg)
+
+
 @app.route("/api/update", methods=["POST", "GET"])
 def update_feeds():
   """Endpoint to be call by Pub/Sub message from DT completion to trigger feeds updating"""
@@ -206,7 +213,7 @@ def create_context(target_name: str) -> Context:
   # for API (in contrast to main) we support only ADC auth
   credentials = _get_credentials()
   config = _get_config()
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   target = next(filter(lambda t: t.name == target_name, config.targets), None)
   context = Context(config, target, credentials,
                     ContextOptions(OUTPUT_FOLDER, 'images', images_on_gcs=IS_GAE))
@@ -215,7 +222,7 @@ def create_context(target_name: str) -> Context:
 
 @app.route("/api/pagefeed/generate")
 def pagefeed_generate():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
@@ -239,7 +246,7 @@ def pagefeed_generate():
 
 @app.route("/api/adcustomizers/generate", methods=["GET"])
 def adcustomizers_generate():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)
@@ -287,7 +294,7 @@ def _generate_gcs_download_url(gcs_url: str, credentials,
 
 @app.route("/api/campaign/generate", methods=["GET"])
 def campaign_generate():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   force_download = _get_req_arg_bool('force-download')
   images_dry_run = _get_req_arg_bool('images-dry-run')
   if not target_name:
@@ -379,7 +386,7 @@ def campaign_generate():
 
 @app.route("/api/labels", methods=["GET"])
 def get_labels():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   category_only = _get_req_arg_bool('category-only')
@@ -399,7 +406,7 @@ def get_labels():
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   in_stock_only = _get_req_arg_bool('in-stock')
@@ -424,7 +431,7 @@ def get_products():
 
 @app.route("/api/products/<product_id>", methods=["POST"])
 def update_product(product_id):
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   data = request.json
@@ -435,7 +442,7 @@ def update_product(product_id):
 
 @app.route("/api/feeds/pagefeed", methods=["GET"])
 def load_pagefeed_spreadsheet():
-  target_name = request.args.get('target')
+  target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
   context = create_context(target_name)

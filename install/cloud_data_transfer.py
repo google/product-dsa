@@ -20,7 +20,7 @@ from common.config_utils import ApplicationError, ApplicationErrorReason
 import datetime
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Iterable
 
 import pytz
 from google.auth import credentials
@@ -61,7 +61,7 @@ class CloudDataTransferUtils(object):
     self.client = bigquery_datatransfer_v1.DataTransferServiceClient(
         credentials=credentials)
 
-  def _list_transfer_configs_with_retry(self, parent: str):
+  def _list_transfer_configs_with_retry(self, parent: str) -> Iterable[types.TransferConfig]:
     run = 1
     MAX_TRY = 10
     while True:
@@ -177,28 +177,34 @@ class CloudDataTransferUtils(object):
                  new_transfer_config.display_name)
     return new_transfer_config
 
-  def _get_transfer_last_run_errors(self,
-                                    transfer_config: types.TransferConfig) -> List[str]:
+  def _get_transfer_run_errors(self, transfer_run: types.TransferRun) -> List[str]:
     try:
-      response = types.TransferRun = self.client.list_transfer_runs(
-          parent=transfer_config.name)
-      latest_run = None
-      for run_ in response:
-        latest_run = run_
-        break
-      if not latest_run:
-        return []
       response = self.client.list_transfer_logs(
           types.ListTransferLogsRequest(
-              parent=latest_run.name,
+              parent=transfer_run.name,
               message_types=[types.TransferMessage.MessageSeverity.ERROR]))
       errors = []
-      for log_ in response:
+      for log_ in response:  # log_ is types.TransferMessage
         errors.append(log_.message_text)
       return errors
     except exceptions.GoogleAPICallError as e:
       logging.exception(e)
-      return [transfer_config.error_status]
+      return [str(transfer_run.error_status)]
+
+  def _get_transfer_last_run_errors(self,
+                                    transfer_config: types.TransferConfig) -> List[str]:
+    latest_run: types.TransferRun = self._get_transfer_last_run(transfer_config)
+    if not latest_run:
+      return []
+    return self._get_transfer_run_errors(latest_run)
+
+  def _get_transfer_last_run(self, transfer_config: types.TransferConfig) -> types.TransferRun:
+    response = self.client.list_transfer_runs(parent=transfer_config.name)
+    latest_run: types.TransferRun = None
+    for run_ in response:
+      latest_run = run_
+      break
+    return latest_run
 
   def check_merchant_center_transfer(
       self, merchant_id: int, destination_dataset: str) -> types.TransferConfig:
@@ -434,11 +440,7 @@ class CloudDataTransferUtils(object):
     transfer_config_name = transfer_config.name
     started = time.time()
     while True:
-      response = self.client.list_transfer_runs(parent=transfer_config_name)
-      latest_transfer = None
-      for transfer in response:
-        latest_transfer = transfer
-        break
+      latest_transfer = self._get_transfer_last_run(transfer_config)
       if not latest_transfer:
         return
       if (latest_transfer.state == state):
@@ -448,7 +450,7 @@ class CloudDataTransferUtils(object):
         return
       if (latest_transfer.state == types.TransferState.FAILED or
           latest_transfer.state == types.TransferState.CANCELLED):
-        errors = self._get_transfer_last_run_errors(latest_transfer)
+        errors = self._get_transfer_run_errors(latest_transfer)
         error_message = (
             f'Transfer {transfer_config_name} was not successful: '
             '\n'.join(errors))

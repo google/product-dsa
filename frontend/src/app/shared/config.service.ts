@@ -34,9 +34,11 @@ export interface ConfigurationTarget {
   //adcustomizer_output_file: string;
   ad_description_template: string;
   category_ad_descriptions: any;  // TODO
-  max_image_dimension: number;
+  max_image_dimension: number | null;
   skip_additional_images: boolean;
-  max_image_count: number;
+  max_image_count: number | null;
+  country_code: string;
+  product_description: string;
 }
 export type TargetNames = keyof ConfigurationTarget;
 export interface Configuration {

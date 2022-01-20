@@ -110,9 +110,11 @@ class GoogleAdsEditorMgr:
             1) + '}'
 
       # TODO: an expanded ad description (after evaluating adcustomizers) can exceed the ad description maximum length
-
-      description = re.sub('\{([^}]+)\}', replacer,
-                           self._context.target.ad_description_template)
+      description = self._context.target.ad_description_template
+      # support for product_description - static description from configuration
+      description = description.replace(
+          '{product_description}', self._context.target.product_description)
+      description = re.sub('\{([^}]+)\}', replacer, description)
       if description != self._context.target.ad_description_template:
         return description
       return ''
@@ -123,6 +125,10 @@ class GoogleAdsEditorMgr:
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
+    if self._context.target.product_description and len(
+        self._context.target.product_description) <= AD_DESCRIPTION_MAX_LENGTH:
+      return self._context.target.product_description
+
     if product.custom_description and len(
         product.custom_description) > 0 and len(
             product.custom_description) <= AD_DESCRIPTION_MAX_LENGTH:
@@ -498,7 +504,10 @@ class CampaignMgr:
           self._context.gs_download_path, self._context.storage_client)
       gcs_files_metadata2 = file_utils.get_blobs_metadata(
           self._context.gs_images_path, self._context.storage_client)
-      gcs_files_metadata = {**gcs_files_metadata1, **gcs_files_metadata2} # In 3.9 we can be changed to z=x|y
+      gcs_files_metadata = {
+          **gcs_files_metadata1,
+          **gcs_files_metadata2
+      }  # In 3.9 it can be changed to z=x|y
 
     i = 0
     for label in self._products_by_label:

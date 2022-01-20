@@ -58,7 +58,7 @@ export class ApiService {
   ): Promise<GenerateResponse | void> {
     let res = await this.backendService.getFile<GenerateResponse>(`/campaign/generate`, {
       target: target,
-      "images-dry-run": images_dry_run
+      "images-dry-run": !!images_dry_run
     });
     return res;
   }
@@ -66,18 +66,18 @@ export class ApiService {
   getLabels(target: string, filter?: LabelFilter): Promise<Record<string, any>[]> {
     return this.backendService.getApi<Record<string, any>[]>('/labels', {
       target,
-      "category-only": filter?.categoryOnly,
-      "product-only": filter?.productOnly
+      "category-only": !!filter?.categoryOnly,
+      "product-only": !!filter?.productOnly
     });
   }
 
   getProducts(target: string, filter?: ProductFilter): Promise<Record<string, any>[]> {
     return this.backendService.getApi<Record<string, any>[]>('/products', {
       target,
-      "in-stock": filter?.onlyInStock,
-      "long-description": filter?.onlyLongDescription,
-      "category-only": filter?.categoryOnly,
-      "product-only": filter?.productOnly
+      "in-stock": !!filter?.onlyInStock,
+      "long-description": !!filter?.onlyLongDescription,
+      "category-only": !!filter?.categoryOnly,
+      "product-only": !!filter?.productOnly
     });
   }
 
@@ -118,7 +118,7 @@ export class ApiService {
   ): Promise<{ log: string[], labels: Record<string, string[]> }> {
     return this.backendService.postApi('/setup/run', config, {
       params: {
-        "skip-dt-run": options?.skip_dt_run,
+        "skip-dt-run": !!options?.skip_dt_run,
       }
     });
   }

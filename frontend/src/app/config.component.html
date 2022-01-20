@@ -284,6 +284,18 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- product_description -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Static products description</mat-label>
+                <input matInput formControlName="product_description" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-hint>Static description for all product-level ads. Can be used in adcustomizers as {{'{'}}product_description} field</mat-hint>
+                <mat-error>{{ target.get('product_description')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
           <!-- category_ad_descriptions -->
           <div class="row my-2">
             <div class="col">

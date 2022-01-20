@@ -96,7 +96,9 @@ export class SetupComponent extends ComponentBase implements OnInit {
       category_ad_descriptions: null,
       max_image_dimension: null,
       skip_additional_images: false,
-      max_image_count: null
+      max_image_count: null,
+      country_code: '',
+      product_description: ''
     };
     return this.fb.group(group_spec);
   }

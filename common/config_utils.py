@@ -85,6 +85,10 @@ class ConfigTarget(ConfigItemBase):
   """Do not download additional product images (for image extensions in campaign data)"""
   max_image_count: int or None = None
   """Limit total amount of product images"""
+  country_code: str = ''
+  """Country code for selecting one product of many for several countries. Optional, but mandatory if products in GMC duplicated with different approved_countries"""
+  product_description: str = ''
+  """Static description for all product-level ads. Still can be combined with adcustomizers"""
 
   def validate(self, generation=False) -> List:
     errors = []
@@ -207,7 +211,9 @@ class Config(ConfigItemBase):
           "category_ad_descriptions": t.category_ad_descriptions,
           "max_image_dimension": t.max_image_dimension,
           "skip_additional_images": t.skip_additional_images,
-          "max_image_count": t.max_image_count
+          "max_image_count": t.max_image_count,
+          "country_code": t.country_code,
+          "product_description": t.product_description
       }
       values["targets"].append(target_json)
     return values

@@ -24,7 +24,7 @@
   - target
 */
 
-SELECT
+SELECT DISTINCT
   link AS Page_URL,
   pdsa_custom_labels AS Custom_label
 FROM `{project_id}.{dataset}.Products_Filtered_{target}`

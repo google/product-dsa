@@ -125,7 +125,7 @@ class GoogleAdsEditorMgr:
     If no valid sentance is found, we will leave it empty to be modified from
     Google Ads Editor
     '''
-    if self._context.target.product_description and len(
+    if self._context.target.product_description and not self._context.target.product_description_as_fallback_only and len(
         self._context.target.product_description) <= AD_DESCRIPTION_MAX_LENGTH:
       return self._context.target.product_description
 
@@ -140,6 +140,10 @@ class GoogleAdsEditorMgr:
 
     if product.title and len(product.title) <= AD_DESCRIPTION_MAX_LENGTH:
       return product.title
+
+    if self._context.target.product_description and self._context.target.product_description_as_fallback_only and len(
+        self._context.target.product_description) <= AD_DESCRIPTION_MAX_LENGTH:
+      return self._context.target.product_description
 
     # The description and title are too long, split them to sentences
     all_sentences = (self.__split_to_sentences(product.title, False) +

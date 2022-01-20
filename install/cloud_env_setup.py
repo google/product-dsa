@@ -51,16 +51,17 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
     raise ValueError("Target has no name")
   sql_files = ['create-filtered-products.sql', 'create-ads-preview.sql']
   SEARCH_CONDITIONS = "SEARCH_CONDITIONS"
-  # AND merchant_id IN ({merchant_id})
-  params = {SEARCH_CONDITIONS: ''}
+  condition = ''
   if target.merchant_id:
     if isinstance(target.merchant_id, list):
-      condition = f'AND merchant_id IN {tuple(target.merchant_id)}'
+      condition = f' AND merchant_id IN {tuple(target.merchant_id)} '
     elif isinstance(target.merchant_id, str) and ',' in target.merchant_id:
-      condition = f'AND merchant_id IN {tuple(target.merchant_id.split(", "))}'
+      condition = f' AND merchant_id IN {tuple(target.merchant_id.split(", "))} '
     else:
-      condition = f'AND merchant_id = {target.merchant_id}'
-    params[SEARCH_CONDITIONS] = condition
+      condition = f' AND merchant_id = {target.merchant_id} '
+  if target.country_code:
+    condition += f' AND destinations[SAFE_OFFSET(0)].approved_countries[SAFE_OFFSET(0)] = \'{target.country_code}\' '
+  params = {SEARCH_CONDITIONS: condition}
   params['merchant_id'] = config.merchant_id
   params['target'] = target.name
   bigquery_util.execute_scripts(sql_files, config.dataset_id, params)

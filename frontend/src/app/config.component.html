@@ -23,9 +23,7 @@
   <mat-tab label="Settings">
     <form [formGroup]="form" novalidate>
       <div class="alert alert-dark my-4">
-        Please note that after changing some of the fields you will need to run Setup again.<br>
-        Specifically it'll be required after changing merchant id, BigQuery dataset parameters, data transfer schedule
-        and targets.
+        Please note that after changing fields marked with <mat-icon style='font-size:16px'>build</mat-icon>icon you will need to run Setup again.<br>
       </div>
       <div class="row" *ngIf="commit_link">
         <div class="col-10 py-3">
@@ -37,15 +35,6 @@
           Config file: {{config_file}}
         </div>
       </div>
-      <!-- project_id -->
-      <!-- <div class="row">
-        <div class="col-10">
-          <mat-form-field appearance="outline" color="accent" class="full-width">
-            <mat-label>GCP project id</mat-label>
-            <input matInput formControlName="project_id" readonly="true">
-          </mat-form-field>
-        </div>
-      </div> -->
       <!-- merchant_id -->
       <div class="row my-2">
         <div class="col-10">
@@ -53,6 +42,7 @@
             <mat-label>GMC account id</mat-label>
             <input matInput formControlName="merchant_id" [readonly]="editable ? false : true"
               [errorStateMatcher]="matcher">
+            <mat-icon matSuffix>build</mat-icon>
             <mat-hint>A GMC account (merchant id) to create data transfer for. Can be either a child account or a MCA
               account.
             </mat-hint>
@@ -70,6 +60,7 @@
             <mat-label>BigQuery dataset id</mat-label>
             <input matInput formControlName="dataset_id" [readonly]="editable ? false : true"
               [errorStateMatcher]="matcher">
+            <mat-icon matSuffix>build</mat-icon>
             <mat-hint>Dataset id in BigQuery for GMC-BQ data transfer. If empty then 'gmcdsa' will be used</mat-hint>
             <mat-error> {{ form.get('dataset_id')?.getError('invalid') }} </mat-error>
           </mat-form-field>
@@ -82,6 +73,7 @@
             <mat-label>BigQuery dataset location</mat-label>
             <input matInput formControlName="dataset_location" [readonly]="editable ? false : true"
               [errorStateMatcher]="matcher">
+            <mat-icon matSuffix>build</mat-icon>
             <mat-hint>Location region for dataset in BigQuery (e.g. 'us' or 'europe'). Can be empty.</mat-hint>
             <mat-error>{{ form.get('dataset_location')?.getError('invalid') }} </mat-error>
           </mat-form-field>
@@ -94,6 +86,7 @@
             <mat-label>DT schedule</mat-label>
             <input matInput formControlName="dt_schedule" [readonly]="editable ? false : true"
               [errorStateMatcher]="matcher">
+            <mat-icon matSuffix>build</mat-icon>
             <mat-hint>Schedule for executing data transfer. By default - daily. Can be empty. E.g. "every 6 hours"
             </mat-hint>
             <mat-error>{{ form.get('dt_schedule')?.getError('invalid') }} </mat-error>
@@ -115,6 +108,7 @@
                 <mat-label>Target name</mat-label>
                 <input matInput formControlName="name" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
+                <mat-icon matSuffix>build</mat-icon>
                 <mat-hint>A unique target name. Please use only A-Za-z0-9_- symbols</mat-hint>
                 <mat-error *ngIf="target.get('name')?.errors?.required">
                   Target name is required
@@ -130,9 +124,26 @@
                 <mat-label>GMC account id</mat-label>
                 <input matInput formControlName="merchant_id" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
+                <mat-icon matSuffix>build</mat-icon>
                 <mat-hint>A child GMC account or a list of children accounts to narrow products from the root account.
                 </mat-hint>
                 <mat-error>{{ target.get('merchant_id')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
+          <!-- country_code -->
+          <div class="row my-2">
+            <div class="col-10 mb-3">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Country code</mat-label>
+                <input matInput formControlName="country_code" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-icon matSuffix>build</mat-icon>
+                <mat-hint>A country code to additionally filter products. It's required if your GMC feed populated with products for several countries.
+                  Technically it'll be a condition on destinations.approved_countries field in BQ.
+                  Can be a code like 'US', 'RU', 'IL', etc.
+                </mat-hint>
+                <mat-error>{{ target.get('country_code')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
           </div>
@@ -248,7 +259,8 @@
                 <mat-label>Ad description template</mat-label>
                 <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
+                <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields from the feed as {{
+                  '{' }}field} plus {{'{'}}product_description}</mat-hint>
                 <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
@@ -256,7 +268,8 @@
           <!-- skip_additional_images -->
           <div class="row my-2">
             <div class="col-10">
-              <mat-slide-toggle formControlName="skip_additional_images" [disabled]="editable ? false : true">Skip additional images (use only main one)</mat-slide-toggle>
+              <mat-slide-toggle formControlName="skip_additional_images" [disabled]="editable ? false : true">Skip
+                additional images (use only main one)</mat-slide-toggle>
             </div>
           </div>
           <!-- max_image_count -->
@@ -266,7 +279,8 @@
                 <mat-label>Maximum image count</mat-label>
                 <input matInput type="number" formControlName="max_image_count" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Maximum number of images per product (makes sense only if you didn't skip additional images). By default - unlimited.</mat-hint>
+                <mat-hint>Maximum number of images per product (makes sense only if you didn't skip additional images).
+                  By default - unlimited.</mat-hint>
                 <mat-error>{{ target.get('max_image_count')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
@@ -288,12 +302,21 @@
           <div class="row my-2">
             <div class="col-10">
               <mat-form-field appearance="outline" color="accent" class="full-width">
-                <mat-label>Static products description</mat-label>
+                <mat-label>Static product description</mat-label>
                 <input matInput formControlName="product_description" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Static description for all product-level ads. Can be used in adcustomizers as {{'{'}}product_description} field</mat-hint>
+                <mat-hint>Static description for all product-level ads. Can be used in adcustomizers as
+                  {{'{'}}product_description} field</mat-hint>
                 <mat-error>{{ target.get('product_description')?.getError('invalid') }} </mat-error>
               </mat-form-field>
+            </div>
+          </div>
+          <!-- product_description_as_fallback_only -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-slide-toggle formControlName="product_description_as_fallback_only" [disabled]="editable ? false : true">Use
+                static description only if product description exceeds maximum ad description length
+              </mat-slide-toggle>
             </div>
           </div>
           <!-- category_ad_descriptions -->

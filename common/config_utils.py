@@ -89,6 +89,8 @@ class ConfigTarget(ConfigItemBase):
   """Country code for selecting one product of many for several countries. Optional, but mandatory if products in GMC duplicated with different approved_countries"""
   product_description: str = ''
   """Static description for all product-level ads. Still can be combined with adcustomizers"""
+  product_description_as_fallback_only: bool = False
+  """Use static description (product_description) only if product description exceeds maximum ad description length"""
 
   def validate(self, generation=False) -> List:
     errors = []
@@ -196,6 +198,7 @@ class Config(ConfigItemBase):
           "name": t.name,
           "merchant_id": t.merchant_id,
           "ads_customer_id": t.ads_customer_id,
+          "country_code": t.country_code,
           "product_campaign_name": t.product_campaign_name,
           "category_campaign_name": t.category_campaign_name,
           "dsa_website": t.dsa_website,
@@ -212,8 +215,8 @@ class Config(ConfigItemBase):
           "max_image_dimension": t.max_image_dimension,
           "skip_additional_images": t.skip_additional_images,
           "max_image_count": t.max_image_count,
-          "country_code": t.country_code,
-          "product_description": t.product_description
+          "product_description": t.product_description,
+          "product_description_as_fallback_only": t.product_description_as_fallback_only
       }
       values["targets"].append(target_json)
     return values

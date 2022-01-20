@@ -83,7 +83,7 @@ export class SetupComponent extends ComponentBase implements OnInit {
     let group_spec = {  // NOTE: specify type ConfigurationTarget to validate fields
       name: ['', [Validators.required]],  // TODO: validator for name format (only valid symbols)
       merchant_id: '',
-      //ads_customer_id: '',
+      country_code: '',
       product_campaign_name: '',
       category_campaign_name: '',
       dsa_website: '', //
@@ -97,8 +97,8 @@ export class SetupComponent extends ComponentBase implements OnInit {
       max_image_dimension: null,
       skip_additional_images: false,
       max_image_count: null,
-      country_code: '',
-      product_description: ''
+      product_description: '',
+      product_description_as_fallback_only: false
     };
     return this.fb.group(group_spec);
   }

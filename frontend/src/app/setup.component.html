@@ -131,6 +131,22 @@
                 </mat-form-field>
               </div>
             </div>
+            <!-- country_code -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-form-field appearance="outline" color="accent" class="full-width">
+                  <mat-label>Country code</mat-label>
+                  <input matInput formControlName="country_code">
+                  <mat-hint>A country code to additionally filter products. It's required if your GMC feed populated
+                    with
+                    products for several countries.
+                    Technically it'll be a condition on destinations.approved_countries field in BQ.
+                    Can be a code like 'US', 'RU', 'IL', etc.
+                  </mat-hint>
+                  <mat-error>{{ target.get('country_code')?.getError('invalid') }} </mat-error>
+                </mat-form-field>
+              </div>
+            </div>
             <!-- page_feed_name -->
             <div class="row my-2">
               <div class="col-10">
@@ -204,7 +220,8 @@
                 <mat-form-field appearance="outline" color="accent" class="full-width">
                   <mat-label>Ad description template</mat-label>
                   <input matInput formControlName="ad_description_template">
-                  <mat-hint>Template using fields from adcustomizers as {{ '{' }}field}</mat-hint>
+                  <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields
+                    from the feed as {{ '{' }}field} plus {{'{'}}product_description}</mat-hint>
                   <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
                 </mat-form-field>
               </div>
@@ -232,12 +249,20 @@
             <div class="row my-2">
               <div class="col-10">
                 <mat-form-field appearance="outline" color="accent" class="full-width">
-                  <mat-label>Static products description</mat-label>
+                  <mat-label>Static product description</mat-label>
                   <input matInput formControlName="product_description">
                   <mat-hint>Static description for all product-level ads. Can be used in adcustomizers as
                     {{'{'}}product_description} field</mat-hint>
                   <mat-error>{{ target.get('product_description')?.getError('invalid') }} </mat-error>
                 </mat-form-field>
+              </div>
+            </div>
+            <!-- product_description_as_fallback_only -->
+            <div class="row my-2">
+              <div class="col-10">
+                <mat-slide-toggle formControlName="product_description_as_fallback_only">
+                  Use static description only if product description exceeds maximum ad description length
+                </mat-slide-toggle>
               </div>
             </div>
             <div class="row">

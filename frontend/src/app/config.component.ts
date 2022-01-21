@@ -311,14 +311,20 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       }
       this.showAlert("Application setup has completed", "Success");
       if (response.labels) {
+        let missingMapping = false;
         for (let target of Object.keys(response.labels)) {
           let labels = response.labels[target];
-          log = [`Target ${target} requires a mapping for the following labels, please make sure they exist:`];
-          log.push(...labels);
-          // TODO: theriotically we can check the mapping in config, but which to use (client or server)?
-          this.showLog(log, true);
+          if (labels && labels.length) {
+            log = [`Target ${target} requires a mapping for the following labels, please make sure they exist:`];
+            log.push(...labels);
+            // TODO: theriotically we can check the mapping in config, but which to use (client or server)?
+            this.showLog(log, true);
+            missingMapping = true;
+          }
         }
-        this.showAlert("Some of your targets require specifying a mapping between labels and adgroup descriptions, please see the log", "Warning");
+        if (missingMapping) {
+          this.showAlert("Some of your targets require specifying a mapping between labels and adgroup descriptions, please see the log", "Warning");
+        }
       }
     }, 'Setup failed', true);
   }

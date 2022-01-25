@@ -38,4 +38,7 @@ export class AppComponent {
     });
   }
 
+  get currentYear() {
+    return new Date().getFullYear();
+  }
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2021 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The script creates AppEngine application, builds the project and deploy it as AppEngine default service 
+# The script creates AppEngine application, builds the project and deploy it as AppEngine default service
 # To run this script you should have either Owner role in the current project or Editor plus "IAM Policy Admin".
 
 # WARNING: if the current project is not in a Cloud Organization (your Google account isn't from Workspace)
@@ -94,7 +94,7 @@ curl -X PATCH -H "Content-Type: application/json" \
 # Grant access to the current user
 echo -e "${COLOR}Granting user $USER_EMAIL access to the app through IAP...${NC}"
 gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$USER_EMAIL" --role='roles/iap.httpsResourceAccessor'
-# try to grant access permissions to the whole user domain (if it's not gmail), 
+# try to grant access permissions to the whole user domain (if it's not gmail),
 # we can't be sure the domain is a Workspace domain so it'll likely fail (that's OK)
 USER_DOMAIN=$(echo $USER_EMAIL | sed 's/^.*@\(.*\)/\1/')
 if [ "$USER_DOMAIN" != "gmail.com" ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
-# 
-# Copyright 2021 Google LLC
+#
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 # Simplified version of setup that only runs Python scripts,
-# assuming we have a client secrets file (client_secrets.json) exported from 
+# assuming we have a client secrets file (client_secrets.json) exported from
 # https://console.cloud.google.com/apis/credentials
 
 # It's required for local module resolutions

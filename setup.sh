@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright 2021 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 # The script initialize Google Cloud infrastructure for a project.
 # Can be run many times without any harm.
 # The minimum required Python version is 3.7 because it's the version installed in Cloud Shell
-# It's an alternative way to initialize project infrastructure 
+# It's an alternative way to initialize project infrastructure
 # as an alternative to executing setup from within application (which is recommended).
 
 COLOR='\033[0;36m' # Cyan

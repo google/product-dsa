@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Google LLC
+# Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The script initialize Google Cloud infrastructure for a project 
+# The script initialize Google Cloud infrastructure for a project
 # using a default App Engine service account in the current project.
 
 USER_EMAIL=$(gcloud config get-value account 2> /dev/null)

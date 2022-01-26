@@ -39,6 +39,7 @@ import { NotificationBarComponent } from './components/notification-bar.componen
 import { JsonPipe } from './components/json.pipe';
 import { SetupComponent } from './setup.component';
 import { EditValueDialogComponent } from './components/edit-value-dialog.component';
+import { CustomPopoverComponent } from './components/popover.component';
 
 @NgModule({
   declarations: [
@@ -55,7 +56,8 @@ import { EditValueDialogComponent } from './components/edit-value-dialog.compone
     NotificationBarComponent,
     JsonPipe,
     SetupComponent,
-    EditValueDialogComponent
+    EditValueDialogComponent,
+    CustomPopoverComponent
   ],
   imports: [
     BrowserModule,

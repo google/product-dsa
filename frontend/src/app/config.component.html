@@ -23,7 +23,8 @@
   <mat-tab label="Settings">
     <form [formGroup]="form" novalidate>
       <div class="alert alert-dark my-4">
-        Please note that after changing fields marked with <mat-icon style='font-size:16px'>build</mat-icon>icon you will need to run Setup again.<br>
+        Please note that after changing fields marked with <mat-icon style='font-size:16px'>build</mat-icon>icon you
+        will need to run Setup again.<br>
       </div>
       <div class="row" *ngIf="commit_link">
         <div class="col-10 py-3">
@@ -139,7 +140,8 @@
                 <input matInput formControlName="country_code" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
                 <mat-icon matSuffix>build</mat-icon>
-                <mat-hint>A country code to additionally filter products. It's required if your GMC feed populated with products for several countries.
+                <mat-hint>A country code to additionally filter products. It's required if your GMC feed populated with
+                  products for several countries.
                   Technically it'll be a condition on destinations.approved_countries field in BQ.
                   Can be a code like 'US', 'RU', 'IL', etc.
                 </mat-hint>
@@ -252,19 +254,6 @@
               </mat-form-field>
             </div>
           </div>
-          <!-- ad_description_template -->
-          <div class="row my-2">
-            <div class="col-10">
-              <mat-form-field appearance="outline" color="accent" class="full-width">
-                <mat-label>Ad description template</mat-label>
-                <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true"
-                  [errorStateMatcher]="matcher">
-                <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields from the feed as {{
-                  '{' }}field} plus {{'{'}}product_description}</mat-hint>
-                <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
-              </mat-form-field>
-            </div>
-          </div>
           <!-- skip_additional_images -->
           <div class="row my-2">
             <div class="col-10">
@@ -298,6 +287,41 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- ad_description_template -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Ad description template</mat-label>
+                <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields from
+                  the feed as {{ '{' }}field}</mat-hint>
+                <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+            <div class="col-2" style="padding-top: 15px;">
+              <app-popover [content]="popoverContent" mode="toggle">
+                <mat-icon matSuffix style="vertical-align: bottom; margin-left: 5px; cursor: pointer;">
+                  help_outline</mat-icon>
+              </app-popover>
+              <ng-template #popoverContent>
+                <div style="width: 300px">
+                  The fields inside curly brackets will be expanded to standard ad customizers syntax.
+                  But you can always use ad customizers syntax directly: {{'{'}}=feedname.feedatribute:&lt;default
+                  value&gt;}
+                  (e.g. if you need <code>IF</code> or <code>COUNTDOWN</code> functions, or default values).<br>
+                  More details on how ad customizers work see in this <a target="_blank"
+                    href='https://www.youtube.com/watch?v=f2KDdxDvTTE'>video</a> and <a target="_blank"
+                    href='https://support.google.com/google-ads/answer/6093368'>HC article</a>.<br>
+                  To see all available fields to use in template, generate and open your ad customizers feed.
+                  Additionally you can use static product description - {{'{'}}product_description} and
+                  product custom description (that you can enter for each product on <a
+                    routerLink="/products">Products</a> page)
+                </div>
+              </ng-template>
+
+            </div>
+          </div>
           <!-- product_description -->
           <div class="row my-2">
             <div class="col-10">
@@ -314,7 +338,8 @@
           <!-- product_description_as_fallback_only -->
           <div class="row my-2">
             <div class="col-10">
-              <mat-slide-toggle formControlName="product_description_as_fallback_only" [disabled]="editable ? false : true">Use
+              <mat-slide-toggle formControlName="product_description_as_fallback_only"
+                [disabled]="editable ? false : true">Use
                 static description only if product description exceeds maximum ad description length
               </mat-slide-toggle>
             </div>

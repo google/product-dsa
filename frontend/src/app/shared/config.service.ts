@@ -73,12 +73,11 @@ export interface GetConfigResponse {
 })
 export class ConfigService {
   config: GetConfigResponse | undefined;
-
-  constructor(public apiService: ApiService) { }
-
   loaded: Subject<Configuration> = new Subject<Configuration>();
   private _currentTarget: string | undefined;
   currentTargetChanged: Subject<string | undefined> = new Subject<string | undefined>();
+
+  constructor(public apiService: ApiService) { }
 
   getConfig(): GetConfigResponse | undefined {
     return this.config;
@@ -103,6 +102,9 @@ export class ConfigService {
 
   async updateConfig(config: any): Promise<{ errors?: ConfigError[] }> {
     let res = await this.apiService.updateConfig(config);
+    if (this.config) {
+      this.config.config = config;
+    }
     this.loaded.next(config);
     return res;
   }

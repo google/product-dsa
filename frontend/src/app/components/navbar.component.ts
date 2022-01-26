@@ -31,9 +31,15 @@ export class NavbarComponent {
     configService.loaded.subscribe(cfg => {
       if (cfg) {
         this.targets = cfg.targets;
-        this.selectedTarget = '';
-        if (this.targets && this.targets.length > 0) {
-          this.selectedTarget = this.targets[0].name;
+        if (this.configService.currentTarget &&
+          this.targets.find((t) => t.name === this.configService.currentTarget)) {
+          this.selectedTarget = this.configService.currentTarget || '';
+        } else {
+          // no current target or previously selected target doesn't exist anymore
+          this.selectedTarget = '';
+          if (this.targets && this.targets.length > 0) {
+            this.selectedTarget = this.targets[0].name;
+          }
         }
       } else {
         this.selectedTarget = '';
@@ -41,6 +47,7 @@ export class NavbarComponent {
       this.configService.currentTarget = this.selectedTarget;
     });
   }
+
   onTargetChanged(val: string) {
     this.configService.currentTarget = val;
   }

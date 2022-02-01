@@ -13,7 +13,8 @@
 # limitations under the License.
 from io import TextIOWrapper
 import os
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Callable
+from grpc import Call
 import requests
 import logging
 import zipfile
@@ -231,11 +232,29 @@ def upload_file_to_gcs(local_file_path: str,
 
   bucket = get_or_create_gcs_bucket(bucket_name, storage_client)
   blob = bucket.blob(blob_path)
-  blob.upload_from_filename(local_file_path)
+  _operation_with_retry(lambda: blob.upload_from_filename(local_file_path),
+                        f"blob ({blob.name}) upload")
 
   gcs_url = f'gs://{bucket_name}/{blob_path}'
   logging.debug(f'File {local_file_path} uploaded to {gcs_url}')
   return gcs_url
+
+
+def _operation_with_retry(operation: Callable,
+                          op_name: str,
+                          max_retry: int = 5,
+                          retry: int = 0):
+  try:
+    operation()
+  except exceptions.ServiceUnavailable as e:
+    if retry >= max_retry:
+      logging.warning(
+          f'Exceeded max retry count for {op_name} failures ({retry})')
+      raise
+    retry += 1
+    logging.warning(
+        f'{op_name} returned ServiceUnavailable: {e}, retrying ({retry})')
+    _operation_with_retry(operation, op_name, max_retry, retry)
 
 
 def gcs_get_signed_url(*,
@@ -366,14 +385,16 @@ def get_blobs_metadata(
   }
 
 
-def gcs_delete_folder_files(filter,
+def gcs_delete_folder_files(filter: Callable[[storage.Blob], bool],
                             gs_folder_path: str,
                             storage_client: storage.Client = None):
   if not storage_client:
     storage_client = storage.Client()
   result = parse.urlparse(gs_folder_path)
   bucket_name, prefix = result.hostname, result.path[1:]
-  blobs: List[storage.Blob] = storage_client.list_blobs(bucket_name, prefix=prefix, delimiter='/')
+  blobs: List[storage.Blob] = storage_client.list_blobs(bucket_name,
+                                                        prefix=prefix,
+                                                        delimiter='/')
   for blob in blobs:
     if filter(blob):
       logging.debug(f'Deleting GCS-file {blob.public_url}')

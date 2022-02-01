@@ -105,7 +105,7 @@ echo -e "${COLOR}Creating Cloud Storage bucket for storing configuration...${NC}
 GCS_BUCKET=gs://${PROJECT_ID}-pdsa
 gsutil mb -l ${GAE_LOCATION}1 -b on $GCS_BUCKET
 # set CORS on the created bucket to allow cross-site ajax requests
-printf '[{"origin": ["*"],"responseHeader": ["*"],"method": ["GET","POST","HEAD"],"maxAgeSeconds": 86400}]' > cors.json
+printf '[{"origin": ["*"],"responseHeader": ["*"],"method": ["GET","POST","HEAD","OPTIONS"],"maxAgeSeconds": 86400}]' > cors.json
 gsutil cors set cors.json $GCS_BUCKET
 
 echo -e "\n${COLOR}Done!${NC}"

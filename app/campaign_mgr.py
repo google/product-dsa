@@ -565,7 +565,7 @@ class CampaignMgr:
     return local_path
 
   def _get_images(self, product, max_image_dimension: int,
-                  files_metadata: dict) -> List[str]:
+                  files_metadata: Dict[str, datetime]) -> List[str]:
     """Download all product images, resize them and return a list of local relative paths"""
     download_folder = os.path.join(self._context.output_folder,
                                    self._context.image_folder + '-download')
@@ -600,7 +600,8 @@ class CampaignMgr:
       product_images = [
           file_utils.download_file(item[1],
                                    item[0],
-                                   dry_run=dry_run,
+                                   dry_run=dry_run or files_metadata.get(
+                                       os.path.basename(item[0])) == True,
                                    lastModified=files_metadata.get(
                                        os.path.basename(item[0])))
       ]
@@ -611,7 +612,9 @@ class CampaignMgr:
             lambda item: file_utils.download_file(
                 item[1],
                 item[0],
-                dry_run=dry_run,
+                # NOTE: we use files_metadata as output as well replacing datetime with True for processed files
+                # so a file can be encountered a second time, in such a case we'll ignore it
+                dry_run=dry_run or files_metadata.get(os.path.basename(item[0])) == True,
                 lastModified=files_metadata.get(os.path.basename(item[0]))),
             product_images_to_urls.items())
 

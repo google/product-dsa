@@ -35,6 +35,9 @@ from common.config_utils import ApplicationError, ApplicationErrorReason
 from common.auth import get_credentials
 from install import cloud_data_transfer, cloud_env_setup
 
+# NOTE: this module's code is executed each time when a new worker started, so keep it small
+# To handle instance start up see `on_instance_start` method
+
 loglevel = os.getenv('LOG_LEVEL') or 'INFO'
 logging.getLogger().setLevel(loglevel)
 logging.getLogger('smart_open.gcs').setLevel(logging.WARNING)
@@ -52,21 +55,6 @@ OUTPUT_FOLDER = '/tmp' if IS_GAE else os.path.abspath(
     os.path.join(app.root_path, './../output'))
 
 MAX_RESPONSE_SIZE = 32 * 1024 * 1024  #if IS_GAE else XXX
-
-# activate GCP diagnostics services if needed (actually they can be used even outside GAE)
-if IS_GAE and os.getenv('CLOUD_PROFILER', '').upper() == 'TRUE':
-  try:
-    import googlecloudprofiler
-    googlecloudprofiler.start(verbose=3)
-  except (ValueError, NotImplementedError) as exc:
-    logging.exception(exc)
-if IS_GAE and os.getenv('CLOUD_DEBUGGER', '').upper() == 'TRUE':
-  try:
-    import googleclouddebugger
-    googleclouddebugger.enable()
-  except ImportError:
-    # NOTE: this googleclouddebugger can be installed ONLY on Linux
-    pass
 
 
 class JsonEncoder(JSONEncoder):
@@ -785,20 +773,47 @@ def handle_exception(e: Exception):
   return e
 
 
-# copy config from GCS to local cache
-if config_on_gcs:
-  # config is on GCS, copy it from GCS to local cache
-  copy_config_to_cache(config_file_name)
+@app.route("/_ah/start")
+def on_instance_start():
+  """Instance start handler. It's called by GAE to start a new instance (not workers).
 
-# construct expected_audience field that we need for validation IAP JWT headers, it not works in GAE
-if IS_GAE:
-  credentials = _get_credentials()
-  project_id = config_utils.find_project_id(args)
-  rmclient = ProjectsClient(credentials=credentials)
-  # fetch project number via Cloud ResourceManager (yes, project.name is project number)
-  project = rmclient.get_project(name=f'projects/{project_id}')
-  expected_audience = f'/{project.name}/apps/{project_id}'
-  logging.info(f'Detected IAP audience: {expected_audience}')
+  Be mindful about code here because errors won't be propagated to webapp users
+  (i.e. visible only in log)"""
+  # copy config from GCS to local cache
+  if config_on_gcs:
+    # config is on GCS, copy it from GCS to local cache
+    copy_config_to_cache(config_file_name)
+
+  # construct expected_audience field that we need for validation IAP JWT headers, it not works in GAE
+  if IS_GAE:
+    credentials = _get_credentials()
+    project_id = config_utils.find_project_id(args)
+    rmclient = ProjectsClient(credentials=credentials)
+    # fetch project number via Cloud ResourceManager (yes, project.name is project number)
+    project = rmclient.get_project(name=f'projects/{project_id}')
+    expected_audience = f'/{project.name}/apps/{project_id}'
+    logging.info(f'Detected IAP audience: {expected_audience}')
+
+  # activate GCP diagnostics services if needed (actually they can be used even outside GAE)
+  if IS_GAE and os.getenv('CLOUD_PROFILER', '').upper() == 'TRUE':
+    try:
+      import googlecloudprofiler
+      googlecloudprofiler.start(verbose=3)
+    except (ValueError, NotImplementedError) as exc:
+      logging.exception(exc)
+  if IS_GAE and os.getenv('CLOUD_DEBUGGER', '').upper() == 'TRUE':
+    try:
+      import googleclouddebugger
+      googleclouddebugger.enable()
+    except ImportError:
+      # NOTE: this googleclouddebugger can be installed ONLY on Linux
+      pass
+  return 'OK', 200
+
+
+if not IS_GAE:
+  on_instance_start()
+
 
 if __name__ == '__main__':
   # NOTE: we run server.py directly only during development, normally it's run by gunicorn in GAE

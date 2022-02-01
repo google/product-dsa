@@ -61,7 +61,7 @@ def download_file(uri: str,
                   folder: str = None,
                   dry_run: bool = False,
                   invalidate_cache: bool = False,
-                  lastModified: str) -> str:
+                  lastModified: datetime) -> str:
   """Download a remote file into a local folder."""
   if not local_path:
     if not folder:
@@ -76,6 +76,8 @@ def download_file(uri: str,
     if dry_run:
       return local_path, 304
     if lastModified:
+      if not isinstance(lastModified, datetime):
+        logging.warning(f'download_file for uri="{uri}", local_path="{local_path}" got invalid timestamp: {lastModified} (type: {type(lastModified)})')
       headers['if-modified-since'] = _datetime2str(lastModified)
     elif os.path.exists(local_path) and not invalidate_cache:
       headers['if-modified-since'] = _datetime2str(
@@ -292,6 +294,7 @@ class GcsFile:
     f = smart_open.open(self.gcs_file_path,
                         "rb",
                         transport_params=dict(client=self.storage_client))
+    # TODO: it'd be nice to wrap the returning object to get some progress reporting (notify parent when the file is closed)
     return f
 
 
@@ -346,7 +349,9 @@ def gcs_archive_files(gs_paths: List[str],
   return zs
 
 
-def get_blobs_metadata(gs_folder_path: str, storage_client: storage.Client = None) -> Dict[str,str]:
+def get_blobs_metadata(
+    gs_folder_path: str,
+    storage_client: storage.Client = None) -> Dict[str, datetime]:
   """Returns a mapping from file (blob) name on GCS to its last modified timestamp """
   if not storage_client:
     storage_client = storage.Client()

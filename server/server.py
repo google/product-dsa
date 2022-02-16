@@ -784,16 +784,6 @@ def on_instance_start():
     # config is on GCS, copy it from GCS to local cache
     copy_config_to_cache(config_file_name)
 
-  # construct expected_audience field that we need for validation IAP JWT headers, it not works in GAE
-  if IS_GAE:
-    credentials = _get_credentials()
-    project_id = config_utils.find_project_id(args)
-    rmclient = ProjectsClient(credentials=credentials)
-    # fetch project number via Cloud ResourceManager (yes, project.name is project number)
-    project = rmclient.get_project(name=f'projects/{project_id}')
-    expected_audience = f'/{project.name}/apps/{project_id}'
-    logging.info(f'Detected IAP audience: {expected_audience}')
-
   # activate GCP diagnostics services if needed (actually they can be used even outside GAE)
   if IS_GAE and os.getenv('CLOUD_PROFILER', '').upper() == 'TRUE':
     try:
@@ -813,6 +803,16 @@ def on_instance_start():
 
 if not IS_GAE:
   on_instance_start()
+
+# construct expected_audience field that we need for validation IAP JWT headers, it not works in GAE
+if IS_GAE:
+  credentials = _get_credentials()
+  project_id = config_utils.find_project_id(args)
+  rmclient = ProjectsClient(credentials=credentials)
+  # fetch project number via Cloud ResourceManager (yes, project.name is project number)
+  project = rmclient.get_project(name=f'projects/{project_id}')
+  expected_audience = f'/{project.name}/apps/{project_id}'
+  logging.info(f'Detected IAP audience: {expected_audience}')
 
 
 if __name__ == '__main__':

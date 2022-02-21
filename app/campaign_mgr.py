@@ -558,10 +558,10 @@ class CampaignMgr:
       logging.debug(f'Campaign data CSV uploaded to GCS ({gcs_path})')
     return output_csv_path
 
-  def _generate_filepath_for_image_url(self, uri, folder):
+  def _generate_filepath_for_image_url(self, uri, folder, product_id):
     parsed_uri = parse.urlparse(uri)
     file_name = os.path.basename(parsed_uri.path)
-    local_path = os.path.join(folder, file_name)
+    local_path = os.path.join(folder, f'{product_id}_{file_name}')
     return local_path
 
   def _get_images(self, product, max_image_dimension: int,
@@ -579,11 +579,12 @@ class CampaignMgr:
     product_images = list(dict.fromkeys(product_images))
     # remove file name duplicates from the list
     product_images_to_urls = {
-        self._generate_filepath_for_image_url(uri, download_folder): uri
+        self._generate_filepath_for_image_url(uri, download_folder,
+                                              product.offer_id): uri
         for uri in product_images
     }
-    product_images_to_urls[self._generate_filepath_for_image_url(
-        product.image_link, download_folder)] = product.image_link
+    # product_images_to_urls[self._generate_filepath_for_image_url(
+    #     product.image_link, download_folder)] = product.image_link
     if self._context.target.max_image_count and self._context.target.max_image_count > 0:
       product_images = product_images[:self._context.target.max_image_count]
     logging.debug(product_images)

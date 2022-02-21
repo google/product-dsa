@@ -1,5 +1,7 @@
 # Product DSAs
 
+*This is not an officially supported Google product.*
+
 ## 1. Introduction
 >TODO
 

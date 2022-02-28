@@ -429,6 +429,7 @@ class CampaignMgr:
     logging.info('Starting generating adcustomizer feed')
     values = self._adcustomizer_gen.get_values()
     # generate CSV (for creating)
+    output_csv_path = None
     if generate_csv:
       self._context.ensure_folders()
       output_csv_path = os.path.join(

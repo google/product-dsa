@@ -92,6 +92,7 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
 
     values.append([row[0], labels])
 
+  csv_file_name = None
   if generate_csv:
     context.ensure_folders()
     csv_file_name = os.path.join(context.output_folder,

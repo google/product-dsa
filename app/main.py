@@ -73,9 +73,8 @@ def validate_config(context: Context):
 
 
 def create_or_update_page_feed(generate_csv: bool, context: Context):
-  step_name = 'page feed ' + ('creation' if generate_csv else 'updating')
   ts_start = datetime.now()
-  logging.info(f'Starting "{step_name}" step')
+  logging.info(f'Starting generating page feed')
   data = context.data_gateway.load_page_feed(context.target.name)
   logging.info(f'Page-feed query returned {data.total_rows} rows')
 
@@ -110,7 +109,7 @@ def create_or_update_page_feed(generate_csv: bool, context: Context):
   logging.info('Generated page feed in Google Spreadsheet ' + url)
 
   elapsed = datetime.now() - ts_start
-  logging.info(f'Finished "{step_name}" step, it took {elapsed}')
+  logging.info(f'Page feed generation completed, it took {elapsed}')
   return csv_file_name
 
 
@@ -121,9 +120,16 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
     Returns:
       generated CSV file path
   """
+  ts_start = datetime.now()
+  logging.info(f'Starting generating adcustomizers')
   products = context.data_gateway.load_products(context.target.name)
+  
   mgr = campaign_mgr.CampaignMgr(context, products)
-  return mgr.generate_adcustomizers(generate_csv)
+  csv_file_name = mgr.generate_adcustomizers(generate_csv)
+
+  elapsed = datetime.now() - ts_start
+  logging.info(f'Adcustomizers generation completed, it took {elapsed}')
+  return csv_file_name
 
 
 def generate_campaign(context: Context) -> str:

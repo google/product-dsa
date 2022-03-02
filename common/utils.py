@@ -12,9 +12,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import enum
 import resource
+import shutil
 
 def get_rss():
   return resource.getrusage(
       resource.RUSAGE_CHILDREN).ru_maxrss + resource.getrusage(
           resource.RUSAGE_SELF).ru_maxrss
+
+
+class DiskUsageUnits(enum.Enum):
+  Bytes = 'Bytes'
+  KB = "Kilobytes"
+  MB = "Megabytes"
+  GB = "Gigabytes"
+
+
+def get_disk_usage(units: DiskUsageUnits = None):
+  total, used, free = shutil.disk_usage("/tmp")
+
+  if units == None or units == DiskUsageUnits.Bytes:
+    return (total, used, free)
+  conv = 1
+  if units == DiskUsageUnits.GB:
+    conv = 2**30
+  elif units == DiskUsageUnits.MB:
+    conv = 2**20
+  elif units == DiskUsageUnits.KB:
+    conv = 2**10
+
+  return (total // conv, used // conv, free // conv)
+

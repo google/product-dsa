@@ -635,6 +635,7 @@ def run_setup():
             ApplicationError(reason=ApplicationErrorReason.INVALID_DEPLOYMENT,
                              description=msg))
 
+    logging.log('Fetched labels for all targets')
     log = ''
     log_handler.close()
     logging.root.removeHandler(log_handler)

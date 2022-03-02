@@ -24,14 +24,14 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 import logging
 import argparse
+import os
 from typing import NamedTuple, Dict, Union, List
 from google.auth import credentials
 from google.cloud.bigquery_datatransfer_v1.types import TransferConfig
-from googleapiclient.discovery import build
+from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from google.cloud import storage, pubsub_v1, exceptions
 from google.api_core import exceptions
-from googleapiclient import discovery
 from pprint import pprint
 # if you're getting an error on the next line "ModuleNotFound",
 # make sure you define env var PYTHONPATH="."
@@ -59,6 +59,7 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
       condition = f' AND merchant_id IN {tuple(target.merchant_id.split(", "))} '
     else:
       condition = f' AND merchant_id = {target.merchant_id} '
+  # TODO: probably the condition isn't correct (it's too specific)
   if target.country_code:
     condition += f' AND destinations[SAFE_OFFSET(0)].approved_countries[SAFE_OFFSET(0)] = \'{target.country_code}\' '
   params = {SEARCH_CONDITIONS: condition}
@@ -68,7 +69,7 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
 
 
 def set_permission_on_drive(fileId, email, credentials):
-  driveAPI = build('drive', 'v3', credentials=credentials)
+  driveAPI = discovery.build('drive', 'v3', credentials=credentials)
   logging.info(f'Adding write permissions to {email} on {fileId}')
   try:
     access = driveAPI.permissions().create(
@@ -132,7 +133,7 @@ def create_spreadsheets(config: config_utils.Config,
 
 def create_spreadsheet(title: str, credentials: credentials.Credentials) -> str:
   """Create a Google Spreadsheet (either for page feed or adcustomizers data)"""
-  sheetsAPI = build('sheets', 'v4', credentials=credentials)
+  sheetsAPI = discovery.build('sheets', 'v4', credentials=credentials)
   result = sheetsAPI.spreadsheets().create(body={
       "sheets": [{
           "properties": {
@@ -172,10 +173,10 @@ def enable_apis(apis: List[str], config: config_utils.Config, credentials):
   """
   parent = f'projects/{config.project_id}'
   request_body = {'serviceIds': apis}
-  client = build('serviceusage',
-                 'v1',
-                 credentials=credentials,
-                 cache_discovery=False)
+  client = discovery.build('serviceusage',
+                           'v1',
+                           credentials=credentials,
+                           cache_discovery=False)
   operation = client.services().batchEnable(parent=parent,
                                             body=request_body).execute()
   cloud_utils.wait_for_operation(client.operations(), operation)
@@ -248,7 +249,18 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
       # fetch GAE app hostname (it can be different depending on the chosen region)
       service = discovery.build("appengine", "v1", credentials=credentials)
       gae_info = service.apps().get(appsId=config.project_id).execute()
+      if gae_info.get('iap', None) is None:
+        raise Exception(f'IAP was not created for your App Engine application, please enable IAP in Cloud Console or run install.sh')
+      if not gae_info['iap'].get('enabled', False):
+        raise Exception(
+            f'Your App Engine application has disabled IAP, please enable it on https://console.cloud.google.com/security/iap'
+        )
       hostname = gae_info['defaultHostname']
+      oauth2ClientId = gae_info['iap']['oauth2ClientId']
+      serviceAccount = gae_info['serviceAccount']
+      gae_service = os.getenv('GAE_SERVICE')
+      if gae_service.lower() != 'default':
+        hostname = f'{gae_service.lower()}-dot-{hostname}'
       # TODO: there could be several application instances in a GCP project, each one in its own GAE service
       # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE
       subscriber.create_subscription(
@@ -257,8 +269,9 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
           push_config=pubsub_v1.types.PushConfig(
               push_endpoint=f'https://{hostname}/api/update',
               oidc_token=pubsub_v1.types.PushConfig.OidcToken(
-                  service_account_email=get_service_account_email(
-                      config.project_id))))
+                  service_account_email=serviceAccount,
+                  audience=oauth2ClientId
+              )))
 
 
 @dataclass

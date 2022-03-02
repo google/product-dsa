@@ -30,7 +30,7 @@ from typing import Any, Dict, List
 from common import file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context
-from common.utils import get_rss
+from common.utils import DiskUsageUnits, get_rss, get_disk_usage
 
 # Google Ads Editor header names
 CAMP_NAME = 'Campaign'
@@ -453,8 +453,9 @@ class CampaignMgr:
     if not self._products_by_label:
       return
     old_rss = get_rss()
+    total, used, free = get_disk_usage(DiskUsageUnits.MB)
 
-    logging.info('Starting generating campaign data')
+    logging.info(f'Starting generating campaign data (/tmp: total={total}, used={used})')
     output_csv_path = os.path.join(self._context.output_folder,
                                    self._context.target.campaign_output_file)
     gae = GoogleAdsEditorMgr(self._context)
@@ -536,17 +537,20 @@ class CampaignMgr:
             f'RSS increased to {max_rss:,} from {old_rss:,} after processing {images}'
         )
         old_rss = max_rss
+      if i % 100 == 0:
+        total, used, free = get_disk_usage(DiskUsageUnits.MB)
+        logging.info(
+            f'Temp partition usage: total={total}, used={used})'
+        )
 
     if self._context.images_on_gcs and not self._context.images_dry_run:
       # remove files on GCS that weren't used by products
       file_utils.gcs_delete_folder_files(
-          lambda blob: gcs_files_metadata.get(
-              os.path.basename(blob.name)) != True,
-          self._context.gs_download_path, self._context.storage_client)
+          lambda blob: gcs_files_metadata.get(os.path.basename(blob.name)) !=
+          True, self._context.gs_download_path, self._context.storage_client)
       file_utils.gcs_delete_folder_files(
-          lambda blob: gcs_files_metadata.get(
-              os.path.basename(blob.name)) != True,
-          self._context.gs_images_path, self._context.storage_client)
+          lambda blob: gcs_files_metadata.get(os.path.basename(blob.name)) !=
+          True, self._context.gs_images_path, self._context.storage_client)
 
     logging.debug('Writing campaign data CSV')
     gae.generate_csv(output_csv_path)

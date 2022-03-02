@@ -133,8 +133,8 @@ class Config(ConfigItemBase):
   project_id: str = ''
   # dataset id in BigQuery for GMC-BQ data transfer
   dataset_id: str = 'gmcdsa'
-  # location for dataset in BigQuery
-  dataset_location: str = 'us'
+  # location for dataset in BigQuery (all locations are in Europe by default, see install-web.sh as well)
+  dataset_location: str = 'europe'
   # GMC merchant id
   merchant_id: int = 0
   # DataTransfer schedule (syntax - https://cloud.google.com/appengine/docs/flexible/python/scheduling-jobs-with-cron-yaml#cron_yaml_The_schedule_format)

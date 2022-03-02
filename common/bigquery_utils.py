@@ -53,11 +53,21 @@ class CloudBigQueryUtils(object):
     """
     # Construct a BigQuery client object.
     fully_qualified_dataset_id = f'{self.project_id}.{dataset_id}'
+    to_create = False
     try:
-      self.client.get_dataset(fully_qualified_dataset_id)
+      ds = self.client.get_dataset(fully_qualified_dataset_id)
+      if ds.location and dataset_location and ds.location != dataset_location or \
+         not ds.location and dataset_location or \
+         ds.location and not dataset_location:
+        self.client.delete_dataset(fully_qualified_dataset_id, True)
+        logging.info(
+            'Existing dataset needs to be recreated due to different location')
+        to_create = True
       logging.info('Dataset %s already exists.', fully_qualified_dataset_id)
     except exceptions.NotFound:
       logging.info('Dataset %s is not found.', fully_qualified_dataset_id)
+      to_create = True
+    if to_create:
       dataset = bigquery.Dataset(fully_qualified_dataset_id)
       dataset.location = dataset_location
       self.client.create_dataset(dataset)
@@ -126,16 +136,22 @@ class CloudBigQueryUtils(object):
           return query_job.result()
         query_job.result()
       except Exception as e:
-        logging.exception(f'Error occurred during \'{sql_file}\' script execution: {e}')
+        logging.exception(
+            f'Error occurred during \'{sql_file}\' script execution: {e}')
         if (isinstance(e, exceptions.NotFound)):
-          match = re.match('Not found: (Table|View) ([^ ]+) was not found', e.message)
+          match = re.match('Not found: (Table|View) ([^ ]+) was not found',
+                           e.message)
           if match and match.groups:
             # Example: "Not found: Table project:gmcdsa.Ads_Preview_Products_Target was not found in location US"
-            raise Exception(f'{match.group(1)} \'{match.group(2)}\' doesn\'t exist, you should run setup again')
+            raise Exception(
+                f'{match.group(1)} \'{match.group(2)}\' doesn\'t exist, you should run setup again'
+            )
         raise
 
-  def execute_query(self, sql_query: str, dataset_id: str, params: Dict[str,
-                                                                        Any],
+  def execute_query(self,
+                    sql_query: str,
+                    dataset_id: str,
+                    params: Dict[str, Any],
                     sql_params: List[bigquery.ScalarQueryParameter] = None):
     query_params = self._get_query_params(dataset_id, params)
     try:

@@ -81,8 +81,9 @@ class DataGateway:
     if maxrows > 0:
       where_clause += '\nLIMIT ' + str(maxrows)
     params = {"WHERE_CLAUSE": where_clause}
+    logging.debug(f'Fetching products for target {target}, where: {where_clause}')
     products = self.execute_sql_script('get-products.sql', target, params)
-    logging.info(f'Fetched {products.total_rows} products')
+    logging.info(f'Fetched {products.total_rows} products (target: {target})')
     return products
 
   def load_labels(self,
@@ -91,13 +92,16 @@ class DataGateway:
                   product_only: bool = False):
     self._check_target(target)
     if category_only:
-      params = {'WHERE_CLAUSE': "WHERE trim(lab) NOT LIKE 'product_%'"}
+      where_clause = "WHERE trim(lab) NOT LIKE 'product_%'"
     elif product_only:
-      params = {'WHERE_CLAUSE': "WHERE trim(lab) LIKE 'product_%'"}
+      where_clause = "WHERE trim(lab) LIKE 'product_%'"
     else:
-      params = {"WHERE_CLAUSE": ""}
+      where_clause = ""
+    params = {"WHERE_CLAUSE": where_clause}
+    logging.debug(
+          f'Fetching labels for target {target}, where: {where_clause}')
     labels = self.execute_sql_script('get-labels.sql', target, params)
-    logging.info(f'Fetched {labels.total_rows} labels')
+    logging.info(f'Fetched {labels.total_rows} labels (target: {target})')
     return labels
 
   def load_page_feed(self, target: str):

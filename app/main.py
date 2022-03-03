@@ -24,9 +24,11 @@ from common import auth, config_utils, sheets_utils, file_utils
 from app.context import Context, ContextOptions
 from app import campaign_mgr
 
-logging.basicConfig(format='[%(asctime)s][%(name)s][%(levelname)s] %(message)s',
-                    level=logging.INFO,
-                    datefmt='%H:%M:%S')
+logging.basicConfig(
+    format=
+    '[%(asctime)s][%(process)d.%(thread)d][%(name)s][%(levelname)s] %(message)s',
+    level=logging.INFO,
+    datefmt='%H:%M:%S')
 logging.getLogger('google.api_core').setLevel(logging.WARNING)
 
 
@@ -123,7 +125,7 @@ def create_or_update_adcustomizers(generate_csv: bool, context: Context) -> str:
   ts_start = datetime.now()
   logging.info(f'Starting generating adcustomizers')
   products = context.data_gateway.load_products(context.target.name)
-  
+
   mgr = campaign_mgr.CampaignMgr(context, products)
   csv_file_name = mgr.generate_adcustomizers(generate_csv)
 

@@ -238,40 +238,39 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
   subscription_name = f'projects/{config.project_id}/subscriptions/update_feeds'
   with pubsub_v1.SubscriberClient(credentials=credentials) as subscriber:
     try:
-      subscriber.get_subscription(subscription=subscription_name)
-      not_found = False
+      subscriber.delete_subscription(subscription=subscription_name)
     except exceptions.NotFound:
-      not_found = True
-    if not_found:
-      # TODO: by default pubsub creates a subscription with expriration of 31 days of inactivity,
-      # in UI it can be set as 'never exprire' but how to do it via API?
+      pass  # it's ok, subscription didn't exist
 
-      # fetch GAE app hostname (it can be different depending on the chosen region)
-      service = discovery.build("appengine", "v1", credentials=credentials)
-      gae_info = service.apps().get(appsId=config.project_id).execute()
-      if gae_info.get('iap', None) is None:
-        raise Exception(f'IAP was not created for your App Engine application, please enable IAP in Cloud Console or run install.sh')
-      if not gae_info['iap'].get('enabled', False):
-        raise Exception(
-            f'Your App Engine application has disabled IAP, please enable it on https://console.cloud.google.com/security/iap'
-        )
-      hostname = gae_info['defaultHostname']
-      oauth2ClientId = gae_info['iap']['oauth2ClientId']
-      serviceAccount = gae_info['serviceAccount']
-      gae_service = os.getenv('GAE_SERVICE')
-      if gae_service.lower() != 'default':
-        hostname = f'{gae_service.lower()}-dot-{hostname}'
-      # TODO: there could be several application instances in a GCP project, each one in its own GAE service
-      # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE
-      subscriber.create_subscription(
-          name=subscription_name,
-          topic=pubsub_topic,
-          push_config=pubsub_v1.types.PushConfig(
-              push_endpoint=f'https://{hostname}/api/update',
-              oidc_token=pubsub_v1.types.PushConfig.OidcToken(
-                  service_account_email=serviceAccount,
-                  audience=oauth2ClientId
-              )))
+    # TODO: by default pubsub creates a subscription with expriration of 31 days of inactivity,
+    # in UI it can be set as 'never exprire' but how to do it via API?
+
+    # fetch GAE app hostname (it can be different depending on the chosen region)
+    service = discovery.build("appengine", "v1", credentials=credentials)
+    gae_info = service.apps().get(appsId=config.project_id).execute()
+    if gae_info.get('iap', None) is None:
+      raise Exception(f'IAP was not created for your App Engine application, please enable IAP in Cloud Console or run install.sh')
+    if not gae_info['iap'].get('enabled', False):
+      raise Exception(
+          f'Your App Engine application has disabled IAP, please enable it on https://console.cloud.google.com/security/iap'
+      )
+    hostname = gae_info['defaultHostname']
+    oauth2ClientId = gae_info['iap']['oauth2ClientId']
+    serviceAccount = gae_info['serviceAccount']
+    gae_service = os.getenv('GAE_SERVICE')
+    if gae_service.lower() != 'default':
+      hostname = f'{gae_service.lower()}-dot-{hostname}'
+    # TODO: there could be several application instances in a GCP project, each one in its own GAE service
+    # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE
+    subscriber.create_subscription(
+        name=subscription_name,
+        topic=pubsub_topic,
+        push_config=pubsub_v1.types.PushConfig(
+            push_endpoint=f'https://{hostname}/api/update',
+            oidc_token=pubsub_v1.types.PushConfig.OidcToken(
+                service_account_email=serviceAccount,
+                audience=oauth2ClientId
+            )))
 
 
 @dataclass

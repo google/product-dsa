@@ -178,12 +178,15 @@ def update_feeds():
   context = Context(config, None, credentials,
                     ContextOptions(OUTPUT_FOLDER, 'images'))
   validation = validate_config(context)
+  logging.debug(f'update_feeds: config validated ({validation["valid"]})')
   if not validation['valid']:
     error = ApplicationError(
         reason=ApplicationErrorReason.INVALID_CONFIG,
         description=f"There errors in configuration: {validation['message']}")
+    logging.info(f"update_feeds: There errors in configuration: {validation['message']}")
     return return_api_config_error(error)
 
+  logging.debug('Starting updating feeds for all targets')
   for target in config.targets:
     # NOTE: context.output_folder will be left not initialized (not joined with target),
     # but it's OK as we aren't generating any files here
@@ -194,6 +197,7 @@ def update_feeds():
     # Update adcustomizers spreadsheet
     create_or_update_adcustomizers(False, context)
 
+  logging.info('All feeds for all targets were successfully updated')
   return f"Updated feeds for all targets", 200
 
 

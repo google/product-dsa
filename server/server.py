@@ -72,6 +72,7 @@ config_file_name = config_utils.get_config_url(args)
 args.config = config_file_name  # NOTE: we'll overwrite args.config in copy_config_to_cache
 config_on_gcs = config_file_name and config_file_name.startswith("gs://")
 expected_audience = ''
+g_executing_setup = False
 
 
 def copy_config_to_cache(config_file_name: str):
@@ -165,6 +166,10 @@ def _get_req_arg_str(name: str):
 @app.route("/api/update", methods=["POST", "GET"])
 def update_feeds():
   """Endpoint to be call by Pub/Sub message from DT completion to trigger feeds updating"""
+  if g_executing_setup:
+    logging.info('Skipping feeds update as setup is executing')
+    return 'Update skipped as setup is executing', 200
+
   config = _get_config()
   # Verify the Cloud Pub/Sub-generated JWT in the "Authorization" header.
   try:
@@ -214,6 +219,10 @@ def create_context(target_name: str) -> Context:
 
 @app.route("/api/pagefeed/generate")
 def pagefeed_generate():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
@@ -238,6 +247,10 @@ def pagefeed_generate():
 
 @app.route("/api/adcustomizers/generate", methods=["GET"])
 def adcustomizers_generate():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
@@ -286,6 +299,10 @@ def _generate_gcs_download_url(gcs_url: str, credentials,
 
 @app.route("/api/campaign/generate", methods=["GET"])
 def campaign_generate():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   force_download = _get_req_arg_bool('force-download')
   images_dry_run = _get_req_arg_bool('images-dry-run')
@@ -398,6 +415,10 @@ def get_labels():
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
@@ -423,6 +444,10 @@ def get_products():
 
 @app.route("/api/products/<product_id>", methods=["POST"])
 def update_product(product_id):
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
@@ -434,6 +459,10 @@ def update_product(product_id):
 
 @app.route("/api/feeds/pagefeed", methods=["GET"])
 def load_pagefeed_spreadsheet():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   target_name = _get_req_arg_str('target')
   if not target_name:
     return jsonify({"error": "Required 'target' parameter is missing"}), 400
@@ -481,6 +510,10 @@ def return_api_config_error(error: ApplicationError):
 
 @app.route("/api/setup/validate", methods=["GET"])
 def validate_setup():
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   try:
     _validate_iap_jwt()
   except:
@@ -570,6 +603,11 @@ def validate_setup():
 
 @app.route("/api/setup/run", methods=["POST"])
 def run_setup():
+  global g_executing_setup
+  if g_executing_setup:
+    return jsonify({"error": "Operation is forbidden as setup is executing"
+                   }), 403
+
   logging.basicConfig()
   log_file_name = os.path.join(OUTPUT_FOLDER, '.setup.log')
   log_handler = logging.FileHandler(log_file_name, 'w')
@@ -589,6 +627,7 @@ def run_setup():
       raise
 
   try:
+    g_executing_setup = True
     skip_dt_run = request.args.get('skip-dt-run') == 'true' or False
     skip_spreadsheets = request.args.get('skip-spreadsheets') == 'true' or False
     try:
@@ -656,6 +695,7 @@ def run_setup():
         ApplicationError(reason=ApplicationErrorReason.INVALID_CLOUD_SETUP,
                          description=msg))
   finally:
+    g_executing_setup = False
     if log_handler:
       log_handler.close()
       logging.root.removeHandler(log_handler)

@@ -249,7 +249,9 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
     service = discovery.build("appengine", "v1", credentials=credentials)
     gae_info = service.apps().get(appsId=config.project_id).execute()
     if gae_info.get('iap', None) is None:
-      raise Exception(f'IAP was not created for your App Engine application, please enable IAP in Cloud Console or run install.sh')
+      raise Exception(
+          f'IAP was not created for your App Engine application, please enable IAP in Cloud Console or run install.sh'
+      )
     if not gae_info['iap'].get('enabled', False):
       raise Exception(
           f'Your App Engine application has disabled IAP, please enable it on https://console.cloud.google.com/security/iap'
@@ -257,8 +259,8 @@ def create_subscription_to_update_feeds(pubsub_topic: str,
     hostname = gae_info['defaultHostname']
     oauth2ClientId = gae_info['iap']['oauth2ClientId']
     serviceAccount = gae_info['serviceAccount']
-    gae_service = os.getenv('GAE_SERVICE')
-    if gae_service.lower() != 'default':
+    gae_service = os.getenv('GAE_SERVICE')  # NOTE: the envvar will be define inside GAE
+    if gae_service and gae_service.lower() != 'default':
       hostname = f'{gae_service.lower()}-dot-{hostname}'
     # TODO: there could be several application instances in a GCP project, each one in its own GAE service
     # we'll need to distintuish them somehow. Ideally we need to detect a current service when running in GAE

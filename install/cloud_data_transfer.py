@@ -107,6 +107,14 @@ class CloudDataTransferUtils(object):
       # TODO: transfer_config.userId contains a userid for a user under which the transfer running
       #       we could campare it with the current user from credentials. But how?
       if params_match and is_valid_state and name_matches:
+        # we found an existing transfer but it's in a wrong location so we have to delete it
+        if self.dataset_location and transfer_config.dataset_region and self.dataset_location != transfer_config.dataset_region:
+          logging.info(
+              f"Found a suitable BQ Data Transfer {transfer_config.name} but it's in '{transfer_config.dataset_region}' location while expected '{self.dataset_location}', deleting"
+          )
+          self.client.delete_transfer_config(name=transfer_config.name)
+          return None
+
         return transfer_config
     return None
 
@@ -270,6 +278,7 @@ class CloudDataTransferUtils(object):
                                                        destination_dataset,
                                                        parameters)
     if data_transfer_config:
+      # though a DT exists it might neeed to be updated for applying schedule, pubsub, params
       logging.info(
           f"Found an existing data transfer for merchant id {merchant_id} and dataset '{destination_dataset}' ({data_transfer_config.name})"
       )

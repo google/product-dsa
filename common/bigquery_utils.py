@@ -56,14 +56,15 @@ class CloudBigQueryUtils(object):
     to_create = False
     try:
       ds = self.client.get_dataset(fully_qualified_dataset_id)
-      if ds.location and dataset_location and ds.location != dataset_location or \
+      if ds.location and dataset_location and ds.location.lower() != dataset_location.lower() or \
          not ds.location and dataset_location or \
          ds.location and not dataset_location:
         self.client.delete_dataset(fully_qualified_dataset_id, True)
         logging.info(
             'Existing dataset needs to be recreated due to different location')
         to_create = True
-      logging.info('Dataset %s already exists.', fully_qualified_dataset_id)
+      else:
+        logging.info('Dataset %s already exists.', fully_qualified_dataset_id)
     except exceptions.NotFound:
       logging.info('Dataset %s is not found.', fully_qualified_dataset_id)
       to_create = True

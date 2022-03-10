@@ -33,7 +33,8 @@ logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 class CloudBigQueryUtils(object):
   """This class provides methods to simplify BigQuery API usage."""
 
-  def __init__(self, project_id: str, credentials: credentials.Credentials):
+  def __init__(self, project_id: str, credentials: credentials.Credentials,
+               dataset_location: str = ''):
     """Initialise new instance of CloudBigQueryUtils.
 
     Args:
@@ -41,7 +42,9 @@ class CloudBigQueryUtils(object):
       credentials: google.auth credentials
     """
     self.project_id = project_id
-    self.client = bigquery.Client(project=project_id, credentials=credentials)
+    self.client = bigquery.Client(project=project_id,
+                                  credentials=credentials,
+                                  location=dataset_location)
 
   def create_dataset_if_not_exists(self, dataset_id: str,
                                    dataset_location: str) -> None:

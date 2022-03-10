@@ -32,7 +32,10 @@ logging.getLogger('google.resumable_media._helpers').setLevel(logging.WARNING)
 CHROME_USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
 
 
-def generate_filename(path: str, *, suffix: str = None, extenssion: str = None) -> str:
+def generate_filename(path: str,
+                      *,
+                      suffix: str = None,
+                      extenssion: str = None) -> str:
   pair = os.path.splitext(os.path.basename(path))
   filename = pair[0]
   if suffix:
@@ -508,3 +511,22 @@ def set_file_last_modified(file_path: str, dt: datetime):
 def get_file_last_modified(file_path: str) -> datetime:
   """Return a file's modification timestamp"""
   return datetime.fromtimestamp(os.path.getmtime(file_path))
+
+
+class SetupExecLock:
+
+  def __init__(self, folder) -> None:
+    self.filepath = os.path.join(folder, '.setup.lock')
+    pass
+
+  def release(self):
+    try:
+      os.remove(self.filepath)
+    except:
+      pass
+
+  def acquire(self):
+    open(self.filepath, 'a').close()
+
+  def is_locked(self) -> bool:
+    return os.path.exists(self.filepath)

@@ -26,7 +26,8 @@ class DataGateway:
   def __init__(self, config: config_utils.Config,
                credentials: credentials.Credentials) -> None:
     self.bq_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
-                                                       credentials)
+                                                       credentials,
+                                                       config.dataset_location)
     self.config = config
 
   def _check_target(self, target: str):

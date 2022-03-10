@@ -301,7 +301,8 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
 
   logging.info('Creating %s dataset.', config.dataset_id)
   bigquery_client = bigquery_utils.CloudBigQueryUtils(config.project_id,
-                                                      credentials)
+                                                      credentials,
+                                                      config.dataset_location)
   bigquery_client.create_dataset_if_not_exists(config.dataset_id,
                                                config.dataset_location)
 

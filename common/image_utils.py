@@ -103,6 +103,7 @@ def resize(image_path: str,
       image.thumbnail(size=(max_dimension, max_dimension))
       output_image_path = os.path.join(output_folder, image_filename)
       image.save(output_image_path)
+      image_path = output_image_path
       logging.debug(f'Image too big, shrinked to {image.size}')
     elif image.width < MINIMUM_DIMENSION or image.height < MINIMUM_DIMENSION:
       if image.width < MINIMUM_DIMENSION and image.height < MINIMUM_DIMENSION:
@@ -117,6 +118,7 @@ def resize(image_path: str,
       image = Image.open(
           _pad_image(image, resize_width, resize_height, max_dimension,
                      output_image_path))
+      image_path = output_image_path
       logging.debug(f'Image too small, padded to 300px')
 
     image_paths = []

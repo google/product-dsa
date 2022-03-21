@@ -1,11 +1,26 @@
-import { StepperSelectionEvent } from '@angular/cdk/stepper';
-import { Component, OnInit } from '@angular/core';
-import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { ErrorStateMatcher } from '@angular/material/core';
-import { ComponentBase } from './components/component-base';
-import { ConfigError, ConfigService, Configuration } from './shared/config.service';
-import { CustomErrorStateMatcher } from './shared/ErrorStateMatcher';
-import { NotificatinService } from './shared/notification.service';
+/**
+ * Copyright 2022 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import {StepperSelectionEvent} from '@angular/cdk/stepper';
+import {Component, OnInit} from '@angular/core';
+import {FormArray, FormBuilder, FormGroup, Validators} from '@angular/forms';
+import {ErrorStateMatcher} from '@angular/material/core';
+import {ComponentBase} from './components/component-base';
+import {ConfigError, ConfigService, Configuration} from './shared/config.service';
+import {CustomErrorStateMatcher} from './shared/ErrorStateMatcher';
+import {NotificatinService} from './shared/notification.service';
 
 @Component({
   selector: 'app-setup',
@@ -60,17 +75,17 @@ export class SetupComponent extends ComponentBase implements OnInit {
             let control = target_control.get(parts[2]);
             if (control) {
               // TODO: for some reason it's not working (no error displayed)
-              control.setErrors({ invalid: error_obj.error });
+              control.setErrors({invalid: error_obj.error});
             }
           }
         } else {
           let control = this.form.get(error_obj.field);
           if (control) {
-            control.setErrors({ invalid: error_obj.error });
+            control.setErrors({invalid: error_obj.error});
           }
         }
       }
-      let error: any = { error: '' };
+      let error: any = {error: ''};
       for (var msg of errors) {
         error.error += (msg['field'] + ': ' + msg['error'] + '\n');
       }

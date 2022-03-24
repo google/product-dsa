@@ -113,7 +113,8 @@ export class SetupComponent extends ComponentBase implements OnInit {
       skip_additional_images: false,
       max_image_count: null,
       product_description: '',
-      product_description_as_fallback_only: false
+      product_description_as_fallback_only: false,
+      image_filter: ''
     };
     return this.fb.group(group_spec);
   }

@@ -287,6 +287,40 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- image filter -->
+          <div class="row my-2">
+            <div class="col-10">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Image filter</mat-label>
+                <input matInput formControlName="image_filter" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-hint>Filter for image file urls to include or exclude.</mat-hint>
+                <mat-error>{{ target.get('image_filter')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+            <div class="col-2" style="padding-top: 15px;">
+              <app-popover [content]="popoverContent_filter" mode="toggle">
+                <mat-icon matSuffix style="vertical-align: bottom; margin-left: 5px; cursor: pointer;">
+                  help_outline</mat-icon>
+              </app-popover>
+              <ng-template #popoverContent_filter>
+                <div style="width: 300px">
+                  Filter allows you to include or exclude image by a mask (or pattern) applied to its name.
+                  By default (empty filter) all images are included.<br>
+                  You can use multiple filters separated with ";" symbol.
+                  Each filter is either inclusive or exclusive. The latter starts with "!" symbol.
+                  Filters are applied consequently. If an url was excluded by a fitler it can be include with a following filter.
+                  So the order of filters is important.<br>
+                  <br>
+                  Examples:
+                  <ul>
+                    <li>"!*.gif" - exclude all GIF files</li>
+                    <li>"*_big.*;!*.gif" - include all files ending with "_big" and exlude all GIFs from them</li>
+                  </ul>
+                </div>
+              </ng-template>
+            </div>
+          </div>
           <!-- ad_description_template -->
           <div class="row my-2">
             <div class="col-10">
@@ -294,17 +328,19 @@
                 <mat-label>Ad description template</mat-label>
                 <input matInput formControlName="ad_description_template" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields from
+                <mat-hint>Template for ad descriptions using fields from adcustomizer feed. You can use any fields
+                  from
                   the feed as {{ '{' }}field}</mat-hint>
                 <mat-error>{{ target.get('ad_description_template')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
             <div class="col-2" style="padding-top: 15px;">
-              <app-popover [content]="popoverContent" mode="toggle">
+
+              <app-popover [content]="popoverContent_template" mode="toggle">
                 <mat-icon matSuffix style="vertical-align: bottom; margin-left: 5px; cursor: pointer;">
                   help_outline</mat-icon>
               </app-popover>
-              <ng-template #popoverContent>
+              <ng-template #popoverContent_template>
                 <div style="width: 300px">
                   The fields inside curly brackets will be expanded to standard ad customizers syntax.
                   But you can always use ad customizers syntax directly: {{'{'}}=feedname.feedatribute:&lt;default
@@ -319,7 +355,6 @@
                     routerLink="/products">Products</a> page)
                 </div>
               </ng-template>
-
             </div>
           </div>
           <!-- product_description -->

@@ -14,11 +14,84 @@
 # limitations under the License.
 import csv
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from app.context import ContextOptions
 from common.config_utils import Config, ConfigTarget
 from app.main import Context
 from app.campaign_mgr import CampaignMgr, AdCustomizerGenerator
+
+def get_products_data():
+  return [{
+    "custom_description":
+        "",
+    "data_date":
+        "2021-12-15",
+    "latest_date":
+        "2021-12-15",
+    "product_id":
+        "online:ru:RU:145155873",
+    "merchant_id":
+        "123",
+    "offer_id":
+        "145155873",
+    "title":
+        "Wi-Fi router Keenetic 4G KN-1211",
+    "description":
+        "Интернет-центр Keenetic 4G KN-1211- компактный роутер, поддерживающий IPv6 и Wi-Fi стандарта 802.11 b/g/n, подключается к сетям 3G, 4G/LTE посредством USB-модема. Работает на частоте 2.5 ГГц с предельной скоростью передачи данных 300 Мбит/с.",
+    "link":
+        "link",
+    "image_link":
+        "image_link",
+    "additional_image_links": ["additional_image_link"],
+    "content_language":
+        "en",
+    "target_country":
+        None,
+    "brand":
+        "MYKA",
+    "color":
+        "Gold",
+    "item_group_id":
+        "110011792",
+    "google_product_category_path":
+        None,
+    "product_type":
+        "Customer > Электроника > Ноутбуки и периферия для компьютеров > Периферия для компьютеров > Сетевое оборудование",
+    "channel":
+        "online",
+    "adult":
+        None,
+    "availability_date":
+        None,
+    "condition":
+        "new",
+    "price": {
+        "value": "2890",
+        "currency": "RUB"
+    },
+    "sale_price": {
+        "value": "2890",
+        "currency": "RUB"
+    },
+    "sale_price_effective_start_date":
+        None,
+    "sale_price_effective_end_date":
+        None,
+    "in_stock":
+        "1",
+    "custom_labels": {
+        "label_0": "",
+        "label_1": "msk-spb",
+        "label_2": "PDSA_PRODUCT",
+        "label_3": "",
+        "label_4": ""
+    },
+    "discount":
+        "0",
+    "pdsa_custom_labels":
+        "product_145155873"
+  }]
+
 
 @dataclass
 class SchemaField:
@@ -80,53 +153,8 @@ class Products:
       yield ProductItem(obj)
 
 
-def get_products():
-  return Products([
-      {
-          "custom_description": "",
-          "data_date": "2021-12-15",
-          "latest_date": "2021-12-15",
-          "product_id": "online:ru:RU:145155873",
-          "merchant_id": "123",
-          "offer_id": "145155873",
-          "title": "Wi-Fi router Keenetic 4G KN-1211",
-          "description": "Интернет-центр Keenetic 4G KN-1211- компактный роутер, поддерживающий IPv6 и Wi-Fi стандарта 802.11 b/g/n, подключается к сетям 3G, 4G/LTE посредством USB-модема. Работает на частоте 2.5 ГГц с предельной скоростью передачи данных 300 Мбит/с.",
-          "link": "link",
-          "image_link": "image_link",
-          "additional_image_links": ["additional_image_link"],
-          "content_language": "en",
-          "target_country": None,
-          "brand": "MYKA",
-          "color": "Gold",
-          "item_group_id": "110011792",
-          "google_product_category_path": None,
-          "product_type": "Ozon Express > Электроника > Ноутбуки и периферия для компьютеров > Периферия для компьютеров > Сетевое оборудование",
-          "channel": "online",
-          "adult": None,
-          "availability_date": None,
-          "condition": "new",
-          "price": {
-              "value": "2890",
-              "currency": "RUB"
-          },
-          "sale_price": {
-              "value": "2890",
-              "currency": "RUB"
-          },
-          "sale_price_effective_start_date": None,
-          "sale_price_effective_end_date": None,
-          "in_stock": "1",
-          "custom_labels": {
-              "label_0": "",
-              "label_1": "msk-spb",
-              "label_2": "PDSA_PRODUCT",
-              "label_3": "",
-              "label_4": ""
-          },
-          "discount": "0",
-          "pdsa_custom_labels": "product_145155873"
-      },
-  ])
+def get_products(products: Union[List,None] = None):
+  return Products(products if products else get_products_data())
 
 
 def test_generate_csv(tmpdir):
@@ -144,3 +172,33 @@ def test_generate_csv(tmpdir):
     for row in reader:
       print(row)
 
+def test_filter_images(tmpdir):
+  config = Config()
+  target = ConfigTarget()
+  target.image_filter = '*1*.jpg;!*_s.jpg;'  # include product1*.jpg, exclude product1_s.jpg
+  target.init_image_filter()
+  context = Context(
+      config, target, None,
+      ContextOptions(tmpdir, "images", images_dry_run=True, images_on_gcs=False))
+  context.gcs_bucket = None
+  products = get_products_data()
+  products[0]["image_link"] = 'http://customer.shop/products/product1.jpg'
+  products[0]["additional_image_links"] = [
+      'http://customer.shop/products/product1_s.jpg',
+      'http://customer.shop/products/product1_b.jpg',
+      'http://customer.shop/products/product1_m.jpg'
+  ]
+  products_rs = get_products(products)
+  compaign_mgr = CampaignMgr(context, products_rs)
+  product = next(iter(products_rs))
+  files_md = {}
+  # act
+  images = compaign_mgr._get_images(product, 1200, files_md)
+  # assert
+  pid = products[0]['offer_id']
+  assert files_md[f'{pid}_product1_ls.jpg']
+  assert files_md[f'{pid}_product1_sq.jpg']
+  assert files_md[f'{pid}_product1_b_ls.jpg']
+  assert files_md[f'{pid}_product1_b_sq.jpg']
+  assert files_md[f'{pid}_product1_m_ls.jpg']
+  assert files_md[f'{pid}_product1_m_sq.jpg']

@@ -144,25 +144,29 @@ export class ConfigComponent extends ComponentBase implements OnInit {
   }
 
   addTarget() {
-    let group_spec = {  // NOTE: specify type ConfigurationTarget to validate fields
-      name: ['', [Validators.required]],  // TODO: validator for name format (only valid symbols)
+    let group_spec = {
+      // NOTE: specify type ConfigurationTarget to validate fields
+      name: [
+        '', [Validators.required]
+      ],  // TODO: validator for name format (only valid symbols)
       merchant_id: '',
       country_code: '',
       product_campaign_name: '',
       category_campaign_name: '',
-      dsa_website: '', //
-      dsa_lang: '',   //
-      page_feed_name: '', //
-      page_feed_spreadsheetid: '', //
-      adcustomizer_feed_name: '', //
-      adcustomizer_spreadsheetid: '', //
-      ad_description_template: '', //
+      dsa_website: '',                 //
+      dsa_lang: '',                    //
+      page_feed_name: '',              //
+      page_feed_spreadsheetid: '',     //
+      adcustomizer_feed_name: '',      //
+      adcustomizer_spreadsheetid: '',  //
+      ad_description_template: '',     //
       category_ad_descriptions: null,
       max_image_dimension: null,
       skip_additional_images: false,
       max_image_count: null,
       product_description: '',
-      product_description_as_fallback_only: false
+      product_description_as_fallback_only: false,
+      image_filter: ''
     };
     this.targets.push(this.fb.group(group_spec));
     this.dataSourceLabelDescs.push(new MatTableDataSource<any>([]));

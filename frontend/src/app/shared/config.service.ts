@@ -39,6 +39,7 @@ export interface ConfigurationTarget {
   max_image_count: number | null;
   country_code: string;
   product_description: string;
+  image_filter: string;
 }
 export type TargetNames = keyof ConfigurationTarget;
 export interface Configuration {

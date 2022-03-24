@@ -26,7 +26,7 @@ import logging
 from datetime import datetime
 import concurrent.futures
 from urllib import parse
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from common import file_utils, image_utils, sheets_utils
 from forex_python.converter import CurrencyCodes
 from app.context import Context
@@ -503,7 +503,8 @@ class CampaignMgr:
       logging.warning(
           f'[CampaignMgr] using images_dry_run mode (images won\'t be downloaded and processed)'
       )
-    gcs_files_metadata = {}   # a map from file name to datetime of last-modified timestamp
+    gcs_files_metadata = {
+    }  # a map from file name to datetime of last-modified timestamp
     if self._context.images_on_gcs and not self._context.images_dry_run:
       # fetch all blobs for images on GCS to optimize downloading
       gcs_files_metadata1 = file_utils.get_blobs_metadata(
@@ -514,6 +515,7 @@ class CampaignMgr:
           **gcs_files_metadata1,
           **gcs_files_metadata2
       }  # In 3.9 it can be changed to z=x|y
+    self._context.target.init_image_filter()
 
     i = 0
     for label in self._products_by_label:
@@ -569,6 +571,20 @@ class CampaignMgr:
     local_path = os.path.join(folder, f'{product_id}_{file_name}')
     return local_path
 
+  def _filter_images(self, filters: List[Tuple[bool, re.Pattern]],
+                     product_images: List[str]):
+    result = []
+    for url in product_images:
+      include = True
+      for negative, pattern in filters:
+        if negative:
+          include = not pattern.match(url)
+        elif not negative:
+          include = pattern.match(url)
+      if include:
+        result.append(url)
+    return result
+
   def _get_images(self, product, max_image_dimension: int,
                   files_metadata: Dict[str, datetime]) -> List[str]:
     """Download all product images, resize them and return a list of local relative paths"""
@@ -582,14 +598,15 @@ class CampaignMgr:
       product_images += product.additional_image_links
     # remove url duplicates from image list
     product_images = list(dict.fromkeys(product_images))
-    # remove file name duplicates from the list
+    if self._context.target.image_filter_re:
+      product_images = self._filter_images(self._context.target.image_filter_re, product_images)
+    # generate a map of urls to local file names
     product_images_to_urls = {
         self._generate_filepath_for_image_url(uri, download_folder,
                                               product.offer_id): uri
         for uri in product_images
     }
-    # product_images_to_urls[self._generate_filepath_for_image_url(
-    #     product.image_link, download_folder)] = product.image_link
+    # limit max number of images
     if self._context.target.max_image_count and self._context.target.max_image_count > 0:
       product_images = product_images[:self._context.target.max_image_count]
     logging.debug(product_images)

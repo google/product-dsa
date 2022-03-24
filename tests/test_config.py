@@ -58,7 +58,8 @@ def test_config_parse(tmpdir):
           "targets": [{
               "name": "target1",
               "merchant_id": "child",
-              "dsa_website": "www.example.com"
+              "dsa_website": "www.example.com",
+              "image_filter": "!*.gif"
           }, {}]
       }, tmpdir)
   assert config.merchant_id == 'root'
@@ -71,6 +72,7 @@ def test_config_parse(tmpdir):
   assert target.name == "target1"
   assert target.merchant_id == "child"
   assert target.dsa_website == "www.example.com"
+  assert target.image_filter == "!*.gif"
   target = config.targets[1]
   assert target.name == ""
   assert target.merchant_id == ""

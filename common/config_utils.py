@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
-from typing import Callable, List
+from typing import Callable, List, Tuple
 from common import auth, file_utils
 import os
 import json
@@ -91,6 +91,8 @@ class ConfigTarget(ConfigItemBase):
   """Static description for all product-level ads. Still can be combined with adcustomizers"""
   product_description_as_fallback_only: bool = False
   """Use static description (product_description) only if product description exceeds maximum ad description length"""
+  image_filter: str = ''
+  image_filter_re: List[Tuple[bool, re.Pattern]] = []
 
   def validate(self, generation=False) -> List:
     errors = []
@@ -126,6 +128,19 @@ class ConfigTarget(ConfigItemBase):
                 'max_image_dimension should either empty or a non negative integer'
           })
     return errors
+
+  def init_image_filter(self):
+    if self.image_filter:
+      for expr in self.image_filter.split(';'):
+        expr = expr.strip()
+        if not expr:
+          continue
+        negative = expr.startswith('!')
+        if negative:
+          expr = expr[1:]
+        pattern = re.compile(
+            expr.replace('.', '\.').replace('*', '.*').replace('?', '.?'))
+        self.image_filter_re.append((negative,pattern))
 
 
 class Config(ConfigItemBase):
@@ -216,7 +231,8 @@ class Config(ConfigItemBase):
           "skip_additional_images": t.skip_additional_images,
           "max_image_count": t.max_image_count,
           "product_description": t.product_description,
-          "product_description_as_fallback_only": t.product_description_as_fallback_only
+          "product_description_as_fallback_only": t.product_description_as_fallback_only,
+          "image_filter": t.image_filter
       }
       values["targets"].append(target_json)
     return values
@@ -313,7 +329,7 @@ def find_project_id(args: argparse.Namespace):
                os.getenv('GOOGLE_CLOUD_PROJECT') or \
                os.getenv('DEVSHELL_PROJECT_ID')
   # if service account key file specified via CLI, extract project_id from it
-  if not project_id and args.service_account_file:
+  if not project_id and getattr(args, "service_account_file", ''):
     # detect project id from service account key file
     with open(args.service_account_file) as f:
       credentials = json.load(f)

@@ -35,25 +35,29 @@ export class CustomPopoverComponent implements OnInit {
   @Input()
   mode: 'toggle' | 'hover' = 'toggle';
 
-  @ViewChild(MatMenuTrigger) trigger!: MatMenuTrigger;
+  // TODO: trigger is always undefined
+  // @ViewChild(MatMenuTrigger, {read: MatMenuTrigger, static: false})
+  // trigger!: MatMenuTrigger;
 
   constructor(private readonly elementRef: ElementRef) { }
 
   ngOnInit(): void {
-    if (this.mode === 'toggle') {
-      this.trigger._handleClick = () => { };
-      this.elementRef.nativeElement.addEventListener('click', () => this.trigger.toggleMenu());
-    } else {
-      this.elementRef.nativeElement.addEventListener('mouseenter', () => this.trigger.openMenu());
-      this.elementRef.nativeElement.addEventListener('mouseleave', () => this.trigger.closeMenu());
-    }
+    // if (this.mode === 'toggle') {
+    //   this.trigger._handleClick = () => { };
+    //   this.elementRef.nativeElement.addEventListener('click', () => this.trigger.toggleMenu());
+    // } else {
+    //   this.elementRef.nativeElement.addEventListener('mouseenter', () => this.trigger.openMenu());
+    //   this.elementRef.nativeElement.addEventListener('mouseleave', () => this.trigger.closeMenu());
+    // }
   }
 
-  open(): void {
-    this.trigger.openMenu();
-  }
+  // open(): void {
+  //   this.trigger.openMenu();
+  // }
 
-  close(): void {
-    this.trigger.closeMenu();
-  }
+  // close(): void {
+  //   this.trigger.closeMenu();
+  // }
 }
+
+

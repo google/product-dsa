@@ -294,7 +294,7 @@
                 <mat-label>Image filter</mat-label>
                 <input matInput formControlName="image_filter" [readonly]="editable ? false : true"
                   [errorStateMatcher]="matcher">
-                <mat-hint>Filter for image file urls to include or exclude.</mat-hint>
+                <mat-hint>Filter for image file urls to exclude.</mat-hint>
                 <mat-error>{{ target.get('image_filter')?.getError('invalid') }} </mat-error>
               </mat-form-field>
             </div>
@@ -305,17 +305,13 @@
               </app-popover>
               <ng-template #popoverContent_filter>
                 <div style="width: 300px">
-                  Filter allows you to include or exclude image by a mask (or pattern) applied to its name.
+                  Filter allows you to exclude image by a mask (or pattern) applied to its name.
                   By default (empty filter) all images are included.<br>
                   You can use multiple filters separated with ";" symbol.
-                  Each filter is either inclusive or exclusive. The latter starts with "!" symbol.
-                  Filters are applied consequently. If an url was excluded by a fitler it can be include with a following filter.
-                  So the order of filters is important.<br>
                   <br>
                   Examples:
                   <ul>
-                    <li>"!*.gif" - exclude all GIF files</li>
-                    <li>"*_big.*;!*.gif" - include all files ending with "_big" and exlude all GIFs from them</li>
+                    <li>"*.gif" - exclude all GIF files</li>
                   </ul>
                 </div>
               </ng-template>

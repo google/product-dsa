@@ -135,13 +135,16 @@ class ConfigTarget(ConfigItemBase):
         expr = expr.strip()
         if not expr:
           continue
-        negative = expr.startswith('!')
-        if negative:
-          expr = expr[1:]
+        # Commenting this out because we'll only support excluding images for now
+        # because it's confusing how different filters will apply together
+        # negative = expr.startswith('!')
+        # if negative:
+        #   expr = expr[1:]
         pattern = re.compile(
             expr.replace('.', '\.').replace('*', '.*').replace('?',
-              '.?').replace('%', '.%').replace('(', '.(').replace(')', '.)'))
-        self.image_filter_re.append((negative,pattern))
+              '.?').replace('(', '.(').replace(')', '.)'))
+        negative = True
+        self.image_filter_re.append((negative ,pattern))
 
 
 class Config(ConfigItemBase):

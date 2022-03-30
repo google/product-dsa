@@ -579,8 +579,11 @@ class CampaignMgr:
       for negative, pattern in filters:
         if negative:
           include = not pattern.match(url)
-        elif not negative:
-          include = pattern.match(url)
+          if not include:
+            # break to avoid it getting overriden by the next filter
+            break
+        # if not negative:
+        #   include = pattern.match(url)
       if include:
         result.append(url)
     return result

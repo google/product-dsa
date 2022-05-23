@@ -175,7 +175,7 @@ def test_generate_csv(tmpdir):
 def test_filter_images(tmpdir):
   config = Config()
   target = ConfigTarget()
-  target.image_filter = '*1*.jpg;!*_s.jpg;'  # include product1*.jpg, exclude product1_s.jpg
+  target.image_filter = '*(big)*.jpg;*%20(small).jpg;'  # include product1*.jpg, exclude product1_s.jpg
   target.init_image_filter()
   context = Context(
       config, target, None,
@@ -184,9 +184,9 @@ def test_filter_images(tmpdir):
   products = get_products_data()
   products[0]["image_link"] = 'http://customer.shop/products/product1.jpg'
   products[0]["additional_image_links"] = [
-      'http://customer.shop/products/product1_s.jpg',
-      'http://customer.shop/products/product1_b.jpg',
-      'http://customer.shop/products/product1_m.jpg'
+      'http://customer.shop/products/product1%20(small).jpg',
+      'http://customer.shop/products/product1%20(big).jpg',
+      'http://customer.shop/products/product1%20(medium).jpg'
   ]
   products_rs = get_products(products)
   compaign_mgr = CampaignMgr(context, products_rs)
@@ -195,10 +195,12 @@ def test_filter_images(tmpdir):
   # act
   images = compaign_mgr._get_images(product, 1200, files_md)
   # assert
+  print(files_md)
   pid = products[0]['offer_id']
   assert files_md[f'{pid}_product1_ls.jpg']
   assert files_md[f'{pid}_product1_sq.jpg']
-  assert files_md[f'{pid}_product1_b_ls.jpg']
-  assert files_md[f'{pid}_product1_b_sq.jpg']
-  assert files_md[f'{pid}_product1_m_ls.jpg']
-  assert files_md[f'{pid}_product1_m_sq.jpg']
+  assert files_md[f'{pid}_product1%20(medium)_ls.jpg']
+  assert files_md[f'{pid}_product1%20(medium)_sq.jpg']
+  # and nothing more
+  assert len(files_md) == 6
+

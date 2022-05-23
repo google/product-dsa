@@ -142,7 +142,7 @@ class ConfigTarget(ConfigItemBase):
         #   expr = expr[1:]
         pattern = re.compile(
             expr.replace('.', '\.').replace('*', '.*').replace('?',
-              '.?').replace('(', '.(').replace(')', '.)'))
+              '.?').replace('(', '\(').replace(')', '\)'))
         negative = True
         self.image_filter_re.append((negative ,pattern))
 

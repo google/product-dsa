@@ -321,8 +321,6 @@ def deploy(config: config_utils.Config, credentials: credentials.Credentials,
                                  data_transfer, transfer_config)
     logging.info('Data Transfer has completed')
 
-  # ads_config = data_transfer.create_google_ads_transfer(ads_customer_id, args.dataset_id)
-
   if not config.targets:
     logging.warning('No targets found in configuration, exiting')
     exit()

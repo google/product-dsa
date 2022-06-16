@@ -537,10 +537,13 @@ def validate_setup():
   # ok, config exists, check its content
   errors = config.validate(generation=False, validate_targets=False)
   if len(errors):
-    msg = "\n".join([e.error for e in errors])
+    message = ''
+    for err in errors:
+      message += (err['field'] + ': ' + err['error'] + '\n')
     return return_api_config_error(
         ApplicationError(reason=ApplicationErrorReason.NOT_INITIALIZED,
-                         description="Application is not initialized: " + msg))
+                         description="Application is not initialized: " +
+                         message))
   log.append("Configuratoin has no errors")
 
   # ok, config seems correct (at least for DT), check BQ dataset
@@ -781,7 +784,7 @@ def post_config():
   if g_setup_lock.is_locked():
     return jsonify({"error": "Operation is forbidden as setup is executing"
                    }), 403
-                   
+
   new_config = request.get_json(cache=False)
   _save_config(new_config)
 

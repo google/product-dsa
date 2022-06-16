@@ -11,17 +11,16 @@ Make sure your have Admin role in GMC.
 
 Make sure the user running the installation is an Owner in GCP project.
 
-Make sure you have access to this Google Group https://groups.google.com/a/professional-services.goog/g/solutions_product-dsa-readers
-
 
 ## Clone repository
 
 * Go to https://professional-services.googlesource.com/new-password and copy code
 * Execute the code in Cloud Shell
-* `git clone https://professional-services.googlesource.com/solutions/product-dsa`
+* `git clone https://github.com/google/product-dsa.git`
 
 If you want to get a non-default branch (for example with a dev or old versions) then:
-* `git clone -b v2 https://professional-services.googlesource.com/solutions/product-dsa`
+* `git clone -b v2 https://github.com/google/product-dsa.git`
+
 
 ## Prepare parameters
 
@@ -30,8 +29,8 @@ If you want to get a non-default branch (for example with a dev or old versions)
 
 
 ## Install GAE application
+Go into a folder with cloned repository and run: `install.sh`
 
-Run `install.sh`
 
 ### Troubleshooting
 
@@ -50,6 +49,7 @@ Grant user `${PROJECT_ID}@appspot.gserviceaccount.com` Standard acceess permissi
 ## Grant other users access
 To grant access permissions for additional users one should go to https://console.cloud.google.com/security/iap 
 and create principals with "IAP-secured Web App User" role.
+If you use Google Workspace then it can make sense to add the whole domain as IAP principal.
 
 
 ## Setup

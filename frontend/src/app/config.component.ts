@@ -297,6 +297,7 @@ export class ConfigComponent extends ComponentBase implements OnInit {
         let details = response.errors.map(e => e.field + ": " + e.error).join("\n")
         let msg = "Application setup seems good, but there are issues in configration settings:" + details;
         this.showLog([msg], true);
+        console.log(msg);
         this.showAlert(msg, "Success");
       } else {
         this.showAlert("Application setup seems good", "Success");

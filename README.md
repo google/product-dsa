@@ -36,7 +36,7 @@ Product DSA can generate two types of campaigns:
    - Campaigns CSV zip file
 
 ### Choose Products & Add Custom Labels
-Products that will be included in the generated campaigns need to be marked by a custom label.
+Products that will be included in the generated campaigns need to be marked by a custom label.  
 ** Note: Any custom label can be used - from custom_label_0 to custom_label_4.
 
 ##### Product-level Campaigns

@@ -513,10 +513,13 @@ def get_file_last_modified(file_path: str) -> datetime:
   return datetime.fromtimestamp(os.path.getmtime(file_path))
 
 
-class SetupExecLock:
-
-  def __init__(self, folder) -> None:
-    self.filepath = os.path.join(folder, '.setup.lock')
+class ExecLock:
+  """
+    A class for execution locks to prevent simultanious execution between processes
+    (using a lock file)
+  """
+  def __init__(self, name, folder) -> None:
+    self.filepath = os.path.join(folder, f'.{name}.lock')
     pass
 
   def release(self):

@@ -72,7 +72,8 @@ config_file_name = config_utils.get_config_url(args)
 args.config = config_file_name  # NOTE: we'll overwrite args.config in copy_config_to_cache
 config_on_gcs = config_file_name and config_file_name.startswith("gs://")
 expected_audience = ''
-g_setup_lock = file_utils.SetupExecLock(OUTPUT_FOLDER)
+g_setup_lock = file_utils.ExecLock("setup", OUTPUT_FOLDER)
+g_update_lock = file_utils.ExecLock("update", OUTPUT_FOLDER)
 
 
 
@@ -179,32 +180,41 @@ def update_feeds():
     app.logger.exception(e)
     return str(e), 401
 
-  # for API (in contrast to main) we support only ADC auth
-  credentials = _get_credentials()
-  context = Context(config, None, credentials,
-                    ContextOptions(OUTPUT_FOLDER, 'images'))
-  validation = validate_config(context)
-  logging.debug(f'update_feeds: config validated ({validation["valid"]})')
-  if not validation['valid']:
-    error = ApplicationError(
-        reason=ApplicationErrorReason.INVALID_CONFIG,
-        description=f"There errors in configuration: {validation['message']}")
-    logging.info(f"update_feeds: There errors in configuration: {validation['message']}")
-    return return_api_config_error(error)
+  if g_update_lock.is_locked():
+    logging.info('Update skipped as another update process is running')
+    return 'Update skipped as another update process is running', 200
 
-  logging.debug('Starting updating feeds for all targets')
-  for target in config.targets:
-    # NOTE: context.output_folder will be left not initialized (not joined with target),
-    # but it's OK as we aren't generating any files here
-    context.target = target
-    # Update page feed spreadsheet
-    create_or_update_page_feed(False, context)
+  try:
+    g_update_lock.acquire()
 
-    # Update adcustomizers spreadsheet
-    create_or_update_adcustomizers(False, context)
+    # for API (in contrast to main) we support only ADC auth
+    credentials = _get_credentials()
+    context = Context(config, None, credentials,
+                      ContextOptions(OUTPUT_FOLDER, 'images'))
+    validation = validate_config(context)
+    logging.debug(f'update_feeds: config validated ({validation["valid"]})')
+    if not validation['valid']:
+      error = ApplicationError(
+          reason=ApplicationErrorReason.INVALID_CONFIG,
+          description=f"There errors in configuration: {validation['message']}")
+      logging.info(f"update_feeds: There errors in configuration: {validation['message']}")
+      return return_api_config_error(error)
 
-  logging.info('All feeds for all targets were successfully updated')
-  return f"Updated feeds for all targets", 200
+    logging.debug('Starting updating feeds for all targets')
+    for target in config.targets:
+      # NOTE: context.output_folder will be left not initialized (not joined with target),
+      # but it's OK as we aren't generating any files here
+      context.target = target
+      # Update page feed spreadsheet
+      create_or_update_page_feed(False, context)
+
+      # Update adcustomizers spreadsheet
+      create_or_update_adcustomizers(False, context)
+
+    logging.info('All feeds for all targets were successfully updated')
+    return f"Updated feeds for all targets", 200
+  finally:
+    g_update_lock.release()
 
 
 def create_context(target_name: str) -> Context:

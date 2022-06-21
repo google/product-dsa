@@ -35,12 +35,6 @@ PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID | grep projectNumber | sed
 SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 GAE_LOCATION=europe-west
 
-echo -e "${COLOR}Enabling APIs...${NC}"
-gcloud services enable appengine.googleapis.com
-gcloud services enable iap.googleapis.com
-gcloud services enable cloudresourcemanager.googleapis.com
-gcloud services enable iamcredentials.googleapis.com
-
 echo -e "${COLOR}Creating App Engine...${NC}"
 
 # NOTE: despite other GCP services GAE supports only two regions: europe-west and us-central
@@ -94,6 +88,11 @@ curl -X PATCH -H "Content-Type: application/json" \
 # Grant access to the current user
 echo -e "${COLOR}Granting user $USER_EMAIL access to the app through IAP...${NC}"
 gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$USER_EMAIL" --role='roles/iap.httpsResourceAccessor'
+
+# Grant access to Pub/Sub service (for getting notifications of DT completion), in our case it's the AppEngine default service account 
+# (the same one under which the application is running)
+gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$SERVICE_ACCOUNT" --role='roles/iap.httpsResourceAccessor'
+
 # try to grant access permissions to the whole user domain (if it's not gmail),
 # we can't be sure the domain is a Workspace domain so it'll likely fail (that's OK)
 USER_DOMAIN=$(echo $USER_EMAIL | sed 's/^.*@\(.*\)/\1/')
@@ -107,5 +106,3 @@ gsutil mb -l ${GAE_LOCATION}1 -b on $GCS_BUCKET
 # set CORS on the created bucket to allow cross-site ajax requests
 printf '[{"origin": ["*"],"responseHeader": ["*"],"method": ["GET","POST","HEAD","OPTIONS"],"maxAgeSeconds": 86400}]' > cors.json
 gsutil cors set cors.json $GCS_BUCKET
-
-echo -e "\n${COLOR}Done!${NC}"

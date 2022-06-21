@@ -26,4 +26,4 @@ env_variables:
 #  LOG_LEVEL: DEBUG
 #  PYTHONPATH: .
 
-entrypoint: gunicorn -b :$PORT server.server:app --timeout 0 --workers 4
+entrypoint: gunicorn -b :$PORT server.server:app --timeout 0 --workers 2

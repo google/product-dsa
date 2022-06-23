@@ -91,7 +91,7 @@ gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member=
 
 # Grant access to Pub/Sub service (for getting notifications of DT completion), in our case it's the AppEngine default service account 
 # (the same one under which the application is running)
-gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="user:$SERVICE_ACCOUNT" --role='roles/iap.httpsResourceAccessor'
+gcloud alpha iap web add-iam-policy-binding --resource-type=app-engine --member="serviceAccount:$SERVICE_ACCOUNT" --role='roles/iap.httpsResourceAccessor'
 
 # try to grant access permissions to the whole user domain (if it's not gmail),
 # we can't be sure the domain is a Workspace domain so it'll likely fail (that's OK)

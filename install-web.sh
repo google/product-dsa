@@ -53,7 +53,10 @@ echo -e "${COLOR}Deploying app to GAE...${NC}"
 # next command often fails in new projects with "NOT_FOUND: Unable to retrieve P4SA" error, just wait and run again afterwards
 gcloud app deploy -q
 
-# Grant GAE service account with the Service Account Token Creator role so it could create GCS signed urls
+# Grant the GAE service account the Editor role
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/editor
+
+# Grant the GAE service account with the Service Account Token Creator role so it could create GCS signed urls
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SERVICE_ACCOUNT --role=roles/iam.serviceAccountTokenCreator
 
 # create IAP

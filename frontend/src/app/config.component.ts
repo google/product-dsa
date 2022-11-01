@@ -166,7 +166,8 @@ export class ConfigComponent extends ComponentBase implements OnInit {
       max_image_count: null,
       product_description: '',
       product_description_as_fallback_only: false,
-      image_filter: ''
+      image_filter: '',
+      gmc_sql_condition: ''
     };
     this.targets.push(this.fb.group(group_spec));
     this.dataSourceLabelDescs.push(new MatTableDataSource<any>([]));

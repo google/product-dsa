@@ -93,6 +93,8 @@ class ConfigTarget(ConfigItemBase):
   """Use static description (product_description) only if product description exceeds maximum ad description length"""
   image_filter: str = ''
   image_filter_re: List[Tuple[bool, re.Pattern]] = []
+  """Additional condition to filter products from GMC (as SQL expression)"""
+  gmc_sql_condition: str = ''
 
   def validate(self, generation=False) -> List:
     errors = []
@@ -236,7 +238,8 @@ class Config(ConfigItemBase):
           "max_image_count": t.max_image_count,
           "product_description": t.product_description,
           "product_description_as_fallback_only": t.product_description_as_fallback_only,
-          "image_filter": t.image_filter
+          "image_filter": t.image_filter,
+          "gmc_sql_condition": t.gmc_sql_condition
       }
       values["targets"].append(target_json)
     return values

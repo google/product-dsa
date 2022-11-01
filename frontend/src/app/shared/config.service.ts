@@ -40,6 +40,7 @@ export interface ConfigurationTarget {
   country_code: string;
   product_description: string;
   image_filter: string;
+  gmc_sql_condition: string;
 }
 export type TargetNames = keyof ConfigurationTarget;
 export interface Configuration {

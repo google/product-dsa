@@ -62,6 +62,8 @@ def create_views(bigquery_util: bigquery_utils.CloudBigQueryUtils,
   # TODO: probably the condition isn't correct (it's too specific)
   if target.country_code:
     condition += f' AND destinations[SAFE_OFFSET(0)].approved_countries[SAFE_OFFSET(0)] = \'{target.country_code}\' '
+  if target.gmc_sql_condition:
+    condition += f' AND {target.gmc_sql_condition}' 
   params = {SEARCH_CONDITIONS: condition}
   params['merchant_id'] = config.merchant_id
   params['target'] = target.name

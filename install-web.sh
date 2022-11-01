@@ -31,7 +31,8 @@ NC='\033[0m' # No Color
 PROJECT_ID=$(gcloud config get-value project 2> /dev/null)
 PROJECT_TITLE='Product DSA'
 USER_EMAIL=$(gcloud config get-value account 2> /dev/null)
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID | grep projectNumber | sed "s/.* '//;s/'//g")
+#PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID | grep projectNumber | sed "s/.* '//;s/'//g")
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="csv(projectNumber)" | tail -n 1)
 SERVICE_ACCOUNT=$PROJECT_ID@appspot.gserviceaccount.com
 GAE_LOCATION=europe-west
 

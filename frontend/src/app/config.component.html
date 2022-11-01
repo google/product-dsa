@@ -149,6 +149,20 @@
               </mat-form-field>
             </div>
           </div>
+          <!-- gmc_sql_condition -->
+          <div class="row my-2">
+            <div class="col-10 mb-3">
+              <mat-form-field appearance="outline" color="accent" class="full-width">
+                <mat-label>Additional condition for products in GMC</mat-label>
+                <input matInput formControlName="gmc_sql_condition" [readonly]="editable ? false : true"
+                  [errorStateMatcher]="matcher">
+                <mat-icon matSuffix>build</mat-icon>
+                <mat-hint>An SQL expression to additionally filter products in GMC
+                </mat-hint>
+                <mat-error>{{ target.get('gmc_sql_condition')?.getError('invalid') }} </mat-error>
+              </mat-form-field>
+            </div>
+          </div>
           <!-- page_feed_name -->
           <div class="row my-2">
             <div class="col-10">

@@ -35,7 +35,7 @@ class DataGateway:
       raise ValueError(f'Target was not specified')
     for t in self.config.targets:
       if t.name == target:
-        return
+        return t
     raise ValueError('Unknown target ' + target)
 
   def execute_sql_script(self,
